@@ -1,0 +1,149 @@
+:root {
+    /* COLOR - LIGHTMODE */
+    --tagged-primary-color: #e6e6e6;
+    --tagged-secondary-color: #cccccc;
+    --tagged-tertiary-color: #afafaf;
+
+    --tagged-primary-color-alt: #1d1d1d;
+    --tagged-secondary-color-alt: #353535;
+    --tagged-tertiary-color-alt: #555555;
+
+    --tagged-accent-color: #643aff;
+
+    --tagged-text-color: #2e2e2e;
+    --tagged-text-color-alt: #ececec;
+    --tagged-text-color-muted: #94a3b8;
+
+    --tagged-success-color: #4caf50;
+    --tagged-warning-color: #ff9800;
+    --tagged-error-color: #f44336;
+    --tagged-info-color: #5b9dd9;
+
+    --tagged-input-color: #252525;
+
+    --tagged-button-color-primary: #252525;
+    --tagged-button-color-primary-hover-color: #000000;
+    --tagged-button-primary-text-color: #ececec;
+
+    --tagged-button-color-secondary: transparent;
+    --tagged-button-secondary-text-color: #2e2e2e;
+    --tagged-button-color-secondary-hover-color: #353535;
+    --tagged-button-secondary-text-hover-color: #ececec;
+
+    --tagged-link-color: #5bb0ff;
+    --tagged-link-hover: #379eff;
+
+    --tagged-border-color: #3d3d3d;
+    --tagged-border-color-alt: #555555;
+
+    /* SURFACES */
+    --tagged-surface: #ffffff;
+    --tagged-surface-hover: #f4f6fb;
+    --tagged-surface-alt: #f8f9fb;
+    --tagged-surface-raised: rgba(255, 255, 255, 0.88);
+    --tagged-surface-card: rgba(255, 255, 255, 0.9);
+    --tagged-surface-card-footer: rgba(255, 255, 255, 0.92);
+    --tagged-surface-overlay: rgba(255, 255, 255, 0.76);
+
+    --tagged-sidebar-bg: #edf0f7;
+    --tagged-sidebar-border: rgba(17, 17, 17, 0.12);
+    --tagged-scrollbar-track: rgba(17, 17, 17, 0.04);
+    --tagged-scrollbar-thumb: rgba(17, 17, 17, 0.15);
+    --tagged-scrollbar-thumb-hover: rgba(17, 17, 17, 0.24);
+
+    /* BORDERS */
+    --tagged-border-subtle: rgba(61, 61, 61, 0.18);
+    --tagged-border-mid: rgba(61, 61, 61, 0.24);
+    --tagged-border-reg: rgba(61, 61, 61, 0.26);
+    --tagged-border-strong: rgba(61, 61, 61, 0.32);
+    --tagged-border-fine: rgba(17, 17, 17, 0.14);
+    --tagged-border-fine-mid: rgba(17, 17, 17, 0.2);
+    --tagged-border-fine-strong: rgba(17, 17, 17, 0.28);
+
+    /* SHADOWS */
+    --tagged-shadow-card: 0 18px 40px rgba(24, 24, 31, 0.08);
+    --tagged-shadow-modal: 0 1.25rem 2.5rem rgba(25, 30, 42, 0.16);
+
+    /* BACKDROP */
+    --tagged-backdrop: rgba(18, 20, 24, 0.42);
+
+    /* ICON */
+    --tagged-icon-stroke: #111111;
+
+    /* SIZES */
+    --tagged-size-xxs: 0.125rem;
+    --tagged-size-xs: 0.25rem;
+    --tagged-size-sm: 0.5rem;
+    --tagged-size-md: 1rem;
+    --tagged-size-lg: 1.5rem;
+    --tagged-size-xl: 2rem;
+    --tagged-size-xxl: 3rem;
+
+    /* SPECS */
+    --tagged-radius-sm: 4px;
+    --tagged-radius-md: 8px;
+    --tagged-radius-lg: 16px;
+    --tagged-radius-full: 9999px;
+}
+
+[data-theme="dark"] {
+    --tagged-primary-color: #16161e;
+    --tagged-secondary-color: #252535;
+    --tagged-tertiary-color: #3a3a55;
+
+    --tagged-primary-color-alt: #e0e0e8;
+    --tagged-secondary-color-alt: #c0c0d0;
+    --tagged-tertiary-color-alt: #8888a8;
+
+    --tagged-text-color: #d0d0e0;
+    --tagged-text-color-alt: #16161e;
+    --tagged-text-color-muted: #6070a0;
+
+    --tagged-input-color: #c8c8dc;
+
+    --tagged-border-color: #3a3a55;
+    --tagged-border-color-alt: #7878a8;
+
+    --tagged-button-color-primary: #c8c8dc;
+    --tagged-button-color-primary-hover-color: #ffffff;
+    --tagged-button-primary-text-color: #16161e;
+
+    --tagged-button-color-secondary: transparent;
+    --tagged-button-secondary-text-color: #d0d0e0;
+    --tagged-button-color-secondary-hover-color: #3a3a55;
+    --tagged-button-secondary-text-hover-color: #d0d0e0;
+
+    /* SURFACES */
+    --tagged-surface: #252535;
+    --tagged-surface-hover: #2e2e45;
+    --tagged-surface-alt: #1c1c2f;
+    --tagged-surface-raised: rgba(37, 37, 53, 0.92);
+    --tagged-surface-card: rgba(37, 37, 53, 0.95);
+    --tagged-surface-card-footer: rgba(37, 37, 53, 0.97);
+    --tagged-surface-overlay: rgba(37, 37, 53, 0.86);
+
+    --tagged-sidebar-bg: #1a1a2d;
+    --tagged-sidebar-border: rgba(255, 255, 255, 0.08);
+    --tagged-scrollbar-track: rgba(255, 255, 255, 0.06);
+    --tagged-scrollbar-thumb: rgba(255, 255, 255, 0.18);
+    --tagged-scrollbar-thumb-hover: rgba(255, 255, 255, 0.26);
+
+    /* BORDERS */
+    --tagged-border-subtle: rgba(255, 255, 255, 0.09);
+    --tagged-border-mid: rgba(255, 255, 255, 0.12);
+    --tagged-border-reg: rgba(255, 255, 255, 0.14);
+    --tagged-border-strong: rgba(255, 255, 255, 0.18);
+    --tagged-border-fine: rgba(255, 255, 255, 0.07);
+    --tagged-border-fine-mid: rgba(255, 255, 255, 0.12);
+    --tagged-border-fine-strong: rgba(255, 255, 255, 0.18);
+
+    /* SHADOWS */
+    --tagged-shadow-card: 0 18px 40px rgba(0, 0, 0, 0.35);
+    --tagged-shadow-modal: 0 1.25rem 2.5rem rgba(0, 0, 0, 0.5);
+
+    /* BACKDROP */
+    --tagged-backdrop: rgba(0, 0, 10, 0.72);
+
+    /* ICON */
+    --tagged-icon-stroke: #c0c0d8;
+}

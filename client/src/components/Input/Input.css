@@ -1,0 +1,41 @@
+.tagged-input-container {
+    position: relative;
+    margin: var(--tagged-size-xl) 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--tagged-size-sm);
+}
+
+.tagged-input-label {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tagged-border-color-alt);
+    transition: all 0.3s;
+}
+
+.tagged-input-label:hover {
+    cursor: text;
+}
+
+.tagged-input {
+    width: 100%;
+    padding: var(--tagged-size-sm) var(--tagged-size-md);
+    border: 2px solid var(--tagged-border-color);
+    border-radius: var(--tagged-size-xs);
+    font-size: 1rem;
+    color: var(--tagged-text-color);
+    background-color: transparent;
+    transition: all 0.3s ease;
+    outline: none;
+}
+
+.tagged-input:focus + .tagged-input-label,
+.tagged-input:not(:placeholder-shown) + .tagged-input-label {
+    top: -10px;
+    left: 0px;
+    font-size: 0.85rem;
+    color: hsl(from var(--tagged-border-color-alt) h s calc(l - 25));
+}

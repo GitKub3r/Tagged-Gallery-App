@@ -1,0 +1,27 @@
+.tagged-shell {
+    min-height: 100dvh;
+    display: flex;
+    background-color: var(--tagged-primary-color);
+}
+
+.tagged-shell-content {
+    width: 100%;
+    min-height: 100dvh;
+    padding: calc(var(--tagged-size-xl) + 0.2rem);
+}
+
+.tagged-shell-loading {
+    min-height: 100dvh;
+    display: grid;
+    place-items: center;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+@media (max-width: 900px) {
+    .tagged-shell-content {
+        padding: calc(var(--tagged-size-xxl) + var(--tagged-size-xl)) var(--tagged-size-md)
+            calc(var(--tagged-size-md) + 0.3rem);
+    }
+}

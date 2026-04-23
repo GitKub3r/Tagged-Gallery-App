@@ -1,0 +1,12 @@
+.tagged-footer {
+    width: 100%;
+    padding: var(--tagged-size-lg) 0;
+    display: flex;
+    justify-content: center;
+    position: absolute;
+    bottom: 10%;
+}
+.tagged-footer-text {
+    color: var(--tagged-border-color-alt);
+    font-weight: bold;
+}

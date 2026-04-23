@@ -1,0 +1,17 @@
+node_modules/
+package-lock.json
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+dist/
+build/
+uploads/*
+!uploads/.gitkeep
+!uploads/media/
+uploads/media/*
+!uploads/media/.gitkeep
+!uploads/thumbnails/
+uploads/thumbnails/*
+!uploads/thumbnails/.gitkeep
