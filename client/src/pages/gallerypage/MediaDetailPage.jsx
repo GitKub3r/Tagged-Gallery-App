@@ -12,10 +12,10 @@ const MAX_SUGGESTIONS = 8;
 const DESKTOP_DEFAULT_TAG_LIMIT = 6;
 const DESKTOP_COPYRIGHT_TAG_LIMIT = 3;
 const MEDIA_SWITCH_ANIMATION_MS = 320;
-const CONTAINER_AR = 16 / 9;
-const FILL_DISTORTION_THRESHOLD = 1.3;
 const DEFAULT_NEW_TAG_COLOR = "#643aff";
 const EDIT_MODAL_CLOSE_ON_SAVE_STORAGE_KEY = "tagged.mediaDetail.closeEditModalOnSave";
+const MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY = "tagged.mediaDetail.autoplay";
+const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
 
 const normalizeHexColor = (input) => {
     const raw = String(input || "").trim();
@@ -336,8 +336,15 @@ export const MediaDetailPage = () => {
     const [isTogglingFavourite, setIsTogglingFavourite] = useState(false);
     const [expandedDefaultTags, setExpandedDefaultTags] = useState(false);
     const [expandedCopyrightTags, setExpandedCopyrightTags] = useState(false);
-    // null = not yet calculated, 'fill' = stretch OK, 'blur' = contain + blurred bg.
+    // null = not yet calculated, 'blur' = contain + blurred bg (never stretch media).
     const [mediaFit, setMediaFit] = useState(null);
+    const [isDetailVideoPlaying, setIsDetailVideoPlaying] = useState(false);
+    const [mediaDetailAutoplay, setMediaDetailAutoplay] = useState(() => {
+        if (typeof window === "undefined") {
+            return false;
+        }
+        return window.localStorage.getItem(MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY) === "true";
+    });
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [isLightboxImageZoomed, setIsLightboxImageZoomed] = useState(false);
     const [lightboxImageScale, setLightboxImageScale] = useState(LIGHTBOX_MIN_ZOOM);
@@ -579,9 +586,8 @@ export const MediaDetailPage = () => {
         resetLightboxImageTransform();
     }, [mediaId]);
 
-    const computeAndSetFit = (mediaAR) => {
-        const distortion = Math.max(CONTAINER_AR / mediaAR, mediaAR / CONTAINER_AR);
-        setMediaFit(distortion <= FILL_DISTORTION_THRESHOLD ? "fill" : "blur");
+    const computeAndSetFit = () => {
+        setMediaFit("blur");
     };
 
     const handleImageLoad = (event) => {
@@ -590,7 +596,7 @@ export const MediaDetailPage = () => {
             setMediaFit("blur");
             return;
         }
-        computeAndSetFit(naturalWidth / naturalHeight);
+        computeAndSetFit();
     };
 
     const handleVideoMetadata = (event) => {
@@ -599,7 +605,7 @@ export const MediaDetailPage = () => {
             setMediaFit("blur");
             return;
         }
-        computeAndSetFit(videoWidth / videoHeight);
+        computeAndSetFit();
     };
 
     const resetDetailVideoPreview = () => {
@@ -610,10 +616,13 @@ export const MediaDetailPage = () => {
         }
 
         video.pause();
+        video.muted = true;
         video.currentTime = 0;
+        video.load();
+        setIsDetailVideoPlaying(false);
     };
 
-    const playDetailVideoPreview = async () => {
+    const playDetailVideoPreview = async ({ withAudio = false } = {}) => {
         if (!viewerIsVideo) {
             return;
         }
@@ -625,7 +634,8 @@ export const MediaDetailPage = () => {
         }
 
         try {
-            video.muted = true;
+            video.muted = !withAudio;
+            video.volume = withAudio ? 1 : 0;
             video.controls = false;
             video.currentTime = 0;
 
@@ -634,9 +644,25 @@ export const MediaDetailPage = () => {
             if (playPromise && typeof playPromise.then === "function") {
                 await playPromise;
             }
+            setIsDetailVideoPlaying(true);
         } catch {
             // Ignore hover preview playback failures.
+            setIsDetailVideoPlaying(false);
         }
+    };
+
+    const handleDetailPreviewMouseEnter = () => {
+        if (mediaDetailAutoplay) {
+            return;
+        }
+        void playDetailVideoPreview({ withAudio: false });
+    };
+
+    const handleDetailPreviewMouseLeave = () => {
+        if (mediaDetailAutoplay) {
+            return;
+        }
+        resetDetailVideoPreview();
     };
 
     const filteredMediaItems = useMemo(() => {
@@ -685,9 +711,10 @@ export const MediaDetailPage = () => {
         .toLowerCase()
         .includes("video");
     const hasSeparateThumbnail = Boolean(thumbnailUrl) && thumbnailUrl !== mediaUrl;
-    const shouldUseOriginalInViewer = isOriginalLoaded || !hasSeparateThumbnail;
+    const shouldUseOriginalInViewer = isVideo || isOriginalLoaded || !hasSeparateThumbnail;
     const viewerUrl = shouldUseOriginalInViewer ? mediaUrl : thumbnailUrl;
     const viewerIsVideo = isVideo && shouldUseOriginalInViewer;
+    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : viewerUrl;
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < filteredMediaItems.length - 1;
     const shouldShowCounter = filteredMediaItems.length > 1;
@@ -722,7 +749,7 @@ export const MediaDetailPage = () => {
                 return;
             }
 
-            computeAndSetFit(image.naturalWidth / image.naturalHeight);
+            computeAndSetFit();
         };
 
         image.onerror = () => {
@@ -737,6 +764,41 @@ export const MediaDetailPage = () => {
             isCancelled = true;
         };
     }, [viewerUrl, viewerIsVideo, mediaId]);
+
+    useEffect(() => {
+        const handleAutoplayChange = (event) => {
+            const enabled = Boolean(event?.detail?.enabled);
+            setMediaDetailAutoplay(enabled);
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem(MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY, enabled ? "true" : "false");
+            }
+            if (enabled && viewerIsVideo) {
+                void playDetailVideoPreview({ withAudio: true });
+            } else if (!enabled && viewerIsVideo) {
+                resetDetailVideoPreview();
+            }
+        };
+
+        window.addEventListener(MEDIA_DETAIL_AUTOPLAY_EVENT, handleAutoplayChange);
+
+        return () => {
+            window.removeEventListener(MEDIA_DETAIL_AUTOPLAY_EVENT, handleAutoplayChange);
+        };
+    }, [viewerIsVideo]);
+
+    useEffect(() => {
+        if (!viewerIsVideo) {
+            setIsDetailVideoPlaying(false);
+            return;
+        }
+
+        if (mediaDetailAutoplay) {
+            void playDetailVideoPreview({ withAudio: true });
+            return;
+        }
+
+        resetDetailVideoPreview();
+    }, [viewerIsVideo, viewerUrl, mediaDetailAutoplay]);
 
     useEffect(() => {
         if (!isLightboxOpen || !isVideo) {
@@ -1082,6 +1144,7 @@ export const MediaDetailPage = () => {
 
         resetLightboxImageTransform();
         setIsLightboxOpen(false);
+        resetDetailVideoPreview();
     };
 
     const toggleLightboxImageZoom = () => {
@@ -1850,13 +1913,13 @@ export const MediaDetailPage = () => {
                     <div
                         className="tagged-media-detail-viewer"
                         aria-label="Selected media preview"
-                        onMouseEnter={playDetailVideoPreview}
-                        onMouseLeave={resetDetailVideoPreview}
+                        onMouseEnter={handleDetailPreviewMouseEnter}
+                        onMouseLeave={handleDetailPreviewMouseLeave}
                     >
-                        {viewerUrl && !viewerIsVideo && mediaFit === "blur" && (
+                        {viewerBlurBackgroundUrl && mediaFit === "blur" && (
                             <div
                                 className="tagged-media-detail-viewer-blur-bg"
-                                style={{ backgroundImage: `url(${viewerUrl})` }}
+                                style={{ backgroundImage: `url(${viewerBlurBackgroundUrl})` }}
                                 aria-hidden="true"
                             />
                         )}
@@ -1872,11 +1935,15 @@ export const MediaDetailPage = () => {
                                     muted
                                     playsInline
                                     preload="metadata"
+                                    poster={thumbnailUrl || undefined}
                                     onLoadedMetadata={handleVideoMetadata}
-                                    onMouseEnter={playDetailVideoPreview}
-                                    onMouseLeave={resetDetailVideoPreview}
+                                    onPlay={() => setIsDetailVideoPlaying(true)}
+                                    onPause={() => setIsDetailVideoPlaying(false)}
+                                    onEnded={() => setIsDetailVideoPlaying(false)}
+                                    onMouseEnter={handleDetailPreviewMouseEnter}
+                                    onMouseLeave={handleDetailPreviewMouseLeave}
                                     loop={true}
-                                    style={{ objectFit: mediaFit === "fill" ? "fill" : "contain" }}
+                                    style={{ objectFit: "contain" }}
                                 />
                             ) : (
                                 <img
@@ -1885,7 +1952,7 @@ export const MediaDetailPage = () => {
                                     src={viewerUrl}
                                     alt={currentMedia.displayname || currentMedia.filename || "Media"}
                                     onLoad={handleImageLoad}
-                                    style={{ objectFit: mediaFit === "fill" ? "fill" : "contain" }}
+                                    style={{ objectFit: "contain" }}
                                 />
                             )
                         ) : (
@@ -1903,7 +1970,7 @@ export const MediaDetailPage = () => {
                             />
                         )}
 
-                        {isVideo ? (
+                        {isVideo && !isDetailVideoPlaying ? (
                             <span className="tagged-media-detail-play-badge" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" className="tagged-media-detail-play-icon" aria-hidden="true">
                                     <path d="M8 6.8v10.4c0 .8.9 1.3 1.6.9l8.5-5.2c.7-.4.7-1.4 0-1.8L9.6 5.9c-.7-.4-1.6.1-1.6.9Z" />

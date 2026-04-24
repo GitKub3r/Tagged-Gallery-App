@@ -8,6 +8,8 @@ import "./Sidebar.css";
 const OPEN_UPLOAD_EVENT = "tagged:open-upload";
 const GENERAL_FILTER_COMMAND_EVENT = "tagged:general-filter-command";
 const GENERAL_FILTER_STATE_EVENT = "tagged:general-filter-state";
+const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
+const MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY = "tagged.mediaDetail.autoplay";
 
 const navItems = [
     {
@@ -71,6 +73,12 @@ export const Sidebar = () => {
     const [allTagNames, setAllTagNames] = useState([]);
     const [tagPanelSearch, setTagPanelSearch] = useState("");
     const [generalMediaTypeFilter, setGeneralMediaTypeFilter] = useState("all");
+    const [mediaDetailAutoplay, setMediaDetailAutoplay] = useState(() => {
+        if (typeof window === "undefined") {
+            return false;
+        }
+        return window.localStorage.getItem(MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY) === "true";
+    });
     const navigate = useNavigate();
     const location = useLocation();
     const isMediaDetailView = Boolean(useMatch("/gallery/:mediaId"));
@@ -84,7 +92,7 @@ export const Sidebar = () => {
     const isFavouritesView = location.pathname.startsWith("/favourites");
     const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView || isAlbumDetailView;
     const shouldShowTagPanel = !isMetadataView && !isLegacyTagsView && !isDashboardView;
-    const shouldShowGeneralFilters = isGalleryView || isFavouritesView || isAlbumDetailView;
+    const shouldShowGeneralFilters = !isMediaDetailView && (isGalleryView || isFavouritesView || isAlbumDetailView);
     const isUsersView = location.pathname.startsWith("/users");
     const { user, logout, fetchWithAuth } = useAuth();
     const {
@@ -223,6 +231,17 @@ export const Sidebar = () => {
         window.setTimeout(() => {
             setIsThemeAnimating(false);
         }, 220);
+    };
+
+    const handleToggleMediaDetailAutoplay = () => {
+        const next = !mediaDetailAutoplay;
+        setMediaDetailAutoplay(next);
+        window.localStorage.setItem(MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY, next ? "true" : "false");
+        window.dispatchEvent(
+            new CustomEvent(MEDIA_DETAIL_AUTOPLAY_EVENT, {
+                detail: { enabled: next },
+            }),
+        );
     };
 
     return (
@@ -452,6 +471,27 @@ export const Sidebar = () => {
                                     title="Show only admin users"
                                 >
                                     <span>Admin</span>
+                                </button>
+                            </div>
+                        </section>
+                    ) : null}
+
+                    {user?.type !== "admin" && isMediaDetailView ? (
+                        <section className="tagged-sidebar-general-filters" aria-label="Media detail options">
+                            <div className="tagged-sidebar-general-filters-header tagged-sidebar-media-detail-header">
+                                <span className="tagged-sidebar-general-filters-title">Media detail</span>
+                                <button
+                                    type="button"
+                                    className={`tagged-sidebar-media-detail-toggle${mediaDetailAutoplay ? " is-active" : ""}`}
+                                    onClick={handleToggleMediaDetailAutoplay}
+                                    role="switch"
+                                    aria-checked={mediaDetailAutoplay}
+                                    aria-label={`Autoplay ${mediaDetailAutoplay ? "enabled" : "disabled"}`}
+                                    title={`Autoplay ${mediaDetailAutoplay ? "enabled" : "disabled"}`}
+                                >
+                                    <span className="tagged-sidebar-media-detail-toggle-track" aria-hidden="true">
+                                        <span className="tagged-sidebar-media-detail-toggle-thumb" />
+                                    </span>
                                 </button>
                             </div>
                         </section>
