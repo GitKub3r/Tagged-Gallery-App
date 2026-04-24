@@ -71,17 +71,20 @@ export const Sidebar = () => {
     const [allTagNames, setAllTagNames] = useState([]);
     const [tagPanelSearch, setTagPanelSearch] = useState("");
     const [generalMediaTypeFilter, setGeneralMediaTypeFilter] = useState("all");
-    const [hasAnyGeneralActiveFilter, setHasAnyGeneralActiveFilter] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const isMediaDetailView = Boolean(useMatch("/gallery/:mediaId"));
     const isMetadataView = Boolean(useMatch("/metadata"));
+    const isDashboardView = Boolean(useMatch("/dashboard"));
     const isLegacyTagsView = Boolean(useMatch("/tags"));
     const isTagsView = isMetadataView || isLegacyTagsView;
     const isAlbumsView = Boolean(useMatch("/albums"));
-    const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView;
-    const isGeneralFiltersDisabled =
-        !location.pathname.startsWith("/gallery") && !location.pathname.startsWith("/favourites");
+    const isAlbumDetailView = Boolean(useMatch("/albums/:albumId"));
+    const isGalleryView = location.pathname.startsWith("/gallery");
+    const isFavouritesView = location.pathname.startsWith("/favourites");
+    const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView || isAlbumDetailView;
+    const shouldShowTagPanel = !isMetadataView && !isLegacyTagsView && !isDashboardView;
+    const shouldShowGeneralFilters = isGalleryView || isFavouritesView || isAlbumDetailView;
     const isUsersView = location.pathname.startsWith("/users");
     const { user, logout, fetchWithAuth } = useAuth();
     const {
@@ -148,7 +151,6 @@ export const Sidebar = () => {
             const detail = event?.detail || {};
 
             setGeneralMediaTypeFilter(detail.mediaTypeFilter || "all");
-            setHasAnyGeneralActiveFilter(Boolean(detail.hasAnyActiveFilter));
         };
 
         window.addEventListener(GENERAL_FILTER_STATE_EVENT, handleGeneralFilterState);
@@ -164,7 +166,7 @@ export const Sidebar = () => {
     };
 
     const handleToggleGeneralMediaType = (type) => {
-        if (isGeneralFiltersDisabled) {
+        if (!shouldShowGeneralFilters) {
             return;
         }
         window.dispatchEvent(
@@ -172,20 +174,6 @@ export const Sidebar = () => {
                 detail: {
                     type: "toggle-media-type",
                     mediaType: type,
-                },
-            }),
-        );
-    };
-
-    const handleClearAllGeneralFilters = () => {
-        if (isGeneralFiltersDisabled) {
-            return;
-        }
-
-        window.dispatchEvent(
-            new CustomEvent(GENERAL_FILTER_COMMAND_EVENT, {
-                detail: {
-                    type: "clear-all-filters",
                 },
             }),
         );
@@ -289,14 +277,18 @@ export const Sidebar = () => {
                                     className={({ isActive }) => `tagged-sidebar-link${isActive ? " is-active" : ""}`}
                                     onClick={closeMobileSidebar}
                                 >
-                                    <img src={item.icon} alt="" aria-hidden="true" />
+                                    <span
+                                        className="tagged-sidebar-icon"
+                                        style={{ "--sidebar-icon": `url(${item.icon})` }}
+                                        aria-hidden="true"
+                                    />
                                     <span>{item.label}</span>
                                 </NavLink>
                             </li>
                         ))}
                     </ul>
 
-                    {user?.type !== "admin" && allTagNames.length > 0 ? (
+                    {user?.type !== "admin" && shouldShowTagPanel && allTagNames.length > 0 ? (
                         <div className="tagged-sidebar-tag-panel">
                             <div className="tagged-sidebar-tag-panel-header">
                                 <div className="tagged-sidebar-tag-panel-header-main">
@@ -355,7 +347,6 @@ export const Sidebar = () => {
                                                     aria-pressed={isIncluded}
                                                     title={`Include tag ${tagName}`}
                                                 >
-                                                    <span className="tagged-sidebar-tag-item-dot" aria-hidden="true" />
                                                     <span className="tagged-sidebar-tag-item-label">{tagName}</span>
                                                 </div>
 
@@ -391,47 +382,44 @@ export const Sidebar = () => {
                         </div>
                     ) : null}
 
-                    {user?.type !== "admin" ? (
+                    {user?.type !== "admin" && shouldShowGeneralFilters ? (
                         <section className="tagged-sidebar-general-filters" aria-label="General media filters">
                             <div className="tagged-sidebar-general-filters-header">
                                 <span className="tagged-sidebar-general-filters-title">General filters</span>
-                                {hasAnyGeneralActiveFilter ? (
-                                    <button
-                                        type="button"
-                                        className="tagged-sidebar-clear-button"
-                                        onClick={handleClearAllGeneralFilters}
-                                        disabled={isGeneralFiltersDisabled}
-                                    >
-                                        Clear filter
-                                    </button>
-                                ) : null}
                             </div>
 
-                            <div className="tagged-sidebar-general-filters-actions">
+                            <div className="tagged-sidebar-general-filters-segmented" role="group" aria-label="Media type filters">
                                 <button
                                     type="button"
-                                    className={`tagged-sidebar-general-filter-button${generalMediaTypeFilter === "image" ? " is-active" : ""}`}
-                                    onClick={() => handleToggleGeneralMediaType("image")}
-                                    aria-pressed={generalMediaTypeFilter === "image"}
-                                    aria-label="Filter only images"
-                                    title="Show only images"
-                                    disabled={isGeneralFiltersDisabled}
+                                    className={`tagged-sidebar-segmented-filter${generalMediaTypeFilter === "all" ? " is-active" : ""}`}
+                                    onClick={() => handleToggleGeneralMediaType("all")}
+                                    aria-pressed={generalMediaTypeFilter === "all"}
+                                    aria-label="Show all media"
+                                    title="All media"
                                 >
-                                    <img src="/icons/image.svg" alt="" aria-hidden="true" />
-                                    <span>Images</span>
+                                    <img src="/icons/gallery.svg" alt="" aria-hidden="true" />
                                 </button>
 
                                 <button
                                     type="button"
-                                    className={`tagged-sidebar-general-filter-button${generalMediaTypeFilter === "video" ? " is-active" : ""}`}
+                                    className={`tagged-sidebar-segmented-filter${generalMediaTypeFilter === "image" ? " is-active" : ""}`}
+                                    onClick={() => handleToggleGeneralMediaType("image")}
+                                    aria-pressed={generalMediaTypeFilter === "image"}
+                                    aria-label="Filter only images"
+                                    title="Images"
+                                >
+                                    <img src="/icons/image.svg" alt="" aria-hidden="true" />
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className={`tagged-sidebar-segmented-filter${generalMediaTypeFilter === "video" ? " is-active" : ""}`}
                                     onClick={() => handleToggleGeneralMediaType("video")}
                                     aria-pressed={generalMediaTypeFilter === "video"}
                                     aria-label="Filter only videos and GIFs"
-                                    title="Show only videos and GIFs"
-                                    disabled={isGeneralFiltersDisabled}
+                                    title="Videos and GIFs"
                                 >
                                     <img src="/icons/video.svg" alt="" aria-hidden="true" />
-                                    <span>Videos</span>
                                 </button>
                             </div>
                         </section>
@@ -504,7 +492,11 @@ export const Sidebar = () => {
                                         }
                                         onClick={closeMobileSidebar}
                                     >
-                                        <img src={item.icon} alt="" aria-hidden="true" />
+                                        <span
+                                            className="tagged-sidebar-icon"
+                                            style={{ "--sidebar-icon": `url(${item.icon})` }}
+                                            aria-hidden="true"
+                                        />
                                         <span>{item.label}</span>
                                     </NavLink>
                                 )}

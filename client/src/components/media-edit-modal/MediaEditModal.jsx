@@ -54,8 +54,25 @@ const getRelativeLuminance = ({ r, g, b }) => {
     return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 };
 
+const toHexChannel = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+
+const mixRgbWithWhite = (rgb, amount = 0.5) => {
+    const ratio = Math.max(0, Math.min(1, amount));
+    const mix = (channel) => channel + (255 - channel) * ratio;
+    return `#${toHexChannel(mix(rgb.r))}${toHexChannel(mix(rgb.g))}${toHexChannel(mix(rgb.b))}`;
+};
+
+const isDarkThemeActive = () => {
+    if (typeof document === "undefined") {
+        return false;
+    }
+
+    return document.documentElement?.getAttribute("data-theme") === "dark";
+};
+
 const buildTagStyle = (hexColor) => {
     const rgb = getHexRgb(hexColor);
+    const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
         return {
@@ -68,7 +85,24 @@ const buildTagStyle = (hexColor) => {
     }
 
     const luminance = getRelativeLuminance(rgb);
-    const isNearWhite = luminance > 0.94;
+    const isNearWhite = luminance > 0.88;
+    const isDarkTone = luminance < 0.3;
+    const isVeryDark = luminance < 0.12;
+
+    if (darkTheme) {
+        const liftedTone = isDarkTone ? mixRgbWithWhite(rgb, isVeryDark ? 0.72 : 0.56) : rgb.hex;
+        const textColor = isNearWhite ? "#f7f9ff" : liftedTone;
+        const borderColor = isNearWhite ? "rgba(255, 255, 255, 0.72)" : `${liftedTone}BB`;
+        const backgroundColor = isNearWhite ? "rgba(255, 255, 255, 0.16)" : `${liftedTone}38`;
+
+        return {
+            backgroundColor,
+            color: textColor,
+            borderColor,
+            borderWidth: "2px",
+            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
+        };
+    }
 
     return {
         backgroundColor: `${rgb.hex}22`,

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import JSZip from "jszip";
 import { MediaCard } from "../../components/media-card/MediaCard";
@@ -172,8 +172,68 @@ const getRelativeLuminance = ({ r, g, b }) => {
     return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 };
 
+const parseScopedMediaSearchQuery = (rawQuery) => {
+    const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
+
+    if (!normalizedRaw) {
+        return {
+            authorTerms: [],
+            nameTerms: [],
+            freeTerms: [],
+        };
+    }
+
+    const tokens = normalizedRaw.split(/\s+/).filter(Boolean);
+    const authorTerms = [];
+    const nameTerms = [];
+    const freeTerms = [];
+
+    tokens.forEach((token) => {
+        if (token.startsWith("a:") || token.startsWith("author:")) {
+            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
+            if (value) {
+                authorTerms.push(value);
+            }
+            return;
+        }
+
+        if (token.startsWith("n:") || token.startsWith("name:")) {
+            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
+            if (value) {
+                nameTerms.push(value);
+            }
+            return;
+        }
+
+        freeTerms.push(token);
+    });
+
+    return {
+        authorTerms,
+        nameTerms,
+        freeTerms,
+    };
+};
+
+const toHexChannel = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+
+const mixRgbWithWhite = (rgb, amount = 0.5) => {
+    const ratio = Math.max(0, Math.min(1, amount));
+    const mix = (channel) => channel + (255 - channel) * ratio;
+    return `#${toHexChannel(mix(rgb.r))}${toHexChannel(mix(rgb.g))}${toHexChannel(mix(rgb.b))}`;
+};
+
+const isDarkThemeActive = () => {
+    if (typeof document === "undefined") {
+        return false;
+    }
+
+    return document.documentElement?.getAttribute("data-theme") === "dark";
+};
+
 const buildTagChipStyle = (hexColor) => {
     const rgb = getHexRgb(hexColor);
+    const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
         return {
@@ -186,7 +246,24 @@ const buildTagChipStyle = (hexColor) => {
     }
 
     const luminance = getRelativeLuminance(rgb);
-    const isNearWhite = luminance > 0.94;
+    const isNearWhite = luminance > 0.88;
+    const isDarkTone = luminance < 0.3;
+    const isVeryDark = luminance < 0.12;
+
+    if (darkTheme) {
+        const liftedTone = isDarkTone ? mixRgbWithWhite(rgb, isVeryDark ? 0.72 : 0.56) : rgb.hex;
+        const textColor = isNearWhite ? "#f7f9ff" : liftedTone;
+        const borderColor = isNearWhite ? "rgba(255, 255, 255, 0.72)" : `${liftedTone}BB`;
+        const backgroundColor = isNearWhite ? "rgba(255, 255, 255, 0.16)" : `${liftedTone}38`;
+
+        return {
+            backgroundColor,
+            color: textColor,
+            borderColor,
+            borderWidth: "2px",
+            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
+        };
+    }
 
     return {
         backgroundColor: `${rgb.hex}22`,
@@ -394,7 +471,14 @@ export const GalleryListItem = ({
                     <span className="tagged-gallery-list-preview-empty">No preview</span>
                 )}
 
-                {selectionMode && isSelected ? <span className="tagged-gallery-list-selection-check">✓</span> : null}
+                {selectionMode ? (
+                    <span
+                        className={`tagged-gallery-list-selection-check${isSelected ? " is-selected" : ""}`}
+                        aria-hidden="true"
+                    >
+                        <img src="/icons/check.svg" alt="" />
+                    </span>
+                ) : null}
             </div>
 
             <div className="tagged-gallery-list-main">
@@ -404,7 +488,7 @@ export const GalleryListItem = ({
 
                 <p className="tagged-gallery-list-subtitle" title={`${authorLabel} - ${mediaTagCount} tags`}>
                     <span>{authorLabel}</span>
-                    <span aria-hidden="true">•</span>
+                    <span aria-hidden="true">&bull;</span>
                     <span>{mediaTagCount === 1 ? "1 tag" : `${mediaTagCount} tags`}</span>
                 </p>
             </div>
@@ -421,7 +505,7 @@ export const GalleryListItem = ({
                             }
                             onToggleFavourite?.(media.id);
                         }}
-                        aria-label={isFavourite ? "Quitar de favoritos" : "Marcar como favorito"}
+                        aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                         aria-pressed={isFavourite}
                         disabled={isTogglingFavourite || selectionMode}
                     >
@@ -449,6 +533,67 @@ export const GalleryListItem = ({
                 ) : null}
             </div>
         </article>
+    );
+};
+
+const LazyViewportItem = ({
+    children,
+    className = "",
+    placeholderClassName = "",
+    minHeight = "0",
+    rootMargin = "180px 0px",
+}) => {
+    const hostRef = useRef(null);
+    const [hasBeenVisible, setHasBeenVisible] = useState(false);
+    const [isInView, setIsInView] = useState(false);
+
+    useEffect(() => {
+        const hostNode = hostRef.current;
+        if (!hostNode) {
+            return;
+        }
+
+        if (typeof window === "undefined" || typeof window.IntersectionObserver !== "function") {
+            setHasBeenVisible(true);
+            setIsInView(true);
+            return;
+        }
+
+        const observer = new window.IntersectionObserver(
+            (entries) => {
+                const [entry] = entries;
+                const nowInView = Boolean(entry?.isIntersecting);
+                setIsInView(nowInView);
+                if (nowInView) {
+                    setHasBeenVisible(true);
+                }
+            },
+            {
+                root: null,
+                rootMargin,
+                threshold: 0,
+            },
+        );
+
+        observer.observe(hostNode);
+        return () => observer.disconnect();
+    }, [rootMargin]);
+
+    return (
+        <div
+            ref={hostRef}
+            className={`tagged-gallery-lazy-item ${className}${hasBeenVisible ? " is-mounted" : ""}${isInView ? " is-visible" : ""}`}
+        >
+            {hasBeenVisible ? (
+                children
+            ) : (
+                <div
+                    className={`tagged-gallery-lazy-placeholder ${placeholderClassName}`}
+                    style={{ minHeight }}
+                    aria-hidden="true"
+                />
+            )}
+        </div>
     );
 };
 
@@ -774,7 +919,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const visibleMediaItems = useMemo(() => {
         const normalizedFilter = activeTagFilter.toLowerCase();
         const normalizedAuthorFilter = activeAuthorFilter.toLowerCase();
-        const normalizedSearchQuery = gallerySearchQuery.trim().toLowerCase();
+        const scopedSearch = parseScopedMediaSearchQuery(gallerySearchQuery);
         const normalizedIncludedTags = selectedIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludedTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
 
@@ -838,14 +983,29 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 return mediaTagNames.includes(normalizedFilter);
 
             }
-            if (!normalizedSearchQuery) {
+            if (
+                scopedSearch.authorTerms.length === 0 &&
+                scopedSearch.nameTerms.length === 0 &&
+                scopedSearch.freeTerms.length === 0
+            ) {
                 return true;
 
             }
             const displayName = String(media.displayname || "").toLowerCase();
             const authorName = String(media.author || "").toLowerCase();
+            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
 
-            return displayName.includes(normalizedSearchQuery) || authorName.includes(normalizedSearchQuery);
+            const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
+            if (!matchesAuthorTerms) {
+                return false;
+            }
+
+            const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
+            if (!matchesNameTerms) {
+                return false;
+            }
+
+            return scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
         });
     }, [
         orderedMediaItems,
@@ -1095,12 +1255,15 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             if (detail.type === "toggle-media-type") {
                 const requestedType = detail.mediaType;
 
+                if (requestedType === "all") {
+                    setMediaTypeFilter("all");
+                    return;
+                }
+
                 if (requestedType === "image" || requestedType === "video") {
                     handleEnableMediaTypeFilter(requestedType);
-
                 }
                 return;
-
             }
             if (detail.type === "randomize-order") {
                 handleRandomizeMediaOrder();
@@ -1117,7 +1280,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         return () => {
             window.removeEventListener(GENERAL_FILTER_COMMAND_EVENT, handleGeneralFilterCommand);
         };
-    }, [handleEnableMediaTypeFilter, handleRandomizeMediaOrder]);
+    }, [handleEnableMediaTypeFilter, handleRandomizeMediaOrder, handleClearFiltersFromToolbar]);
 
     const activateSelectionMode = (initialMediaId = null) => {
         setIsSelectionMode(true);
@@ -1364,16 +1527,22 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     };
 
     const triggerBlobDownload = (blob, filename) => {
+        if (!(blob instanceof Blob) || blob.size <= 0) {
+            throw new Error("Downloaded file is empty or invalid.");
+        }
+
         const tempUrl = URL.createObjectURL(blob);
         const tempLink = document.createElement("a");
 
         tempLink.href = tempUrl;
-        tempLink.download = filename || true;
+        tempLink.download = filename || "download";
         document.body.appendChild(tempLink);
         tempLink.click();
         tempLink.remove();
 
-        URL.revokeObjectURL(tempUrl);
+        window.setTimeout(() => {
+            URL.revokeObjectURL(tempUrl);
+        }, 60_000);
     };
 
     const fetchMediaAsBlob = async (media, { onProgress } = {}) => {
@@ -1404,8 +1573,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     totalBytes: hasTotalBytes ? totalBytes : null,
                     percent: 100,
                 });
-        } else {
             }
+        } else {
             const reader = responseBody.getReader();
             const chunks = [];
             let loadedBytes = 0;
@@ -1441,9 +1610,13 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     totalBytes: hasTotalBytes ? totalBytes : null,
                     percent: 100,
                 });
-
             }
         }
+
+        if (!(blob instanceof Blob) || blob.size <= 0) {
+            throw new Error("Downloaded media file is empty.");
+        }
+
         return {
             blob,
             filename: getDownloadFilenameForMedia(media),
@@ -1983,9 +2156,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 "Content-Type": "application/json",
             },
         });
-        const data = await parseApiResponse(response, "No se pudo cargar la galeria");
+        const data = await parseApiResponse(response, "Could not load gallery");
         if (!response.ok || !data.success) {
-            throw new Error(data.message || "No se pudo cargar la galeria");
+            throw new Error(data.message || "Could not load gallery");
         }
         // Espera { data: [...], total: N }
         return data;
@@ -2090,7 +2263,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setUploadRemaining(selectedFiles.length);
         setUploadProgressPercent(0);
         setUploadSpeedLabel(null);
-        // Mostrar toast al iniciar subida si el modal está cerrado
+        // Mostrar toast al iniciar subida si el modal esta cerrado
         if (!isUploadModalOpen) {
             showUploadToast({
                 status: "info",
@@ -2196,7 +2369,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 setUploadProgressPercent(progressValue);
                 setUploadRemaining(Math.max(0, selectedFiles.length - estimatedUploadedFiles));
                 setUploadSpeedLabel(sampleUploadSpeed(loadedBytes));
-                // Actualizar toast si el modal está cerrado
+                // Actualizar toast si el modal esta cerrado
                 if (!isUploadModalOpen) {
                     showUploadToast({
                         status: "info",
@@ -2298,17 +2471,17 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 },
             });
 
-            const data = await parseApiResponse(response, "No se pudo actualizar favorito");
+            const data = await parseApiResponse(response, "Could not update favourite");
 
             if (!response.ok || !data.success || !data.data) {
-                throw new Error(data.message || "No se pudo actualizar favorito");
+                throw new Error(data.message || "Could not update favourite");
 
             }
             setMediaItems((previous) =>
                 previous.map((item) => (item.id === mediaId ? { ...item, ...data.data } : item)),
             );
         } catch (toggleError) {
-            setError(toggleError.message || "No se pudo actualizar favorito");
+            setError(toggleError.message || "Could not update favourite");
         } finally {
             setTogglingIds((previous) => {
                 const next = new Set(previous);
@@ -2383,7 +2556,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 }
             } catch (requestError) {
                 if (!cancelled) {
-                    setError(requestError.message || "No se pudo cargar la galeria");
+                    setError(requestError.message || "Could not load gallery");
                     setMediaItems([]);
                 }
             } finally {
@@ -2789,8 +2962,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                         setGallerySuggestionOpen(false);
                                 }}
                 }
-                                placeholder="Search by name or author..."
-                                aria-label="Search media by name or author"
+                                placeholder="Search media... (tip: a:author n:name)"
+                                aria-label="Search media by name or author. Supports a:author and n:name."
                             />
 
                             {hasActiveSearch ? (
@@ -3006,37 +3179,49 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 gridViewMode === "list" ? (
                     <div className="tagged-gallery-list" aria-label="User media compact list">
                         {visibleMediaItems.map((media) => (
-                            <GalleryListItem
+                            <LazyViewportItem
                                 key={media.id}
-                                media={media}
-                                uploadsBaseUrl={UPLOADS_BASE_URL}
-                                onOpenMedia={handleOpenMediaDetail}
-                                onToggleFavourite={handleToggleFavourite}
-                                onRequestDelete={requestDeleteSingleMedia}
-                                onActivateSelectionMode={activateSelectionMode}
-                                isTogglingFavourite={togglingIds.has(media.id)}
-                                selectionMode={isSelectionMode}
-                                isSelected={selectedMediaIds.has(media.id)}
-                                onToggleSelect={toggleMediaSelection}
-                            />
+                                className="tagged-gallery-lazy-item--list"
+                                placeholderClassName="tagged-gallery-lazy-placeholder--list"
+                                minHeight="5.1rem"
+                            >
+                                <GalleryListItem
+                                    media={media}
+                                    uploadsBaseUrl={UPLOADS_BASE_URL}
+                                    onOpenMedia={handleOpenMediaDetail}
+                                    onToggleFavourite={handleToggleFavourite}
+                                    onRequestDelete={requestDeleteSingleMedia}
+                                    onActivateSelectionMode={activateSelectionMode}
+                                    isTogglingFavourite={togglingIds.has(media.id)}
+                                    selectionMode={isSelectionMode}
+                                    isSelected={selectedMediaIds.has(media.id)}
+                                    onToggleSelect={toggleMediaSelection}
+                                />
+                            </LazyViewportItem>
                         ))}
                     </div>
                 ) : (
                     <div className="tagged-gallery-grid" aria-label="User media gallery" style={{ "--tagged-grid-columns": gridColumns }}>
                         {visibleMediaItems.map((media) => (
-                            <MediaCard
+                            <LazyViewportItem
                                 key={media.id}
-                                media={media}
-                                uploadsBaseUrl={UPLOADS_BASE_URL}
-                                onToggleFavourite={handleToggleFavourite}
-                                isTogglingFavourite={togglingIds.has(media.id)}
-                                onOpenMedia={handleOpenMediaDetail}
-                                onFilterByTag={applyTagFilter}
-                                selectionMode={isSelectionMode}
-                                isSelected={selectedMediaIds.has(media.id)}
-                                onToggleSelect={toggleMediaSelection}
-                                onActivateSelectionMode={activateSelectionMode}
-                            />
+                                className="tagged-gallery-lazy-item--card"
+                                placeholderClassName="tagged-gallery-lazy-placeholder--card"
+                                minHeight="17rem"
+                            >
+                                <MediaCard
+                                    media={media}
+                                    uploadsBaseUrl={UPLOADS_BASE_URL}
+                                    onToggleFavourite={handleToggleFavourite}
+                                    isTogglingFavourite={togglingIds.has(media.id)}
+                                    onOpenMedia={handleOpenMediaDetail}
+                                    onFilterByTag={applyTagFilter}
+                                    selectionMode={isSelectionMode}
+                                    isSelected={selectedMediaIds.has(media.id)}
+                                    onToggleSelect={toggleMediaSelection}
+                                    onActivateSelectionMode={activateSelectionMode}
+                                />
+                            </LazyViewportItem>
                         ))}
                     </div>
                 )
@@ -3057,7 +3242,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 : "Select all visible media"
                 }
                     >
-                        <img src="/icons/select_all.svg" alt="" aria-hidden="true" />
+                        <img src="/icons/select-all.svg" alt="" aria-hidden="true" />
                     </button>
 
                     <button
@@ -3122,7 +3307,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 </p>
             ) : null}
 
-            {/* Upload progress toast — live while modal is dismissed */}
+            {/* Upload progress toast -- live while modal is dismissed */}
             {isUploadToastMode && isUploading ? (
                 <aside
                     className="tagged-gallery-download-toast tagged-gallery-download-toast--info tagged-gallery-upload-toast"
@@ -3131,7 +3316,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     aria-atomic="true"
                 >
                     <header className="tagged-gallery-download-toast-header">
-                        <strong>Uploading…</strong>
+                        <strong>Uploading...</strong>
                         <button
                             type="button"
                             className="tagged-gallery-download-toast-close"
@@ -3337,14 +3522,14 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         onClick={(event) => event.stopPropagation()}
                     >
                         <header className="tagged-upload-modal-header">
-                            <h2>Upload Media</h2>
+                            {!isUploading ? <h2>Upload Media</h2> : <span aria-hidden="true" />}
                             <button
                                 type="button"
                                 className="tagged-upload-modal-close"
                                 onClick={handleCloseUploadModal}
                                 aria-label="Close upload modal"
                             >
-                                ×
+                                <img src="/icons/close.svg" alt="" aria-hidden="true" />
                             </button>
                         </header>
 
@@ -3589,7 +3774,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                                 className="tagged-upload-cancel"
                                                 onClick={handleCloseUploadModal}
                                             >
-                                                Cancelar
+                                                Cancel
                                             </button>
 
                                             <button type="submit" className="tagged-upload-submit">
@@ -3620,7 +3805,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                                 {extraSelectedFilesCount > 0 ? (
                                                     <span
                                                         className="tagged-upload-selected-files-preview-count"
-                                                        aria-hidden="true"
                                                     >
                                                         +{extraSelectedFilesCount}
                                                     </span>
@@ -3658,7 +3842,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                         }}
                                         aria-label="Close selected media preview"
                                     >
-                                        ×
+                                        <img src="/icons/close.svg" alt="" aria-hidden="true" />
                                     </button>
 
                                     {totalSelectedFiles > 1 ? (
@@ -3689,70 +3873,82 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 </div>
             ) : null}
 
-            {/* Pagination bar — below grid */}
+            {/* Pagination bar -- below grid */}
             {totalMediaCount > 0 && (
                 <div className="tagged-gallery-pagination">
                     {pageSize !== "all" && (
                         <div className="tagged-gallery-pagination__nav">
                             <button
-                                className="tagged-gallery-pagination__btn"
+                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
                                 onClick={() => handlePageChange(1)}
                                 disabled={currentPage <= 1}
                                 aria-label="First page"
+                                title="First page"
                             >
-                                «
+                                <span className="tagged-gallery-pagination__double-icon tagged-gallery-pagination__double-icon--first" aria-hidden="true">
+                                    <span className="tagged-gallery-pagination__double-icon-arrow tagged-gallery-pagination__double-icon-arrow--back" />
+                                </span>
                             </button>
                             <button
-                                className="tagged-gallery-pagination__btn"
+                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
                                 onClick={() => handlePageChange(currentPage - 1)}
                                 disabled={currentPage <= 1}
                                 aria-label="Previous page"
+                                title="Previous page"
                             >
-                                ‹
+                                <span
+                                    className="tagged-gallery-pagination__icon tagged-gallery-pagination__icon--back"
+                                    aria-hidden="true"
+                                />
                             </button>
                             {(() => {
-                                const pages = [];
+                                const visibleCount = Math.min(3, totalPages);
+                                let startPage = Math.max(1, currentPage - 1);
+                                let endPage = startPage + visibleCount - 1;
 
-                                if (totalPages <= 3) {
-                                    for (let p = 1; p <= totalPages; p += 1) {
-                                        pages.push(p);
-                                    }
-                                } else {
-                                    pages.push(1, 2, 3, "ellipsis-right", totalPages);
+                                if (endPage > totalPages) {
+                                    endPage = totalPages;
+                                    startPage = Math.max(1, endPage - visibleCount + 1);
                                 }
 
-                                return pages.map((p) =>
-                                    typeof p === "string" ? (
-                                        <span key={p} className="tagged-gallery-pagination__ellipsis">
-                                            …
-                                        </span>
-                                    ) : (
-                                        <button
-                                            key={p}
-                                            className={`tagged-gallery-pagination__btn${p === currentPage ? " tagged-gallery-pagination__btn--active" : ""}`}
-                                            onClick={() => handlePageChange(p)}
-                                            aria-current={p === currentPage ? "page" : undefined}
-                                        >
-                                            {p}
-                                        </button>
-                                    ),
+                                const pages = Array.from(
+                                    { length: endPage - startPage + 1 },
+                                    (_, index) => startPage + index,
                                 );
+
+                                return pages.map((pageNumber) => (
+                                    <button
+                                        key={pageNumber}
+                                        className={`tagged-gallery-pagination__btn${pageNumber === currentPage ? " tagged-gallery-pagination__btn--active" : ""}`}
+                                        onClick={() => handlePageChange(pageNumber)}
+                                        aria-current={pageNumber === currentPage ? "page" : undefined}
+                                    >
+                                        {pageNumber}
+                                    </button>
+                                ));
                             })()}
                             <button
-                                className="tagged-gallery-pagination__btn"
+                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
                                 onClick={() => handlePageChange(currentPage + 1)}
                                 disabled={currentPage >= totalPages}
                                 aria-label="Next page"
+                                title="Next page"
                             >
-                                ›
+                                <span
+                                    className="tagged-gallery-pagination__icon tagged-gallery-pagination__icon--forward"
+                                    aria-hidden="true"
+                                />
                             </button>
                             <button
-                                className="tagged-gallery-pagination__btn"
+                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
                                 onClick={() => handlePageChange(totalPages)}
                                 disabled={currentPage >= totalPages}
                                 aria-label="Last page"
+                                title="Last page"
                             >
-                                »
+                                <span className="tagged-gallery-pagination__double-icon tagged-gallery-pagination__double-icon--last" aria-hidden="true">
+                                    <span className="tagged-gallery-pagination__double-icon-arrow tagged-gallery-pagination__double-icon-arrow--forward" />
+                                </span>
                             </button>
                         </div>
                     )}
@@ -3761,4 +3957,5 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         </section>
     );
 };
+
 

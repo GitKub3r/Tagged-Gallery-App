@@ -204,7 +204,7 @@ export const MediaCard = ({
                     className={`tagged-media-card-select-indicator${isSelected ? " is-selected" : ""}`}
                     aria-hidden="true"
                 >
-                    <span>{isSelected ? "✓" : ""}</span>
+                    <img src="/icons/check.svg" alt="" />
                 </div>
             ) : null}
             <div className="tagged-media-card-preview-wrap">
@@ -244,7 +244,7 @@ export const MediaCard = ({
                             title={`${mediaTagCount} ${mediaTagCount === 1 ? "tag" : "tags"}`}
                             aria-label={`${mediaTagCount} ${mediaTagCount === 1 ? "tag" : "tags"}`}
                         >
-                            <img src="/icons/tags.svg" alt="" aria-hidden="true" />
+                            <span className="tagged-media-card-tag-icon" aria-hidden="true" />
                             <span>{mediaTagCount}</span>
                         </span>
                     </div>
@@ -259,7 +259,7 @@ export const MediaCard = ({
                             }
                             onToggleFavourite?.(media.id);
                         }}
-                        aria-label={isFavourite ? "Quitar de favoritos" : "Marcar como favorito"}
+                        aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                         aria-pressed={isFavourite}
                         disabled={isTogglingFavourite || selectionMode}
                     >

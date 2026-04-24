@@ -15,6 +15,7 @@ import "../gallerypage/GalleryPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
+const ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY = "tagged_album_detail_media_view_mode";
 
 const parseApiResponse = async (response, fallbackMessage) => {
     const clonedResponse = response.clone();
@@ -141,6 +142,49 @@ const formatDownloadSpeed = (bytesPerSecond) => {
     return `${value.toFixed(decimals)} ${units[unitIndex]}`;
 };
 
+const parseScopedAddMediaSearchQuery = (rawQuery) => {
+    const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
+
+    if (!normalizedRaw) {
+        return {
+            authorTerms: [],
+            nameTerms: [],
+            freeTerms: [],
+        };
+    }
+
+    const tokens = normalizedRaw.split(/\s+/).filter(Boolean);
+    const authorTerms = [];
+    const nameTerms = [];
+    const freeTerms = [];
+
+    tokens.forEach((token) => {
+        if (token.startsWith("a:") || token.startsWith("author:")) {
+            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
+            if (value) {
+                authorTerms.push(value);
+            }
+            return;
+        }
+
+        if (token.startsWith("n:") || token.startsWith("name:")) {
+            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
+            if (value) {
+                nameTerms.push(value);
+            }
+            return;
+        }
+
+        freeTerms.push(token);
+    });
+
+    return {
+        authorTerms,
+        nameTerms,
+        freeTerms,
+    };
+};
+
 export const AlbumDetailPage = () => {
     const { albumId } = useParams();
     const navigate = useNavigate();
@@ -158,9 +202,10 @@ export const AlbumDetailPage = () => {
 
     const [isAddMediaModalOpen, setIsAddMediaModalOpen] = useState(false);
     const [addMediaSearch, setAddMediaSearch] = useState("");
+    const [addMediaPickerViewMode, setAddMediaPickerViewMode] = useState("card");
     const [addMediaTagFilterSearch, setAddMediaTagFilterSearch] = useState("");
-    const [addMediaTagFilterMode, setAddMediaTagFilterMode] = useState("include");
-    const [selectedAddMediaFilterTags, setSelectedAddMediaFilterTags] = useState([]);
+    const [selectedAddMediaIncludeFilterTags, setSelectedAddMediaIncludeFilterTags] = useState([]);
+    const [selectedAddMediaExcludeFilterTags, setSelectedAddMediaExcludeFilterTags] = useState([]);
     const [selectedMediaToAddIds, setSelectedMediaToAddIds] = useState(new Set());
     const [isAddSelectionMode, setIsAddSelectionMode] = useState(false);
     const [isAddingMedia, setIsAddingMedia] = useState(false);
@@ -168,7 +213,14 @@ export const AlbumDetailPage = () => {
     const [activeAlbumTagFilter, setActiveAlbumTagFilter] = useState("");
     const [isAlbumSelectionMode, setIsAlbumSelectionMode] = useState(false);
     const [selectedAlbumMediaIds, setSelectedAlbumMediaIds] = useState(new Set());
-    const [albumMediaViewMode, setAlbumMediaViewMode] = useState("card");
+    const [albumMediaViewMode, setAlbumMediaViewMode] = useState(() => {
+        if (typeof window === "undefined") {
+            return "card";
+        }
+
+        const storedMode = String(window.localStorage.getItem(ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY) || "card").toLowerCase();
+        return storedMode === "list" ? "list" : "card";
+    });
     const [isDownloadingSelected, setIsDownloadingSelected] = useState(false);
     const [isRemovingSelected, setIsRemovingSelected] = useState(false);
     const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
@@ -198,6 +250,7 @@ export const AlbumDetailPage = () => {
     const [editingAlbumName, setEditingAlbumName] = useState("");
     const [coverSearch, setCoverSearch] = useState("");
     const [selectedEditCoverMediaId, setSelectedEditCoverMediaId] = useState(null);
+    const [editCoverMediaViewMode, setEditCoverMediaViewMode] = useState("card");
     const [editTagFilterSearch, setEditTagFilterSearch] = useState("");
     const [editTagFilterMode, setEditTagFilterMode] = useState("include");
     const [selectedEditFilterTags, setSelectedEditFilterTags] = useState([]);
@@ -213,6 +266,14 @@ export const AlbumDetailPage = () => {
     useEffect(() => {
         setIsHeroCoverBroken(false);
     }, [albumCoverUrl]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        window.localStorage.setItem(ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY, albumMediaViewMode);
+    }, [albumMediaViewMode]);
 
     const mediaTypeSummary = useMemo(() => {
         const imageCount = albumMediaItems.filter(
@@ -303,17 +364,66 @@ export const AlbumDetailPage = () => {
         setDownloadToast(null);
     };
 
+    const fetchAllUserMedia = useCallback(async () => {
+        const pageSize = 500;
+        const maxPages = 200;
+        let page = 1;
+        let expectedTotal = null;
+        const collected = [];
+
+        while (page <= maxPages) {
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(pageSize),
+            });
+
+            const response = await fetchWithAuth(`${API_URL}/media?${params.toString()}`, { method: "GET" });
+            const data = await parseApiResponse(response, "Could not load media library");
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Could not load media library");
+            }
+
+            const pageItems = Array.isArray(data.data) ? data.data : [];
+            collected.push(...pageItems);
+
+            const parsedTotal = Number.parseInt(data.total, 10);
+            if (Number.isFinite(parsedTotal) && parsedTotal >= 0) {
+                expectedTotal = parsedTotal;
+            }
+
+            if (pageItems.length < pageSize) {
+                break;
+            }
+
+            if (expectedTotal !== null && collected.length >= expectedTotal) {
+                break;
+            }
+
+            page += 1;
+        }
+
+        const dedupedById = new Map();
+        collected.forEach((item) => {
+            if (item?.id !== undefined && item?.id !== null) {
+                dedupedById.set(item.id, item);
+            }
+        });
+
+        return Array.from(dedupedById.values());
+    }, [fetchWithAuth]);
+
     const loadPageData = useCallback(async () => {
         const [albumResponse, albumMediaResponse, libraryMediaResponse] = await Promise.all([
             fetchWithAuth(`${API_URL}/albums/${albumId}`, { method: "GET" }),
             fetchWithAuth(`${API_URL}/albums/${albumId}/media`, { method: "GET" }),
-            fetchWithAuth(`${API_URL}/media`, { method: "GET" }),
+            fetchAllUserMedia(),
         ]);
 
         const [albumData, albumMediaData, libraryMediaData] = await Promise.all([
             parseApiResponse(albumResponse, "Could not load album detail"),
             parseApiResponse(albumMediaResponse, "Could not load album media"),
-            parseApiResponse(libraryMediaResponse, "Could not load media library"),
+            Promise.resolve({ success: true, data: libraryMediaResponse }),
         ]);
 
         if (!albumResponse.ok || !albumData.success || !albumData.data) {
@@ -324,7 +434,7 @@ export const AlbumDetailPage = () => {
             throw new Error(albumMediaData.message || "Could not load album media");
         }
 
-        if (!libraryMediaResponse.ok || !libraryMediaData.success) {
+        if (!libraryMediaData.success) {
             throw new Error(libraryMediaData.message || "Could not load media library");
         }
 
@@ -341,7 +451,7 @@ export const AlbumDetailPage = () => {
         setAlbum(nextAlbum);
         setAlbumMediaItems(enrichedAlbumMedia);
         setLibraryMediaItems(nextLibraryMedia);
-    }, [albumId, fetchWithAuth]);
+    }, [albumId, fetchAllUserMedia, fetchWithAuth]);
 
     useEffect(() => {
         let cancelled = false;
@@ -406,53 +516,94 @@ export const AlbumDetailPage = () => {
     }, [libraryMediaItems, albumMediaItems]);
 
     const filteredAvailableMediaItems = useMemo(() => {
-        const normalizedSearch = addMediaSearch.trim().toLowerCase();
-        const normalizedFilterTags = selectedAddMediaFilterTags.map((tag) => tag.toLowerCase());
+        const scopedSearch = parseScopedAddMediaSearchQuery(addMediaSearch);
+        const normalizedIncludeTags = selectedAddMediaIncludeFilterTags.map((tag) => tag.toLowerCase());
+        const normalizedExcludeTags = selectedAddMediaExcludeFilterTags.map((tag) => tag.toLowerCase());
 
-        if (!normalizedSearch) {
+        if (
+            scopedSearch.authorTerms.length === 0 &&
+            scopedSearch.nameTerms.length === 0 &&
+            scopedSearch.freeTerms.length === 0
+        ) {
             return availableMediaItems.filter((item) => {
-                if (normalizedFilterTags.length === 0) {
-                    return true;
-                }
-
                 const mediaTagNames = mapTagsFromMedia(item).map((tagName) => tagName.toLowerCase());
 
-                if (addMediaTagFilterMode === "exclude") {
-                    return !normalizedFilterTags.some((filterTag) => mediaTagNames.includes(filterTag));
+                if (normalizedIncludeTags.length > 0) {
+                    const hasAllIncludedTags = normalizedIncludeTags.every((filterTag) =>
+                        mediaTagNames.includes(filterTag),
+                    );
+                    if (!hasAllIncludedTags) {
+                        return false;
+                    }
                 }
 
-                return normalizedFilterTags.every((filterTag) => mediaTagNames.includes(filterTag));
-            });
-        }
-
-        return availableMediaItems.filter((item) => {
-            const displayName = String(item.displayname || "").toLowerCase();
-
-            if (normalizedSearch && !displayName.includes(normalizedSearch)) {
-                return false;
-            }
-
-            if (normalizedFilterTags.length > 0) {
-                const mediaTagNames = mapTagsFromMedia(item).map((tagName) => tagName.toLowerCase());
-
-                if (addMediaTagFilterMode === "exclude") {
-                    const hasAnyExcludedTag = normalizedFilterTags.some((filterTag) =>
+                if (normalizedExcludeTags.length > 0) {
+                    const hasAnyExcludedTag = normalizedExcludeTags.some((filterTag) =>
                         mediaTagNames.includes(filterTag),
                     );
                     if (hasAnyExcludedTag) {
                         return false;
                     }
-                } else {
-                    const hasAllTags = normalizedFilterTags.every((filterTag) => mediaTagNames.includes(filterTag));
-                    if (!hasAllTags) {
-                        return false;
-                    }
+                }
+
+                return true;
+            });
+        }
+
+        return availableMediaItems.filter((item) => {
+            const mediaTagNames = mapTagsFromMedia(item).map((tagName) => tagName.toLowerCase());
+            const displayName = String(item.displayname || item.filename || "").toLowerCase();
+            const authorName = String(item.author || "").toLowerCase();
+            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
+
+            if (scopedSearch.authorTerms.length > 0) {
+                const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
+                if (!matchesAuthorTerms) {
+                    return false;
+                }
+            }
+
+            if (scopedSearch.nameTerms.length > 0) {
+                const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
+                if (!matchesNameTerms) {
+                    return false;
+                }
+            }
+
+            if (scopedSearch.freeTerms.length > 0) {
+                const matchesFreeTerms = scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
+                if (!matchesFreeTerms) {
+                    return false;
+                }
+            }
+
+            if (normalizedIncludeTags.length > 0) {
+                const hasAllIncludedTags = normalizedIncludeTags.every((filterTag) =>
+                    mediaTagNames.includes(filterTag),
+                );
+                if (!hasAllIncludedTags) {
+                    return false;
+                }
+            }
+
+            if (normalizedExcludeTags.length > 0) {
+                const hasAnyExcludedTag = normalizedExcludeTags.some((filterTag) => mediaTagNames.includes(filterTag));
+                if (hasAnyExcludedTag) {
+                    return false;
                 }
             }
 
             return true;
         });
-    }, [availableMediaItems, addMediaSearch, selectedAddMediaFilterTags, addMediaTagFilterMode]);
+    }, [
+        availableMediaItems,
+        addMediaSearch,
+        selectedAddMediaIncludeFilterTags,
+        selectedAddMediaExcludeFilterTags,
+    ]);
+    const areAllVisibleAddMediaSelected =
+        filteredAvailableMediaItems.length > 0 &&
+        filteredAvailableMediaItems.every((media) => selectedMediaToAddIds.has(media.id));
 
     const distinctAlbumEditDisplayNames = useMemo(() => {
         return Array.from(
@@ -551,14 +702,31 @@ export const AlbumDetailPage = () => {
     );
 
     const filteredCoverCandidates = useMemo(() => {
-        const normalizedSearch = coverSearch.trim().toLowerCase();
+        const scopedSearch = parseScopedAddMediaSearchQuery(coverSearch);
         const normalizedFilterTags = selectedEditFilterTags.map((tag) => tag.toLowerCase());
+        const hasScopedSearch =
+            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
 
         return imageLibraryMediaItems.filter((item) => {
-            const displayName = String(item.displayname || "").toLowerCase();
+            const displayName = String(item.displayname || item.filename || "").toLowerCase();
+            const authorName = String(item.author || "").toLowerCase();
+            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
 
-            if (normalizedSearch && !displayName.includes(normalizedSearch)) {
-                return false;
+            if (hasScopedSearch) {
+                const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
+                if (!matchesAuthorTerms) {
+                    return false;
+                }
+
+                const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
+                if (!matchesNameTerms) {
+                    return false;
+                }
+
+                const matchesFreeTerms = scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
+                if (!matchesFreeTerms) {
+                    return false;
+                }
             }
 
             if (normalizedFilterTags.length > 0) {
@@ -614,9 +782,10 @@ export const AlbumDetailPage = () => {
 
     const openAddMediaModal = () => {
         setAddMediaSearch("");
+        setAddMediaPickerViewMode("card");
         setAddMediaTagFilterSearch("");
-        setAddMediaTagFilterMode("include");
-        setSelectedAddMediaFilterTags([]);
+        setSelectedAddMediaIncludeFilterTags([]);
+        setSelectedAddMediaExcludeFilterTags([]);
         setSelectedMediaToAddIds(new Set());
         setIsAddSelectionMode(false);
         setAddMediaError(null);
@@ -630,9 +799,10 @@ export const AlbumDetailPage = () => {
 
         setIsAddMediaModalOpen(false);
         setAddMediaSearch("");
+        setAddMediaPickerViewMode("card");
         setAddMediaTagFilterSearch("");
-        setAddMediaTagFilterMode("include");
-        setSelectedAddMediaFilterTags([]);
+        setSelectedAddMediaIncludeFilterTags([]);
+        setSelectedAddMediaExcludeFilterTags([]);
         setSelectedMediaToAddIds(new Set());
         setIsAddSelectionMode(false);
         setAddMediaError(null);
@@ -642,15 +812,31 @@ export const AlbumDetailPage = () => {
         setSelectedMediaToAddIds(new Set());
         setIsAddSelectionMode(false);
     };
+    const selectAllVisibleAddMedia = () => {
+        if (isAddingMedia || filteredAvailableMediaItems.length === 0) {
+            return;
+        }
 
-    const toggleAddMediaFilterTag = (tagName) => {
+        if (areAllVisibleAddMediaSelected) {
+            setSelectedMediaToAddIds(new Set());
+            setIsAddSelectionMode(false);
+            setAddMediaError(null);
+            return;
+        }
+
+        setSelectedMediaToAddIds(new Set(filteredAvailableMediaItems.map((media) => media.id)));
+        setIsAddSelectionMode(true);
+        setAddMediaError(null);
+    };
+
+    const toggleAddMediaIncludeFilterTag = (tagName) => {
         const normalized = String(tagName || "").trim();
 
         if (!normalized) {
             return;
         }
 
-        setSelectedAddMediaFilterTags((previous) => {
+        setSelectedAddMediaIncludeFilterTags((previous) => {
             const alreadySelected = previous.some((tag) => tag.toLowerCase() === normalized.toLowerCase());
 
             if (alreadySelected) {
@@ -659,9 +845,38 @@ export const AlbumDetailPage = () => {
 
             return [...previous, normalized];
         });
+
+        setSelectedAddMediaExcludeFilterTags((previous) =>
+            previous.filter((tag) => tag.toLowerCase() !== normalized.toLowerCase()),
+        );
     };
 
-    const clearAddMediaFilterTags = () => setSelectedAddMediaFilterTags([]);
+    const toggleAddMediaExcludeFilterTag = (tagName) => {
+        const normalized = String(tagName || "").trim();
+
+        if (!normalized) {
+            return;
+        }
+
+        setSelectedAddMediaExcludeFilterTags((previous) => {
+            const alreadySelected = previous.some((tag) => tag.toLowerCase() === normalized.toLowerCase());
+
+            if (alreadySelected) {
+                return previous.filter((tag) => tag.toLowerCase() !== normalized.toLowerCase());
+            }
+
+            return [...previous, normalized];
+        });
+
+        setSelectedAddMediaIncludeFilterTags((previous) =>
+            previous.filter((tag) => tag.toLowerCase() !== normalized.toLowerCase()),
+        );
+    };
+
+    const clearAddMediaFilterTags = () => {
+        setSelectedAddMediaIncludeFilterTags([]);
+        setSelectedAddMediaExcludeFilterTags([]);
+    };
 
     const handleAddPickerSelection = (mediaId, event) => {
         if (!mediaId || isAddingMedia) {
@@ -1399,6 +1614,7 @@ export const AlbumDetailPage = () => {
         setEditingAlbumName(albumDisplayName);
         setCoverSearch("");
         setSelectedEditCoverMediaId(null);
+        setEditCoverMediaViewMode("card");
         setEditTagFilterSearch("");
         setEditTagFilterMode("include");
         setSelectedEditFilterTags([]);
@@ -1412,6 +1628,7 @@ export const AlbumDetailPage = () => {
         }
 
         setIsEditModalOpen(false);
+        setEditCoverMediaViewMode("card");
         setEditTagFilterSearch("");
         setEditTagFilterMode("include");
         setSelectedEditFilterTags([]);
@@ -1564,8 +1781,8 @@ export const AlbumDetailPage = () => {
             setIsAddMediaModalOpen(false);
             setAddMediaSearch("");
             setAddMediaTagFilterSearch("");
-            setAddMediaTagFilterMode("include");
-            setSelectedAddMediaFilterTags([]);
+            setSelectedAddMediaIncludeFilterTags([]);
+            setSelectedAddMediaExcludeFilterTags([]);
             clearAddSelection();
         } catch (requestError) {
             setAddMediaError(requestError.message || "Could not add media to album");
@@ -1875,7 +2092,7 @@ export const AlbumDetailPage = () => {
                                 : "Select all visible media"
                         }
                     >
-                        <img src="/icons/select_all.svg" alt="" aria-hidden="true" />
+                        <img src="/icons/select-all.svg" alt="" aria-hidden="true" />
                     </button>
 
                     <button
@@ -2011,7 +2228,7 @@ export const AlbumDetailPage = () => {
                             onClick={openAddMediaModal}
                             aria-label="Add new media to album"
                         >
-                            <img src="/icons/add.svg" alt="" aria-hidden="true" />
+                            <span className="tagged-album-create-icon tagged-album-create-icon--list" aria-hidden="true" />
                             <span>Add new media</span>
                         </button>
 
@@ -2045,7 +2262,7 @@ export const AlbumDetailPage = () => {
                             onClick={openAddMediaModal}
                             aria-label="Add new media to album"
                         >
-                            <img src="/icons/add.svg" alt="" aria-hidden="true" />
+                            <span className="tagged-album-create-icon tagged-album-create-icon--card" aria-hidden="true" />
                             <span>Add new media</span>
                         </button>
 
@@ -2136,23 +2353,26 @@ export const AlbumDetailPage = () => {
                 isSaving={isAddingMedia}
                 searchValue={addMediaSearch}
                 onSearchChange={setAddMediaSearch}
+                mediaViewMode={addMediaPickerViewMode}
+                onMediaViewModeChange={setAddMediaPickerViewMode}
                 availableMediaItems={availableMediaItems}
                 filteredMediaCandidates={filteredAvailableMediaItems}
+                visibleMediaCount={filteredAvailableMediaItems.length}
                 selectedMediaIds={selectedMediaToAddIds}
+                isAllVisibleMediaSelected={areAllVisibleAddMediaSelected}
+                onSelectAllVisibleMedia={selectAllVisibleAddMedia}
                 onToggleMediaSelection={handleAddPickerSelection}
                 onClearSelection={clearAddSelection}
                 getAssetUrl={getAssetUrl}
                 mapTagsFromMedia={mapTagsFromMedia}
-                tagFilterMode={addMediaTagFilterMode}
-                onToggleTagFilterMode={() =>
-                    setAddMediaTagFilterMode((previous) => (previous === "exclude" ? "include" : "exclude"))
-                }
-                selectedFilterTags={selectedAddMediaFilterTags}
+                selectedIncludeFilterTags={selectedAddMediaIncludeFilterTags}
+                selectedExcludeFilterTags={selectedAddMediaExcludeFilterTags}
+                onToggleIncludeFilterTag={toggleAddMediaIncludeFilterTag}
+                onToggleExcludeFilterTag={toggleAddMediaExcludeFilterTag}
                 onClearFilterTags={clearAddMediaFilterTags}
                 tagFilterSearch={addMediaTagFilterSearch}
                 onTagFilterSearchChange={setAddMediaTagFilterSearch}
                 visibleTagFilterCandidates={visibleAddMediaTagFilterCandidates}
-                onToggleFilterTag={toggleAddMediaFilterTag}
                 error={addMediaError}
             />
 
@@ -2165,6 +2385,8 @@ export const AlbumDetailPage = () => {
                 onAlbumNameChange={setEditingAlbumName}
                 coverSearch={coverSearch}
                 onCoverSearchChange={setCoverSearch}
+                mediaViewMode={editCoverMediaViewMode}
+                onMediaViewModeChange={setEditCoverMediaViewMode}
                 imageMediaItems={imageLibraryMediaItems}
                 filteredCoverCandidates={filteredCoverCandidates}
                 selectedCoverMediaId={selectedEditCoverMediaId}
@@ -2182,7 +2404,6 @@ export const AlbumDetailPage = () => {
                 visibleEditTagFilterCandidates={visibleEditTagFilterCandidates}
                 onToggleEditFilterTag={toggleEditFilterTag}
                 error={editError}
-                modalContentClassName="tagged-album-cover-modal-content"
             />
         </section>
     );

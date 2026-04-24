@@ -62,11 +62,28 @@ const getRelativeLuminance = ({ r, g, b }) => {
     return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 };
 
+const toHexChannel = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+
+const mixRgbWithWhite = (rgb, amount = 0.5) => {
+    const ratio = Math.max(0, Math.min(1, amount));
+    const mix = (channel) => channel + (255 - channel) * ratio;
+    return `#${toHexChannel(mix(rgb.r))}${toHexChannel(mix(rgb.g))}${toHexChannel(mix(rgb.b))}`;
+};
+
+const isDarkThemeActive = () => {
+    if (typeof document === "undefined") {
+        return false;
+    }
+
+    return document.documentElement?.getAttribute("data-theme") === "dark";
+};
+
 const buildTagStyle = (hexColor, surface = "light") => {
     const rgb = getHexRgb(hexColor);
+    const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
-        if (surface === "light") {
+        if (!darkTheme && surface === "light") {
             return {
                 backgroundColor: `${DEFAULT_NEW_TAG_COLOR}22`,
                 color: DEFAULT_NEW_TAG_COLOR,
@@ -77,38 +94,54 @@ const buildTagStyle = (hexColor, surface = "light") => {
             };
         }
 
-        return undefined;
+        return {
+            backgroundColor: `${DEFAULT_NEW_TAG_COLOR}38`,
+            color: "#f7f9ff",
+            "--tagged-media-detail-tag-hover-color": "#f7f9ff",
+            borderColor: `${DEFAULT_NEW_TAG_COLOR}BB`,
+            borderWidth: "2px",
+            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
+        };
     }
 
     const luminance = getRelativeLuminance(rgb);
-    const isLightSurface = surface === "light";
-    const isNearWhite = luminance > 0.94;
-    const isNearBlack = luminance < 0.08;
+    const isDarkSurface = surface === "dark" || darkTheme;
+    const isLightSurface = !isDarkSurface;
+    const isNearWhite = luminance > 0.88;
+    const isDarkTone = luminance < 0.3;
+    const isVeryDark = luminance < 0.12;
 
     let textColor = rgb.hex;
+
+    if (isNearWhite) {
+        textColor = isLightSurface ? "#111111" : "#f7f9ff";
+    } else if (isDarkSurface && isDarkTone) {
+        textColor = mixRgbWithWhite(rgb, isVeryDark ? 0.72 : 0.56);
+    }
 
     if (isLightSurface && isNearWhite) {
         textColor = "#111111";
     }
 
-    if (!isLightSurface && isNearBlack) {
-        textColor = "#f5f7ff";
-    }
-
-    const hoverTextColor = isNearWhite ? "#111111" : isNearBlack ? "#f5f7ff" : rgb.hex;
+    const hoverTextColor = textColor;
 
     const borderColor =
         isNearWhite && isLightSurface
             ? "rgba(0, 0, 0, 0.22)"
-            : `${rgb.hex}${isLightSurface ? "66" : "88"}`;
+            : isNearWhite && isDarkSurface
+              ? "rgba(255, 255, 255, 0.72)"
+              : `${textColor}${isLightSurface ? "66" : "BB"}`;
 
     return {
-        backgroundColor: `${rgb.hex}${isLightSurface ? "22" : "2E"}`,
+        backgroundColor:
+            isNearWhite && isDarkSurface
+                ? "rgba(255, 255, 255, 0.16)"
+                : `${textColor}${isLightSurface ? "22" : "38"}`,
         color: textColor,
         "--tagged-media-detail-tag-hover-color": hoverTextColor,
         borderColor,
         borderWidth: "2px",
-        boxShadow: `inset 0 0 0 1px ${isLightSurface ? "rgba(0, 0, 0, 0.22)" : "rgba(255, 255, 255, 0.42)"}`,
+        boxShadow: `inset 0 0 0 1px ${isLightSurface ? "rgba(0, 0, 0, 0.22)" : "rgba(255, 255, 255, 0.3)"}`,
     };
 };
 
@@ -1900,10 +1933,10 @@ export const MediaDetailPage = () => {
                                             type="button"
                                             className="tagged-media-detail-action tagged-media-detail-action--edit tagged-media-detail-action--icon tagged-media-detail-action--favourite"
                                             onClick={handleToggleFavourite}
-                                            aria-label={isFavourite ? "Quitar de favoritos" : "Marcar como favorito"}
+                                            aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                                             aria-pressed={isFavourite}
                                             disabled={isTogglingFavourite}
-                                            title={isFavourite ? "Quitar de favoritos" : "Marcar como favorito"}
+                                            title={isFavourite ? "Remove from favourites" : "Add to favourites"}
                                         >
                                             <FavouriteIcon active={isFavourite} />
                                         </button>
@@ -2031,7 +2064,7 @@ export const MediaDetailPage = () => {
                                     type="button"
                                     className="tagged-media-detail-favourite-button"
                                     onClick={handleToggleFavourite}
-                                    aria-label={isFavourite ? "Quitar de favoritos" : "Marcar como favorito"}
+                                    aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                                     aria-pressed={isFavourite}
                                     disabled={isTogglingFavourite}
                                 >
@@ -2044,17 +2077,6 @@ export const MediaDetailPage = () => {
                             <p className="tagged-media-detail-upload-date">
                                 {formatUploadDate(currentMedia.updatedAt)}
                             </p>
-
-                            <button
-                                type="button"
-                                className="tagged-media-detail-mobile-delete-button"
-                                onClick={openDeleteCurrentMediaConfirm}
-                                aria-label="Delete media"
-                                title="Delete media"
-                                disabled={isDeletingMedia}
-                            >
-                                <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                            </button>
                         </div>
                     </header>
 
@@ -2127,6 +2149,17 @@ export const MediaDetailPage = () => {
                             >
                                 <img src="/icons/edit.svg" alt="" aria-hidden="true" />
                                 Edit Media
+                            </button>
+                            <button
+                                type="button"
+                                className="tagged-media-detail-action tagged-media-detail-action--delete"
+                                onClick={openDeleteCurrentMediaConfirm}
+                                disabled={isDeletingMedia}
+                                aria-label="Delete media"
+                                title="Delete media"
+                            >
+                                <img src="/icons/delete.svg" alt="" aria-hidden="true" />
+                                Delete Media
                             </button>
                         </div>
                     </div>
