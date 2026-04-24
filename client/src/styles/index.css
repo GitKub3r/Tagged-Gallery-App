@@ -95,15 +95,17 @@ button {
     font-size: 1rem;
     color: var(--tagged-button-primary-text-color);
     background-color: var(--tagged-button-color-primary);
-    transition: all 0.3s ease;
+    transition:
+        transform 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
     font-weight: bold;
+    cursor: pointer;
 }
 
 button:hover {
-    background-color: var(--tagged-button-color-primary-hover-color);
-    border-color: var(--tagged-button-color-primary-hover-color);
-    cursor: pointer;
-    transform: scale(1.025);
+    transform: scale(1.1);
 }
 
 .tagged-app-page {

@@ -149,6 +149,74 @@ const filterMediaByTagMode = (mediaList, selectedTags, mode) => {
     });
 };
 
+const applyIncludeExcludeTagFilters = (mediaList, includeTags, excludeTags) => {
+    const normalizedInclude = includeTags.map((tag) => String(tag).toLowerCase());
+    const normalizedExclude = excludeTags.map((tag) => String(tag).toLowerCase());
+
+    return mediaList.filter((media) => {
+        const mediaTags = mapTagsFromMedia(media).map((tag) => tag.toLowerCase());
+
+        if (normalizedInclude.length > 0) {
+            const hasAllIncludedTags = normalizedInclude.every((tag) => mediaTags.includes(tag));
+            if (!hasAllIncludedTags) {
+                return false;
+            }
+        }
+
+        if (normalizedExclude.length > 0) {
+            const hasAnyExcludedTag = normalizedExclude.some((tag) => mediaTags.includes(tag));
+            if (hasAnyExcludedTag) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+};
+
+const parseScopedCoverSearchQuery = (rawQuery) => {
+    const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
+
+    if (!normalizedRaw) {
+        return {
+            authorTerms: [],
+            nameTerms: [],
+            freeTerms: [],
+        };
+    }
+
+    const tokens = normalizedRaw.split(/\s+/).filter(Boolean);
+    const authorTerms = [];
+    const nameTerms = [];
+    const freeTerms = [];
+
+    tokens.forEach((token) => {
+        if (token.startsWith("a:") || token.startsWith("author:")) {
+            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
+            if (value) {
+                authorTerms.push(value);
+            }
+            return;
+        }
+
+        if (token.startsWith("n:") || token.startsWith("name:")) {
+            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
+            if (value) {
+                nameTerms.push(value);
+            }
+            return;
+        }
+
+        freeTerms.push(token);
+    });
+
+    return {
+        authorTerms,
+        nameTerms,
+        freeTerms,
+    };
+};
+
 export const AlbumPage = () => {
     const navigate = useNavigate();
     const { user, fetchWithAuth } = useAuth();
@@ -180,9 +248,10 @@ export const AlbumPage = () => {
     const [albumName, setAlbumName] = useState("");
     const [selectedCoverMediaId, setSelectedCoverMediaId] = useState(null);
     const [coverSearch, setCoverSearch] = useState("");
+    const [createCoverMediaViewMode, setCreateCoverMediaViewMode] = useState("card");
     const [createTagFilterSearch, setCreateTagFilterSearch] = useState("");
-    const [createTagFilterMode, setCreateTagFilterMode] = useState("include");
-    const [selectedCreateFilterTags, setSelectedCreateFilterTags] = useState([]);
+    const [selectedCreateIncludeFilterTags, setSelectedCreateIncludeFilterTags] = useState([]);
+    const [selectedCreateExcludeFilterTags, setSelectedCreateExcludeFilterTags] = useState([]);
     const [createError, setCreateError] = useState(null);
 
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -191,6 +260,7 @@ export const AlbumPage = () => {
     const [editingAlbumName, setEditingAlbumName] = useState("");
     const [editCoverSearch, setEditCoverSearch] = useState("");
     const [selectedEditCoverMediaId, setSelectedEditCoverMediaId] = useState(null);
+    const [editCoverMediaViewMode, setEditCoverMediaViewMode] = useState("card");
     const [editTagFilterSearch, setEditTagFilterSearch] = useState("");
     const [editTagFilterMode, setEditTagFilterMode] = useState("include");
     const [selectedEditFilterTags, setSelectedEditFilterTags] = useState([]);
@@ -219,6 +289,8 @@ export const AlbumPage = () => {
         [mediaItems],
     );
 
+    const createCoverMediaItems = useMemo(() => imageMediaItems, [imageMediaItems]);
+
     const editTagFilterCandidates = useMemo(() => {
         const tagSet = new Set();
 
@@ -245,40 +317,85 @@ export const AlbumPage = () => {
     }, [editTagFilterCandidates, editTagFilterSearch]);
 
     const createTagFilterCandidates = useMemo(() => {
+        const tagSet = new Set();
+        createCoverMediaItems.forEach((media) => {
+            mapTagsFromMedia(media).forEach((tag) => {
+                const normalized = String(tag || "").trim();
+                if (normalized) {
+                    tagSet.add(normalized);
+                }
+            });
+        });
+
         const normalizedSearch = createTagFilterSearch.trim().toLowerCase();
+        const allTagCandidates = Array.from(tagSet).sort((a, b) => a.localeCompare(b));
 
         if (!normalizedSearch) {
-            return editTagFilterCandidates;
+            return allTagCandidates;
         }
 
-        return editTagFilterCandidates.filter((tagName) => tagName.toLowerCase().includes(normalizedSearch));
-    }, [editTagFilterCandidates, createTagFilterSearch]);
+        return allTagCandidates.filter((tagName) => tagName.toLowerCase().includes(normalizedSearch));
+    }, [createCoverMediaItems, createTagFilterSearch]);
 
-    const filteredCreateImageMediaItems = useMemo(() => {
-        const filteredByTags = filterMediaByTagMode(imageMediaItems, selectedCreateFilterTags, createTagFilterMode);
-        const normalizedSearch = coverSearch.trim().toLowerCase();
+    const filteredCreateCoverMediaItems = useMemo(() => {
+        const filteredByTags = applyIncludeExcludeTagFilters(
+            createCoverMediaItems,
+            selectedCreateIncludeFilterTags,
+            selectedCreateExcludeFilterTags,
+        );
+        const scopedSearch = parseScopedCoverSearchQuery(coverSearch);
+        const hasScopedSearch =
+            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
 
-        if (!normalizedSearch) {
+        if (!hasScopedSearch) {
             return filteredByTags;
         }
 
         return filteredByTags.filter((media) => {
-            const label = String(media?.displayname || media?.filename || "").toLowerCase();
-            return label.includes(normalizedSearch);
+            const displayName = String(media?.displayname || media?.filename || "").toLowerCase();
+            const authorName = String(media?.author || "").toLowerCase();
+            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
+
+            const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
+            if (!matchesAuthorTerms) {
+                return false;
+            }
+
+            const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
+            if (!matchesNameTerms) {
+                return false;
+            }
+
+            return scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
         });
-    }, [imageMediaItems, selectedCreateFilterTags, createTagFilterMode, coverSearch]);
+    }, [createCoverMediaItems, selectedCreateIncludeFilterTags, selectedCreateExcludeFilterTags, coverSearch]);
 
     const filteredEditImageMediaItems = useMemo(() => {
         const filteredByTags = filterMediaByTagMode(imageMediaItems, selectedEditFilterTags, editTagFilterMode);
-        const normalizedSearch = editCoverSearch.trim().toLowerCase();
+        const scopedSearch = parseScopedCoverSearchQuery(editCoverSearch);
+        const hasScopedSearch =
+            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
 
-        if (!normalizedSearch) {
+        if (!hasScopedSearch) {
             return filteredByTags;
         }
 
         return filteredByTags.filter((media) => {
-            const label = String(media?.displayname || media?.filename || "").toLowerCase();
-            return label.includes(normalizedSearch);
+            const displayName = String(media?.displayname || media?.filename || "").toLowerCase();
+            const authorName = String(media?.author || "").toLowerCase();
+            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
+
+            const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
+            if (!matchesAuthorTerms) {
+                return false;
+            }
+
+            const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
+            if (!matchesNameTerms) {
+                return false;
+            }
+
+            return scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
         });
     }, [imageMediaItems, selectedEditFilterTags, editTagFilterMode, editCoverSearch]);
 
@@ -322,14 +439,51 @@ export const AlbumPage = () => {
     };
 
     const fetchMedia = async () => {
-        const response = await fetchWithAuth(`${API_URL}/media`, { method: "GET" });
-        const data = await parseApiResponse(response, "Could not load media");
+        const pageSize = 500;
+        const maxPages = 200;
+        let page = 1;
+        let expectedTotal = null;
+        const collected = [];
 
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not load media");
+        while (page <= maxPages) {
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(pageSize),
+            });
+            const response = await fetchWithAuth(`${API_URL}/media?${params.toString()}`, { method: "GET" });
+            const data = await parseApiResponse(response, "Could not load media");
+
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || "Could not load media");
+            }
+
+            const pageItems = Array.isArray(data.data) ? data.data : [];
+            collected.push(...pageItems);
+
+            const parsedTotal = Number.parseInt(data.total, 10);
+            if (Number.isFinite(parsedTotal) && parsedTotal >= 0) {
+                expectedTotal = parsedTotal;
+            }
+
+            if (pageItems.length < pageSize) {
+                break;
+            }
+
+            if (expectedTotal !== null && collected.length >= expectedTotal) {
+                break;
+            }
+
+            page += 1;
         }
 
-        return Array.isArray(data.data) ? data.data : [];
+        const dedupedById = new Map();
+        collected.forEach((item) => {
+            if (item?.id !== undefined && item?.id !== null) {
+                dedupedById.set(item.id, item);
+            }
+        });
+
+        return Array.from(dedupedById.values());
     };
 
     const refreshAlbums = async () => {
@@ -391,9 +545,10 @@ export const AlbumPage = () => {
         setAlbumName("");
         setSelectedCoverMediaId(null);
         setCoverSearch("");
+        setCreateCoverMediaViewMode("card");
         setCreateTagFilterSearch("");
-        setCreateTagFilterMode("include");
-        setSelectedCreateFilterTags([]);
+        setSelectedCreateIncludeFilterTags([]);
+        setSelectedCreateExcludeFilterTags([]);
         setCreateError(null);
     };
 
@@ -411,14 +566,14 @@ export const AlbumPage = () => {
         resetCreateForm();
     };
 
-    const toggleCreateFilterTag = (tagName) => {
+    const toggleCreateIncludeFilterTag = (tagName) => {
         const normalized = String(tagName || "").trim();
 
         if (!normalized) {
             return;
         }
 
-        setSelectedCreateFilterTags((previous) => {
+        setSelectedCreateIncludeFilterTags((previous) => {
             const alreadySelected = previous.some((tag) => tag.toLowerCase() === normalized.toLowerCase());
 
             if (alreadySelected) {
@@ -427,9 +582,36 @@ export const AlbumPage = () => {
 
             return [...previous, normalized];
         });
+        setSelectedCreateExcludeFilterTags((previous) =>
+            previous.filter((tag) => tag.toLowerCase() !== normalized.toLowerCase()),
+        );
     };
 
-    const clearCreateFilterTags = () => setSelectedCreateFilterTags([]);
+    const toggleCreateExcludeFilterTag = (tagName) => {
+        const normalized = String(tagName || "").trim();
+
+        if (!normalized) {
+            return;
+        }
+
+        setSelectedCreateExcludeFilterTags((previous) => {
+            const alreadySelected = previous.some((tag) => tag.toLowerCase() === normalized.toLowerCase());
+
+            if (alreadySelected) {
+                return previous.filter((tag) => tag.toLowerCase() !== normalized.toLowerCase());
+            }
+
+            return [...previous, normalized];
+        });
+        setSelectedCreateIncludeFilterTags((previous) =>
+            previous.filter((tag) => tag.toLowerCase() !== normalized.toLowerCase()),
+        );
+    };
+
+    const clearCreateFilterTags = () => {
+        setSelectedCreateIncludeFilterTags([]);
+        setSelectedCreateExcludeFilterTags([]);
+    };
 
     const handleCreateAlbum = async (event) => {
         event.preventDefault();
@@ -442,7 +624,7 @@ export const AlbumPage = () => {
         }
 
         if (!selectedCoverMediaId) {
-            setCreateError("Please choose an image from your library as album cover.");
+            setCreateError("Please choose a media item from your library as album cover.");
             return;
         }
 
@@ -503,6 +685,7 @@ export const AlbumPage = () => {
         setEditingAlbumName(album.displayname || album.albumname || "");
         setEditCoverSearch("");
         setSelectedEditCoverMediaId(null);
+        setEditCoverMediaViewMode("card");
         setEditTagFilterSearch("");
         setEditTagFilterMode("include");
         setSelectedEditFilterTags([]);
@@ -520,6 +703,7 @@ export const AlbumPage = () => {
         setEditingAlbumName("");
         setEditCoverSearch("");
         setSelectedEditCoverMediaId(null);
+        setEditCoverMediaViewMode("card");
         setEditTagFilterSearch("");
         setEditTagFilterMode("include");
         setSelectedEditFilterTags([]);
@@ -755,14 +939,20 @@ export const AlbumPage = () => {
             throw new Error("Media file URL is not available");
         }
 
-        const response = await fetch(fileUrl);
+        const response = await fetchWithAuth(fileUrl, { method: "GET" });
 
         if (!response.ok) {
             throw new Error("Could not download media file");
         }
 
+        const blob = await response.blob();
+
+        if (!blob || blob.size <= 0) {
+            throw new Error("Downloaded media file is empty");
+        }
+
         return {
-            blob: await response.blob(),
+            blob,
             filename: getDownloadFilenameForMedia(media),
         };
     };
@@ -1103,7 +1293,10 @@ export const AlbumPage = () => {
                             onClick={handleOpenCreateModal}
                             aria-label="Add new album"
                         >
-                            <img src="/icons/add.svg" alt="" aria-hidden="true" />
+                            <span
+                                className="tagged-album-create-icon tagged-album-create-icon--list"
+                                aria-hidden="true"
+                            />
                             <span>Add new album</span>
                         </button>
 
@@ -1116,11 +1309,24 @@ export const AlbumPage = () => {
                             return (
                                 <article
                                     key={album.id}
-                                    className={`tagged-album-list-item${isAlbumSelectionMode && isSelected ? " is-selected" : ""}`}
+                                    className={`tagged-album-list-item${isAlbumSelectionMode ? " is-selection-mode" : ""}${isSelected ? " is-selected" : ""}`}
                                 >
                                     <div
                                         className={`tagged-album-list-preview${isAlbumSelectionMode ? " is-selection-mode" : ""}${isSelected ? " is-selected" : ""}`}
                                         aria-hidden="true"
+                                        onClick={() => {
+                                            if (longPressConsumedAlbumIdRef.current === album.id) {
+                                                longPressConsumedAlbumIdRef.current = null;
+                                                return;
+                                            }
+
+                                            handleOpenAlbumDetail(album.id);
+                                        }}
+                                        onPointerDown={(event) => handleAlbumPointerDown(album.id, event)}
+                                        onPointerMove={handleAlbumPointerMove}
+                                        onPointerUp={() => handleAlbumPointerUpOrCancel(album.id)}
+                                        onPointerLeave={() => handleAlbumPointerUpOrCancel(album.id)}
+                                        onPointerCancel={() => handleAlbumPointerUpOrCancel(album.id)}
                                     >
                                         {coverUrl ? (
                                             <img
@@ -1139,16 +1345,12 @@ export const AlbumPage = () => {
                                             />
                                         )}
 
-                                        {coverUrl ? (
-                                            <div
-                                                className="tagged-album-cover-fallback tagged-album-cover-fallback--list"
-                                                style={getAlbumCoverGradientStyle(album)}
-                                                aria-hidden="true"
-                                            />
-                                        ) : null}
-
-                                        {isAlbumSelectionMode && isSelected ? (
-                                            <span className="tagged-album-list-selection-check">✓</span>
+                                        {isAlbumSelectionMode ? (
+                                            <span
+                                                className={`tagged-album-list-selection-check${isSelected ? " is-selected" : ""}`}
+                                            >
+                                                {isSelected ? "\u2713" : ""}
+                                            </span>
                                         ) : null}
                                     </div>
 
@@ -1187,7 +1389,10 @@ export const AlbumPage = () => {
                             onClick={handleOpenCreateModal}
                             aria-label="Add new album"
                         >
-                            <img src="/icons/add.svg" alt="" aria-hidden="true" />
+                            <span
+                                className="tagged-album-create-icon tagged-album-create-icon--card"
+                                aria-hidden="true"
+                            />
                             <span>Add new album</span>
                         </button>
 
@@ -1207,7 +1412,7 @@ export const AlbumPage = () => {
                                             className={`tagged-album-card-select-indicator${isSelected ? " is-selected" : ""}`}
                                             aria-hidden="true"
                                         >
-                                            <span>{isSelected ? "✓" : ""}</span>
+                                            <img src="/icons/check.svg" alt="" aria-hidden="true" />
                                         </span>
                                     ) : null}
 
@@ -1392,22 +1597,22 @@ export const AlbumPage = () => {
                 onAlbumNameChange={setAlbumName}
                 coverSearch={coverSearch}
                 onCoverSearchChange={setCoverSearch}
-                imageMediaItems={imageMediaItems}
-                filteredCoverCandidates={filteredCreateImageMediaItems}
+                mediaViewMode={createCoverMediaViewMode}
+                onMediaViewModeChange={setCreateCoverMediaViewMode}
+                mediaItems={createCoverMediaItems}
+                filteredCoverCandidates={filteredCreateCoverMediaItems}
                 selectedCoverMediaId={selectedCoverMediaId}
                 onSelectCoverMedia={setSelectedCoverMediaId}
                 getAssetUrl={getAssetUrl}
                 mapTagsFromMedia={mapTagsFromMedia}
-                editTagFilterMode={createTagFilterMode}
-                onToggleEditTagFilterMode={() =>
-                    setCreateTagFilterMode((previous) => (previous === "exclude" ? "include" : "exclude"))
-                }
-                selectedEditFilterTags={selectedCreateFilterTags}
-                onClearEditFilterTags={clearCreateFilterTags}
-                editTagFilterSearch={createTagFilterSearch}
-                onEditTagFilterSearchChange={setCreateTagFilterSearch}
-                visibleEditTagFilterCandidates={editTagFilterCandidates}
-                onToggleEditFilterTag={toggleCreateFilterTag}
+                selectedIncludeFilterTags={selectedCreateIncludeFilterTags}
+                selectedExcludeFilterTags={selectedCreateExcludeFilterTags}
+                onToggleIncludeFilterTag={toggleCreateIncludeFilterTag}
+                onToggleExcludeFilterTag={toggleCreateExcludeFilterTag}
+                onClearFilterTags={clearCreateFilterTags}
+                tagFilterSearch={createTagFilterSearch}
+                onTagFilterSearchChange={setCreateTagFilterSearch}
+                visibleTagFilterCandidates={createTagFilterCandidates}
                 error={createError}
             />
 
@@ -1420,6 +1625,8 @@ export const AlbumPage = () => {
                 onAlbumNameChange={setEditingAlbumName}
                 coverSearch={editCoverSearch}
                 onCoverSearchChange={setEditCoverSearch}
+                mediaViewMode={editCoverMediaViewMode}
+                onMediaViewModeChange={setEditCoverMediaViewMode}
                 imageMediaItems={imageMediaItems}
                 filteredCoverCandidates={filteredEditImageMediaItems}
                 selectedCoverMediaId={selectedEditCoverMediaId}
