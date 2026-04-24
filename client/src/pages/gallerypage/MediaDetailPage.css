@@ -974,8 +974,8 @@
     height: 2.55rem;
     border-radius: var(--tagged-radius-full);
     border: 1px solid var(--tagged-border-fine-strong);
-    background: rgba(0, 0, 0, 0.36);
-    color: #ffffff;
+    background: var(--tagged-surface-raised);
+    color: var(--tagged-text-color);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -990,6 +990,16 @@
 .tagged-media-detail-nav-button img {
     width: 1.1rem;
     height: 1.1rem;
+    filter: brightness(0) saturate(100%);
+}
+
+[data-theme="dark"] .tagged-media-detail-nav-button {
+    background: rgba(37, 37, 53, 0.86);
+    border-color: rgba(255, 255, 255, 0.22);
+    color: var(--tagged-text-color);
+}
+
+[data-theme="dark"] .tagged-media-detail-nav-button img {
     filter: brightness(0) invert(1);
 }
 
@@ -1912,7 +1922,7 @@
         height: 4.65rem;
         min-height: 4.65rem;
         border: 1px solid rgba(255, 255, 255, 0.45);
-        background: rgba(0, 0, 0, 0.58);
+        background: var(--tagged-surface-raised);
         pointer-events: auto;
         transition:
             opacity 0.2s ease,
@@ -1929,7 +1939,7 @@
     .tagged-media-detail-nav-button--desktop:not(:disabled):focus-visible,
     .tagged-media-detail-nav-button--desktop:not(:disabled):active {
         opacity: 1;
-        background: rgba(0, 0, 0, 0.72);
+        background: var(--tagged-surface-hover);
         transform: translate3d(0, -50%, 0);
     }
 
@@ -1937,8 +1947,19 @@
     .tagged-media-detail-nav-button--desktop:disabled:focus-visible,
     .tagged-media-detail-nav-button--desktop:disabled:active {
         opacity: 0.25;
-        background: rgba(0, 0, 0, 0.58);
+        background: var(--tagged-surface-raised);
         border-color: rgba(255, 255, 255, 0.45);
+    }
+
+    [data-theme="dark"] .tagged-media-detail-nav-button--desktop {
+        background: rgba(37, 37, 53, 0.9);
+        border-color: rgba(255, 255, 255, 0.28);
+    }
+
+    [data-theme="dark"] .tagged-media-detail-nav-button--desktop:not(:disabled):hover,
+    [data-theme="dark"] .tagged-media-detail-nav-button--desktop:not(:disabled):focus-visible,
+    [data-theme="dark"] .tagged-media-detail-nav-button--desktop:not(:disabled):active {
+        background: rgba(46, 46, 69, 0.96);
     }
 
     .tagged-media-detail-nav-button--desktop.tagged-media-detail-nav-button--prev {
