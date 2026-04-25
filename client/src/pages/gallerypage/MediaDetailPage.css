@@ -188,8 +188,12 @@
 }
 
 .tagged-media-detail-actions--desktop .tagged-media-detail-action--favourite .tagged-media-detail-favourite-icon {
+    display: block;
     width: 1.24rem;
     height: 1.24rem;
+    margin: 0;
+    position: relative;
+    top: 0.06rem;
     stroke: #ffffff;
 }
 
@@ -458,6 +462,7 @@
 
 .tagged-media-detail-favourite-icon {
     flex: 0 0 auto;
+    display: block;
     width: 2.9rem;
     height: 2.9rem;
     fill: transparent;
@@ -825,6 +830,32 @@
     border-color: rgba(255, 255, 255, 0.46);
     color: #ffffff;
     transform: scale(1.04);
+}
+
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action {
+    border-color: rgba(208, 208, 224, 0.34);
+    background: rgba(42, 46, 70, 0.78);
+    color: #f2f4ff;
+}
+
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action:hover:not(:disabled),
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action:focus-visible:not(:disabled),
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action:active:not(:disabled) {
+    background: rgba(64, 70, 104, 0.92);
+    border-color: rgba(232, 236, 255, 0.6);
+}
+
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action--favourite {
+    background: rgba(48, 52, 80, 0.82);
+    border-color: rgba(208, 208, 224, 0.4);
+}
+
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action--delete:hover:not(:disabled),
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action--delete:focus-visible:not(:disabled),
+[data-theme="dark"] .tagged-media-detail-actions--desktop .tagged-media-detail-action--delete:active:not(:disabled) {
+    background: rgba(211, 47, 47, 0.96);
+    border-color: rgba(255, 255, 255, 0.46);
+    color: #ffffff;
 }
 
 .tagged-media-detail-action {
