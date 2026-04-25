@@ -9,6 +9,7 @@
     --tagged-tertiary-color-alt: #555555;
 
     --tagged-accent-color: #643aff;
+    --tagged-accent-rgb: 100, 58, 255;
 
     --tagged-text-color: #2e2e2e;
     --tagged-text-color-alt: #ececec;
@@ -96,6 +97,7 @@
     --tagged-tertiary-color-alt: #8888a8;
 
     --tagged-accent-color: #805dff;
+    --tagged-accent-rgb: 128, 93, 255;
 
     --tagged-text-color: #d0d0e0;
     --tagged-text-color-alt: #16161e;

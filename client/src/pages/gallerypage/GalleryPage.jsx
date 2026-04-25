@@ -232,18 +232,8 @@ const isDarkThemeActive = () => {
 };
 
 const buildTagChipStyle = (hexColor) => {
-    const rgb = getHexRgb(hexColor);
+    const rgb = getHexRgb(hexColor) || getHexRgb(DEFAULT_NEW_TAG_COLOR);
     const darkTheme = isDarkThemeActive();
-
-    if (!rgb) {
-        return {
-            backgroundColor: `${DEFAULT_NEW_TAG_COLOR}22`,
-            color: DEFAULT_NEW_TAG_COLOR,
-            borderColor: `${DEFAULT_NEW_TAG_COLOR}66`,
-            borderWidth: "2px",
-            boxShadow: "inset 0 0 0 1px rgba(0, 0, 0, 0.22)",
-        };
-    }
 
     const luminance = getRelativeLuminance(rgb);
     const isNearWhite = luminance > 0.88;

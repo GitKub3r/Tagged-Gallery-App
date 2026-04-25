@@ -87,6 +87,19 @@ textarea {
     font-size: 1rem;
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--tagged-border-color-alt);
+    opacity: 1;
+}
+
 button {
     width: 100%;
     padding: var(--tagged-size-sm) var(--tagged-size-md);
