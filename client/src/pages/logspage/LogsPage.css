@@ -362,6 +362,10 @@
 
 .tagged-logs-events-controls-actions button,
 .tagged-logs-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.42rem;
     width: auto;
     min-height: 2.5rem;
     padding: 0.3rem 0.7rem;
@@ -371,6 +375,18 @@
     color: var(--tagged-text-color);
     font-size: 0.8rem;
     font-weight: 800;
+}
+
+.tagged-logs-events-action-icon {
+    width: 0.88rem;
+    height: 0.88rem;
+    display: block;
+    flex: 0 0 auto;
+}
+
+.tagged-logs-events-action-label {
+    display: inline-block;
+    line-height: 1;
 }
 
 .tagged-logs-events-controls-actions button:hover,
@@ -433,6 +449,18 @@
     background: rgba(100, 58, 255, 0.14);
     border-color: rgba(100, 58, 255, 0.48);
     color: var(--tagged-accent-color);
+}
+
+.tagged-logs-backup-button {
+    border-color: rgba(100, 58, 255, 0.34);
+    background: rgba(100, 58, 255, 0.08);
+    color: var(--tagged-accent-color);
+}
+
+.tagged-logs-backup-button:hover:not(:disabled),
+.tagged-logs-backup-button:focus-visible {
+    background: rgba(100, 58, 255, 0.16);
+    border-color: rgba(100, 58, 255, 0.5);
 }
 
 .tagged-logs-render-icon {
@@ -1318,6 +1346,298 @@
     }
 }
 
+.tagged-logs-download-toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1125;
+    width: min(22rem, calc(100vw - 1.5rem));
+    padding: 0.75rem 0.82rem;
+    border-radius: var(--tagged-radius-md);
+    border: 1px solid var(--tagged-border-mid);
+    background: var(--tagged-surface-overlay);
+    color: var(--tagged-text-color);
+    box-shadow: 0 16px 30px rgba(19, 23, 30, 0.18);
+    display: grid;
+    gap: 0.42rem;
+}
+
+.tagged-logs-download-toast--success {
+    border-color: rgba(39, 174, 96, 0.34);
+}
+
+.tagged-logs-download-toast--error {
+    border-color: rgba(244, 67, 54, 0.34);
+    color: var(--tagged-error-color);
+}
+
+.tagged-logs-download-toast-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.tagged-logs-download-toast-header strong {
+    font-size: 0.84rem;
+    line-height: 1.2;
+}
+
+.tagged-logs-download-toast p {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.3;
+}
+
+.tagged-logs-download-toast-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+.tagged-logs-download-toast-percent {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--tagged-text-color-muted);
+    line-height: 1;
+}
+
+.tagged-logs-download-toast-speed {
+    display: block;
+    margin-left: auto;
+    text-align: right;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--tagged-text-color-muted);
+    line-height: 1;
+}
+
+.tagged-logs-download-toast--error .tagged-logs-download-toast-percent,
+.tagged-logs-download-toast--error .tagged-logs-download-toast-speed {
+    color: var(--tagged-error-color);
+}
+
+.tagged-logs-download-toast-cancel {
+    width: auto;
+    min-height: 1.2rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--tagged-text-color-muted);
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 0.14rem;
+    cursor: pointer;
+}
+
+.tagged-logs-download-toast-cancel:hover,
+.tagged-logs-download-toast-cancel:focus-visible {
+    color: var(--tagged-accent-color);
+    background: transparent;
+    border: 0;
+    transform: none;
+}
+
+.tagged-logs-download-toast-close {
+    width: 1.6rem;
+    height: 1.6rem;
+    min-height: 1.6rem;
+    padding: 0;
+    border-radius: var(--tagged-radius-full);
+    border: 1px solid var(--tagged-border-subtle);
+    background: var(--tagged-surface);
+    color: inherit;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+}
+
+.tagged-logs-download-toast-close span {
+    width: 0.72rem;
+    height: 0.72rem;
+    display: inline-block;
+    color: currentColor;
+    font-size: 0;
+    background: currentColor;
+    -webkit-mask-image: url("/icons/close.svg");
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    -webkit-mask-size: contain;
+    mask-image: url("/icons/close.svg");
+    mask-repeat: no-repeat;
+    mask-position: center;
+    mask-size: contain;
+}
+
+.tagged-logs-download-toast-close:hover,
+.tagged-logs-download-toast-close:focus-visible,
+.tagged-logs-download-toast-close:active {
+    background: var(--tagged-surface);
+    border-color: var(--tagged-border-strong);
+    color: inherit;
+    transform: none;
+}
+
+.tagged-logs-download-toast-progress {
+    width: 100%;
+    height: 0.42rem;
+    border-radius: var(--tagged-radius-full);
+    background: rgba(61, 61, 61, 0.14);
+    overflow: hidden;
+}
+
+.tagged-logs-download-toast-progress span {
+    display: block;
+    height: 100%;
+    width: 0;
+    border-radius: inherit;
+    background: var(--tagged-accent-color);
+    transition: width 120ms linear;
+}
+
+.tagged-logs-download-toast-progress.is-indeterminate span {
+    width: 38%;
+    animation: tagged-logs-toast-indeterminate 1.05s ease-in-out infinite;
+}
+
+@keyframes tagged-logs-toast-indeterminate {
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(290%);
+    }
+}
+
+.tagged-logs-download-toast--success .tagged-logs-download-toast-progress span {
+    background: #2ea164;
+}
+
+.tagged-logs-download-toast--error .tagged-logs-download-toast-progress span {
+    background: var(--tagged-error-color);
+}
+
+.tagged-logs-backup-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1250;
+    display: grid;
+    place-items: center;
+    padding: var(--tagged-size-lg);
+    background: var(--tagged-backdrop);
+}
+
+.tagged-logs-backup-modal-card {
+    width: min(36rem, 100%);
+    display: grid;
+    gap: 0.9rem;
+    padding: 1rem;
+    border-radius: var(--tagged-radius-lg);
+    border: 1px solid var(--tagged-border-mid);
+    background: var(--tagged-surface-raised);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 18px 36px rgba(19, 23, 30, 0.2);
+}
+
+.tagged-logs-backup-modal-header {
+    display: grid;
+    gap: 0.3rem;
+}
+
+.tagged-logs-backup-modal-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.tagged-logs-backup-modal-header p {
+    margin: 0;
+    color: var(--tagged-border-color-alt);
+    font-size: 0.86rem;
+}
+
+.tagged-logs-backup-options {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.tagged-logs-backup-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.58rem;
+    align-items: start;
+    border-radius: var(--tagged-radius-md);
+    border: 1px solid var(--tagged-border-mid);
+    background: var(--tagged-surface-raised);
+    padding: 0.7rem 0.75rem;
+    cursor: pointer;
+}
+
+.tagged-logs-backup-option input[type="radio"] {
+    margin-top: 0.1rem;
+}
+
+.tagged-logs-backup-option span {
+    display: grid;
+    gap: 0.22rem;
+}
+
+.tagged-logs-backup-option strong {
+    font-size: 0.88rem;
+}
+
+.tagged-logs-backup-option small {
+    color: var(--tagged-border-color-alt);
+    font-size: 0.78rem;
+    line-height: 1.32;
+}
+
+.tagged-logs-backup-option:has(input[type="radio"]:checked) {
+    border-color: rgba(100, 58, 255, 0.46);
+    background: rgba(100, 58, 255, 0.08);
+}
+
+.tagged-logs-backup-modal-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.7rem;
+    margin-top: 0.2rem;
+}
+
+.tagged-logs-backup-modal-actions button {
+    width: auto;
+    min-height: 2.2rem;
+    padding: 0.34rem 0.75rem;
+    border-radius: var(--tagged-radius-md);
+    border: 1px solid var(--tagged-border-mid);
+    background: var(--tagged-surface-raised);
+    color: var(--tagged-text-color);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.tagged-logs-backup-modal-actions .tagged-logs-backup-confirm-button {
+    border-color: rgba(100, 58, 255, 0.45);
+    background: rgba(100, 58, 255, 0.14);
+    color: var(--tagged-accent-color);
+}
+
+.tagged-logs-backup-modal-actions button:hover:not(:disabled),
+.tagged-logs-backup-modal-actions button:focus-visible {
+    border-color: rgba(100, 58, 255, 0.42);
+    background: rgba(100, 58, 255, 0.1);
+    color: var(--tagged-accent-color);
+}
+
+.tagged-logs-backup-modal-actions button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 @media (max-width: 1200px) {
     .tagged-logs-filters-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1474,13 +1794,32 @@
         max-width: 100%;
     }
 
+    .tagged-logs-panel--events .tagged-logs-render-label,
+    .tagged-logs-panel--events .tagged-logs-events-action-label {
+        display: none;
+    }
+
     .tagged-logs-render-button {
         width: auto;
         min-width: 0;
-        padding: 0.32rem 0.68rem;
+        padding: 0.32rem;
+        min-width: 2.3rem;
         font-size: 0.8rem;
         min-height: 2.3rem;
         flex: 0 0 auto;
+    }
+
+    .tagged-logs-events-controls-actions button,
+    .tagged-logs-filter-toggle {
+        min-width: 2.3rem;
+        min-height: 2.3rem;
+        padding: 0.3rem;
+        justify-content: center;
+    }
+
+    .tagged-logs-filter-toggle {
+        gap: 0.32rem;
+        padding-inline: 0.36rem;
     }
 
     .tagged-logs-pagination__nav {
@@ -1491,5 +1830,21 @@
     .tagged-logs-pagination__count {
         width: 100%;
         margin-left: 0;
+    }
+
+    .tagged-logs-backup-modal {
+        padding: 0.75rem;
+    }
+
+    .tagged-logs-backup-modal-card {
+        padding: 0.85rem;
+    }
+
+    .tagged-logs-backup-modal-actions {
+        justify-content: stretch;
+    }
+
+    .tagged-logs-backup-modal-actions button {
+        flex: 1 1 0;
     }
 }

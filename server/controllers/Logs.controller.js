@@ -3,6 +3,163 @@ const AuditService = require("../services/Audit.service");
 const HistoryModel = require("../models/History.model");
 
 class LogsController {
+    static backupAbortControllersByUser = new Map();
+
+    static getBackupAbortKey(req) {
+        return String(req.user?.id || "admin");
+    }
+
+    static async cancelDatabaseBackup(req, res) {
+        const key = LogsController.getBackupAbortKey(req);
+        const activeAbortController = LogsController.backupAbortControllersByUser.get(key);
+
+        if (!activeAbortController) {
+            return res.json({
+                success: true,
+                cancelled: false,
+                message: "No active backup process",
+            });
+        }
+
+        activeAbortController.abort();
+        await AuditService.logEvent({
+            actionCode: "BACKUP_DOWNLOAD_CANCEL_REQUESTED",
+            req,
+            statusCode: 200,
+            message: "Admin requested backup cancellation",
+            metadata: {
+                backupKey: key,
+            },
+        });
+
+        return res.json({
+            success: true,
+            cancelled: true,
+            message: "Backup cancellation requested",
+        });
+    }
+
+    static async downloadDatabaseBackup(req, res) {
+        const abortController = new AbortController();
+        const backupAbortKey = LogsController.getBackupAbortKey(req);
+        LogsController.backupAbortControllersByUser.set(backupAbortKey, abortController);
+        const onRequestClosed = () => {
+            abortController.abort();
+        };
+
+        req.on("aborted", onRequestClosed);
+        req.on("close", onRequestClosed);
+        res.on("close", onRequestClosed);
+
+        try {
+            const includeData = req.body?.includeData === true;
+            await AuditService.logEvent({
+                actionCode: "BACKUP_DOWNLOAD_STARTED",
+                req,
+                statusCode: 202,
+                message: includeData
+                    ? "Admin started full backup download (database structure, data and uploads)"
+                    : "Admin started structure-only backup download",
+                metadata: {
+                    includeData,
+                },
+            });
+            const backup = await LogsService.createDatabaseBackupArchive({
+                includeData,
+                signal: abortController.signal,
+            });
+
+            return res.download(backup.filePath, backup.fileName, (downloadError) => {
+                backup.cleanup().catch((cleanupError) => {
+                    console.error("Error cleaning backup temp files:", cleanupError);
+                });
+
+                if (downloadError) {
+                    if (downloadError.code === "ECONNABORTED") {
+                        console.warn("Backup download aborted by client");
+                        AuditService.logEvent({
+                            actionCode: "BACKUP_DOWNLOAD_CANCELLED",
+                            req,
+                            statusCode: 499,
+                            message: "Backup download aborted by client",
+                            metadata: {
+                                includeData,
+                                fileName: backup.fileName,
+                            },
+                        });
+                    } else {
+                        console.error("Error downloading backup file:", downloadError);
+                        AuditService.logEvent({
+                            actionCode: "BACKUP_DOWNLOAD_FAILED",
+                            req,
+                            statusCode: 500,
+                            message: "Backup download failed during response transfer",
+                            metadata: {
+                                includeData,
+                                fileName: backup.fileName,
+                                error: downloadError.message,
+                                code: downloadError.code || null,
+                            },
+                        });
+                    }
+                } else {
+                    AuditService.logEvent({
+                        actionCode: "BACKUP_DOWNLOAD_SUCCEEDED",
+                        req,
+                        statusCode: 200,
+                        message: "Backup download completed successfully",
+                        metadata: {
+                            includeData,
+                            fileName: backup.fileName,
+                        },
+                    });
+                }
+
+                if (downloadError && !res.headersSent) {
+                    res.status(500).json({
+                        success: false,
+                        message: "Could not download backup file",
+                    });
+                }
+            });
+        } catch (error) {
+            if (error?.name === "AbortError" || abortController.signal.aborted) {
+                await AuditService.logEvent({
+                    actionCode: "BACKUP_DOWNLOAD_CANCELLED",
+                    req,
+                    statusCode: 499,
+                    message: "Backup generation was cancelled before transfer completed",
+                    metadata: {
+                        reason: error?.message || "request-aborted",
+                    },
+                });
+                return;
+            }
+
+            console.error("Error in LogsController.downloadDatabaseBackup:", error);
+            await AuditService.logEvent({
+                actionCode: "BACKUP_DOWNLOAD_FAILED",
+                req,
+                statusCode: 500,
+                message: "Backup generation failed",
+                metadata: {
+                    error: error?.message || "unknown-error",
+                },
+            });
+            return res.status(500).json({
+                success: false,
+                message: "Could not generate database backup",
+            });
+        } finally {
+            if (LogsController.backupAbortControllersByUser.get(backupAbortKey) === abortController) {
+                LogsController.backupAbortControllersByUser.delete(backupAbortKey);
+            }
+            req.off("aborted", onRequestClosed);
+            req.off("close", onRequestClosed);
+            res.off("close", onRequestClosed);
+        }
+    }
+
     static async getLogs(req, res) {
         try {
             const result = await LogsService.getLogs(req.query);

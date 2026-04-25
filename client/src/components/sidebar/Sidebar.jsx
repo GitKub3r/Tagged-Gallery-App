@@ -46,6 +46,11 @@ const adminNavItems = [
         icon: "/icons/logs.svg",
     },
     {
+        label: "Actions",
+        path: "/actions",
+        icon: "/icons/list.svg",
+    },
+    {
         label: "Users",
         path: "/users",
         icon: "/icons/users.svg",

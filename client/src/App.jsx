@@ -12,6 +12,7 @@ import { AlbumPage } from "./pages/albumspage/AlbumPage";
 import { AlbumDetailPage } from "./pages/albumspage/AlbumDetailPage";
 import { UsersPage } from "./pages/userspage/UsersPage";
 import { LogsPage } from "./pages/logspage/LogsPage";
+import { ActionsPage } from "./pages/actionspage/ActionsPage";
 
 function App() {
     return (
@@ -32,6 +33,7 @@ function App() {
                         <Route path="/metrics" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/users" element={<UsersPage />} />
                         <Route path="/logs" element={<LogsPage />} />
+                        <Route path="/actions" element={<ActionsPage />} />
                         <Route path="/account" element={<AccountPage />} />
                     </Route>
 
