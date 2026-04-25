@@ -95,7 +95,7 @@ export const Sidebar = () => {
     const isAlbumDetailView = Boolean(useMatch("/albums/:albumId"));
     const isGalleryView = location.pathname.startsWith("/gallery");
     const isFavouritesView = location.pathname.startsWith("/favourites");
-    const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView || isAlbumDetailView;
+    const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView || isAlbumDetailView || isDashboardView;
     const shouldShowTagPanel = !isMetadataView && !isLegacyTagsView && !isDashboardView;
     const shouldShowGeneralFilters = !isMediaDetailView && (isGalleryView || isFavouritesView || isAlbumDetailView);
     const isUsersView = location.pathname.startsWith("/users");
