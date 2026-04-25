@@ -16,6 +16,11 @@ const DEFAULT_ACTION_NAMES = {
     ALBUM_ADD_MEDIA_BATCH: "Add multiple media to album",
     ALBUM_REMOVE_MEDIA: "Remove media from album",
     ALBUM_REMOVE_MEDIA_BATCH: "Remove multiple media from album",
+    BACKUP_DOWNLOAD_STARTED: "Backup download started",
+    BACKUP_DOWNLOAD_CANCEL_REQUESTED: "Backup download cancel requested",
+    BACKUP_DOWNLOAD_CANCELLED: "Backup download cancelled",
+    BACKUP_DOWNLOAD_SUCCEEDED: "Backup download succeeded",
+    BACKUP_DOWNLOAD_FAILED: "Backup download failed",
 };
 
 class AuditService {

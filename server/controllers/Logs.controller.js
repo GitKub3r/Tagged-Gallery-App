@@ -22,6 +22,15 @@ class LogsController {
         }
 
         activeAbortController.abort();
+        await AuditService.logEvent({
+            actionCode: "BACKUP_DOWNLOAD_CANCEL_REQUESTED",
+            req,
+            statusCode: 200,
+            message: "Admin requested backup cancellation",
+            metadata: {
+                backupKey: key,
+            },
+        });
 
         return res.json({
             success: true,
@@ -44,6 +53,17 @@ class LogsController {
 
         try {
             const includeData = req.body?.includeData === true;
+            await AuditService.logEvent({
+                actionCode: "BACKUP_DOWNLOAD_STARTED",
+                req,
+                statusCode: 202,
+                message: includeData
+                    ? "Admin started full backup download (database structure, data and uploads)"
+                    : "Admin started structure-only backup download",
+                metadata: {
+                    includeData,
+                },
+            });
             const backup = await LogsService.createDatabaseBackupArchive({
                 includeData,
                 signal: abortController.signal,
@@ -57,9 +77,42 @@ class LogsController {
                 if (downloadError) {
                     if (downloadError.code === "ECONNABORTED") {
                         console.warn("Backup download aborted by client");
+                        AuditService.logEvent({
+                            actionCode: "BACKUP_DOWNLOAD_CANCELLED",
+                            req,
+                            statusCode: 499,
+                            message: "Backup download aborted by client",
+                            metadata: {
+                                includeData,
+                                fileName: backup.fileName,
+                            },
+                        });
                     } else {
                         console.error("Error downloading backup file:", downloadError);
+                        AuditService.logEvent({
+                            actionCode: "BACKUP_DOWNLOAD_FAILED",
+                            req,
+                            statusCode: 500,
+                            message: "Backup download failed during response transfer",
+                            metadata: {
+                                includeData,
+                                fileName: backup.fileName,
+                                error: downloadError.message,
+                                code: downloadError.code || null,
+                            },
+                        });
                     }
+                } else {
+                    AuditService.logEvent({
+                        actionCode: "BACKUP_DOWNLOAD_SUCCEEDED",
+                        req,
+                        statusCode: 200,
+                        message: "Backup download completed successfully",
+                        metadata: {
+                            includeData,
+                            fileName: backup.fileName,
+                        },
+                    });
                 }
 
                 if (downloadError && !res.headersSent) {
@@ -71,10 +124,28 @@ class LogsController {
             });
         } catch (error) {
             if (error?.name === "AbortError" || abortController.signal.aborted) {
+                await AuditService.logEvent({
+                    actionCode: "BACKUP_DOWNLOAD_CANCELLED",
+                    req,
+                    statusCode: 499,
+                    message: "Backup generation was cancelled before transfer completed",
+                    metadata: {
+                        reason: error?.message || "request-aborted",
+                    },
+                });
                 return;
             }
 
             console.error("Error in LogsController.downloadDatabaseBackup:", error);
+            await AuditService.logEvent({
+                actionCode: "BACKUP_DOWNLOAD_FAILED",
+                req,
+                statusCode: 500,
+                message: "Backup generation failed",
+                metadata: {
+                    error: error?.message || "unknown-error",
+                },
+            });
             return res.status(500).json({
                 success: false,
                 message: "Could not generate database backup",

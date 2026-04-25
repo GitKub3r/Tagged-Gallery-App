@@ -2,7 +2,7 @@ import { useLayoutEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
 
-const ADMIN_ROUTES = ["/logs", "/users", "/account"];
+const ADMIN_ROUTES = ["/logs", "/actions", "/users", "/account"];
 const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/dashboard", "/account"];
 
 /**
