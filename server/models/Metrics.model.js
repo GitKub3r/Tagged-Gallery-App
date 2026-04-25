@@ -82,7 +82,7 @@ class MetricsModel {
 
         const [rows] = await pool.query(
             `SELECT
-                COALESCE(COUNT(DISTINCT m.id), 0) AS tagged_media_count,
+                COALESCE(COUNT(DISTINCT CASE WHEN mt.id IS NOT NULL THEN m.id END), 0) AS tagged_media_count,
                 COALESCE(COUNT(mt.id), 0) AS total_tag_assignments
              FROM media m
              LEFT JOIN media_tags mt ON mt.mediaid = m.id
@@ -167,8 +167,15 @@ class MetricsModel {
         const [rows] = await pool.query(
             `SELECT
                 m.mediatype,
-                COUNT(*) AS media_count
+                COUNT(*) AS media_count,
+                COALESCE(SUM(CASE WHEN mt_summary.mediaid IS NOT NULL THEN 1 ELSE 0 END), 0) AS tagged_media_count,
+                COALESCE(SUM(m.is_favourite = 1), 0) AS favourite_media_count,
+                COALESCE(SUM(m.size), 0) AS total_bytes
              FROM media m
+             LEFT JOIN (
+                SELECT DISTINCT mediaid
+                FROM media_tags
+             ) AS mt_summary ON mt_summary.mediaid = m.id
              WHERE ${clause}
              GROUP BY m.mediatype
              ORDER BY media_count DESC, m.mediatype ASC`,

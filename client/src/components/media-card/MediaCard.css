@@ -7,7 +7,9 @@
     background-color: var(--tagged-primary-color);
     box-shadow: var(--tagged-shadow-card);
     cursor: pointer;
-    transition: transform 180ms ease, box-shadow 180ms ease;
+    transition:
+        transform 180ms ease,
+        box-shadow 180ms ease;
 }
 
 .tagged-media-card.is-selection-mode {
@@ -67,7 +69,9 @@
     display: block;
     opacity: 0;
     transform: scale(0.85);
-    transition: opacity 140ms ease, transform 140ms ease;
+    transition:
+        opacity 140ms ease,
+        transform 140ms ease;
 }
 
 .tagged-media-card-select-indicator.is-selected img {
@@ -82,7 +86,7 @@
 
 .tagged-media-card:hover {
     transform: scale(1.012);
-    box-shadow: 0 20px 42px rgba(24, 24, 31, 0.14);
+    box-shadow: var(--tagged-shadow-card);
 }
 
 .tagged-media-card-preview-wrap {

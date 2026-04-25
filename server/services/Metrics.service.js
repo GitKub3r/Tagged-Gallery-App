@@ -32,6 +32,9 @@ const transformMediaTypeBreakdown = (rows, totalMedia) =>
     rows.map((row) => ({
         mediatype: row.mediatype,
         mediaCount: toNumber(row.media_count),
+        taggedMediaCount: toNumber(row.tagged_media_count),
+        favouriteMediaCount: toNumber(row.favourite_media_count),
+        totalBytes: toNumber(row.total_bytes),
         mediaShare: totalMedia > 0 ? toNumber(row.media_count) / totalMedia : 0,
     }));
 
