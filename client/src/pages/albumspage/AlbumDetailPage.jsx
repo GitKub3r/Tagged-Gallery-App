@@ -16,6 +16,13 @@ import "../gallerypage/GalleryPage.css";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
 const ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY = "tagged_album_detail_media_view_mode";
+const GENERAL_FILTER_COMMAND_EVENT = "tagged:general-filter-command";
+const GENERAL_FILTER_STATE_EVENT = "tagged:general-filter-state";
+
+const isVideoOrGifMedia = (media) => {
+    const mediaType = String(media?.mediatype || "").toLowerCase();
+    return mediaType.includes("video") || mediaType.includes("gif");
+};
 
 const parseApiResponse = async (response, fallbackMessage) => {
     const clonedResponse = response.clone();
@@ -211,6 +218,7 @@ export const AlbumDetailPage = () => {
     const [isAddingMedia, setIsAddingMedia] = useState(false);
     const [addMediaError, setAddMediaError] = useState(null);
     const [activeAlbumTagFilter, setActiveAlbumTagFilter] = useState("");
+    const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
     const [isAlbumSelectionMode, setIsAlbumSelectionMode] = useState(false);
     const [selectedAlbumMediaIds, setSelectedAlbumMediaIds] = useState(new Set());
     const [albumMediaViewMode, setAlbumMediaViewMode] = useState(() => {
@@ -302,6 +310,14 @@ export const AlbumDetailPage = () => {
         const normalizedExcludedSidebarTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
 
         return albumMediaItems.filter((media) => {
+            if (mediaTypeFilter === "image" && isVideoOrGifMedia(media)) {
+                return false;
+            }
+
+            if (mediaTypeFilter === "video" && !isVideoOrGifMedia(media)) {
+                return false;
+            }
+
             const mediaTagNames = mapTagsFromMedia(media).map((t) => t.toLowerCase());
 
             if (normalizedIncludedSidebarTags.length > 0) {
@@ -330,7 +346,69 @@ export const AlbumDetailPage = () => {
 
             return true;
         });
-    }, [albumMediaItems, activeAlbumTagFilter, selectedIncludeFilterTags, selectedExcludeFilterTags]);
+    }, [albumMediaItems, activeAlbumTagFilter, selectedIncludeFilterTags, selectedExcludeFilterTags, mediaTypeFilter]);
+
+    const hasAnyActiveFilter =
+        mediaTypeFilter !== "all" ||
+        Boolean(activeAlbumTagFilter) ||
+        selectedIncludeFilterTags.length > 0 ||
+        selectedExcludeFilterTags.length > 0;
+
+    useEffect(() => {
+        window.dispatchEvent(
+            new CustomEvent(GENERAL_FILTER_STATE_EVENT, {
+                detail: {
+                    mediaTypeFilter,
+                    hasAnyActiveFilter,
+                },
+            }),
+        );
+    }, [mediaTypeFilter, hasAnyActiveFilter]);
+
+    useEffect(() => {
+        return () => {
+            window.dispatchEvent(
+                new CustomEvent(GENERAL_FILTER_STATE_EVENT, {
+                    detail: {
+                        mediaTypeFilter: "all",
+                        hasAnyActiveFilter: false,
+                    },
+                }),
+            );
+        };
+    }, []);
+
+    useEffect(() => {
+        const handleGeneralFilterCommand = (event) => {
+            const detail = event?.detail || {};
+
+            if (detail.type === "toggle-media-type") {
+                const requestedType = detail.mediaType;
+
+                if (requestedType === "all") {
+                    setMediaTypeFilter("all");
+                    return;
+                }
+
+                if (requestedType === "image" || requestedType === "video") {
+                    setMediaTypeFilter((previous) => (previous === requestedType ? "all" : requestedType));
+                }
+                return;
+            }
+
+            if (detail.type === "clear-all-filters") {
+                setMediaTypeFilter("all");
+                setActiveAlbumTagFilter("");
+                clearFilterTags();
+            }
+        };
+
+        window.addEventListener(GENERAL_FILTER_COMMAND_EVENT, handleGeneralFilterCommand);
+
+        return () => {
+            window.removeEventListener(GENERAL_FILTER_COMMAND_EVENT, handleGeneralFilterCommand);
+        };
+    }, [clearFilterTags]);
 
     const hasVisibleAlbumMediaItems = activeAlbumMediaItems.length > 0;
     const areAllVisibleAlbumMediaSelected =
