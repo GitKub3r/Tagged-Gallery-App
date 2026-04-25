@@ -156,14 +156,14 @@
 
 .tagged-upload-form .tagged-upload-field input {
     border-radius: var(--tagged-radius-sm);
-    background: var(--tagged-surface-alt);
+    background: var(--tagged-surface);
     border-color: var(--tagged-border-mid);
 }
 
 .tagged-gallery-search-input:focus-visible,
 .tagged-upload-field input:focus-visible {
-    outline: 2px solid rgba(100, 58, 255, 0.3);
-    outline-offset: 1px;
+    outline: none;
+    outline-offset: 0;
 }
 
 .tagged-gallery-search-clear {
@@ -1905,7 +1905,7 @@
     width: 2.5rem;
     height: 2.5rem;
     border-radius: var(--tagged-radius-sm);
-    border: 1px solid rgba(61, 61, 61, 0.3);
+    border: none;
     background: rgba(0, 0, 0, 0.08);
     overflow: hidden;
     padding: 0;
@@ -1953,9 +1953,7 @@
     width: min(100%, 18rem);
     height: auto;
     aspect-ratio: 4 / 3;
-    border-radius: var(--tagged-radius-md);
-    border-color: rgba(61, 61, 61, 0.24);
-    background: rgba(0, 0, 0, 0.12);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1965,8 +1963,6 @@
 .tagged-upload-selected-files-preview:hover,
 .tagged-upload-selected-files-preview:focus-visible,
 .tagged-upload-selected-files-preview:active {
-    background: rgba(0, 0, 0, 0.08);
-    border-color: rgba(61, 61, 61, 0.3);
     transform: scale(1.02);
 }
 
@@ -2160,8 +2156,8 @@
     width: auto;
     min-height: 2.3rem;
     border-radius: var(--tagged-radius-full);
-    border: 1px solid rgba(100, 58, 255, 0.38);
-    background: rgba(100, 58, 255, 0.2);
+    border: 1px solid rgba(var(--tagged-accent-rgb), 0.38);
+    background: rgba(var(--tagged-accent-rgb), 0.2);
     color: var(--tagged-text-color);
     padding: 0.34rem 0.82rem;
     display: inline-flex;
@@ -2174,9 +2170,9 @@
 .tagged-upload-tag-chip:hover,
 .tagged-upload-tag-chip:focus-visible,
 .tagged-upload-tag-chip:active {
-    background: rgba(100, 58, 255, 0.2);
+    background: rgba(var(--tagged-accent-rgb), 0.2);
     color: var(--tagged-text-color);
-    border-color: rgba(100, 58, 255, 0.38);
+    border-color: rgba(var(--tagged-accent-rgb), 0.38);
     transform: scale(1.03);
 }
 
