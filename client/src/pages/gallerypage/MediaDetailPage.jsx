@@ -2747,36 +2747,6 @@ export const MediaDetailPage = () => {
 
                                     {editError ? <p className="tagged-media-edit-error">{editError}</p> : null}
 
-                                    <footer className="tagged-media-edit-modal-footer">
-                                        <label className="tagged-media-edit-close-on-save">
-                                            <input
-                                                type="checkbox"
-                                                checked={closeEditModalOnSave}
-                                                onChange={(event) => setCloseEditModalOnSave(event.target.checked)}
-                                                disabled={isSavingEdit}
-                                            />
-                                            <span>Close on save</span>
-                                        </label>
-
-                                        <div className="tagged-media-edit-modal-actions">
-                                            <button
-                                                type="button"
-                                                className="tagged-media-edit-modal-cancel"
-                                                onClick={closeEditModal}
-                                                disabled={isSavingEdit}
-                                                aria-label="Cancel editing"
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                className="tagged-media-edit-submit"
-                                                disabled={isSavingEdit}
-                                            >
-                                                {isSavingEdit ? "Saving..." : "Save Changes"}
-                                            </button>
-                                        </div>
-                                    </footer>
                                 </div>
 
                                 <aside className="tagged-media-edit-preview-panel" aria-label="Selected media preview">
@@ -2821,6 +2791,37 @@ export const MediaDetailPage = () => {
                                     )}
                                 </aside>
                             </div>
+
+                            <footer className="tagged-media-edit-modal-footer">
+                                <label className="tagged-media-edit-close-on-save">
+                                    <input
+                                        type="checkbox"
+                                        checked={closeEditModalOnSave}
+                                        onChange={(event) => setCloseEditModalOnSave(event.target.checked)}
+                                        disabled={isSavingEdit}
+                                    />
+                                    <span>Close on save</span>
+                                </label>
+
+                                <div className="tagged-media-edit-modal-actions">
+                                    <button
+                                        type="button"
+                                        className="tagged-media-edit-modal-cancel"
+                                        onClick={closeEditModal}
+                                        disabled={isSavingEdit}
+                                        aria-label="Cancel editing"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="tagged-media-edit-submit"
+                                        disabled={isSavingEdit}
+                                    >
+                                        {isSavingEdit ? "Saving..." : "Save Changes"}
+                                    </button>
+                                </div>
+                            </footer>
                         </form>
 
                         {isEditPreviewLightboxOpen && editPreviewUrl ? (

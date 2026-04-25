@@ -145,7 +145,7 @@
 .tagged-album-search-input {
     width: 100%;
     min-height: 2.65rem;
-    border-radius: var(--tagged-radius-lg);
+    border-radius: var(--tagged-radius-md);
     border: 1px solid var(--tagged-border-strong);
     background: var(--tagged-surface);
     color: var(--tagged-text-color);

@@ -2565,6 +2565,20 @@
         grid-template-columns: 1fr;
     }
 
+    .tagged-upload-tag-preview {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        align-items: center;
+        min-height: 3.05rem;
+        padding-bottom: 0.35rem;
+    }
+
+    .tagged-upload-tag-preview .tagged-upload-tag-chip {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+
     .tagged-upload-actions {
         justify-content: flex-end;
     }

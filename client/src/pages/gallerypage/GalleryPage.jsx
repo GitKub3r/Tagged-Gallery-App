@@ -1403,11 +1403,14 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setIsEditSelectedModalOpen(true);
     };
 
-    const handleSubmitSelectedEdit = async ({ displayname, author, tags }) => {
+    const handleSubmitSelectedEdit = async (inputPayload) => {
         if (isSavingSelectedEdit || selectedMediaIds.size === 0) {
             return;
 
         }
+        const payloadInput = inputPayload || {};
+        const { displayname, author, tags } = payloadInput;
+        const hasDisplayNameInput = Object.prototype.hasOwnProperty.call(payloadInput, "displayname");
         const selectedItems = mediaItems.filter((media) => selectedMediaIds.has(media.id));
 
         if (selectedItems.length === 0) {
@@ -1419,12 +1422,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         const trimmedAuthor = String(author || "").trim();
         const nextTags = Array.isArray(tags) ? tags : [];
         const isSingleEdit = selectedItems.length === 1;
-
-        if (isSingleEdit && !trimmedDisplayName) {
-            setSelectedEditError("Media Name is required.");
-            return;
-
-        }
         try {
             setIsSavingSelectedEdit(true);
             setSelectedEditError(null);
@@ -1455,11 +1452,13 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             const results = await Promise.allSettled(
                 selectedItems.map(async (media) => {
                     const payload = {
-                        displayname: isSingleEdit
-                            ? trimmedDisplayName
-                            : trimmedDisplayName || String(media.displayname || "Untitled"),
                         author: isSingleEdit ? trimmedAuthor : trimmedAuthor || String(media.author || ""),
                     };
+                    if (isSingleEdit || hasDisplayNameInput) {
+                        payload.displayname = trimmedDisplayName;
+                    } else {
+                        payload.displayname = String(media.displayname || "");
+                    }
 
                     if (isSingleEdit) {
                         payload.tag_names = JSON.stringify(nextTags);

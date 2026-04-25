@@ -649,8 +649,9 @@ class MediaService {
                 const trimmed = String(payload.displayname).trim();
                 if (trimmed !== "") {
                     fields.displayname = trimmed;
+                } else {
+                    fields.displayname = null;
                 }
-                // Si string vacío, no actualizar displayname (conservar valor original)
             }
 
             if (payload.author !== undefined) {
@@ -830,3 +831,4 @@ class MediaService {
 }
 
 module.exports = MediaService;
+

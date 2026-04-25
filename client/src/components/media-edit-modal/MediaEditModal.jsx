@@ -134,6 +134,7 @@ export const MediaEditModal = ({
 }) => {
     const [displayNameInput, setDisplayNameInput] = useState("");
     const [authorInput, setAuthorInput] = useState("");
+    const [isDisplayNameTouched, setIsDisplayNameTouched] = useState(false);
     const [tagInput, setTagInput] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
     const [activeSuggestionField, setActiveSuggestionField] = useState(null);
@@ -149,6 +150,7 @@ export const MediaEditModal = ({
 
         setDisplayNameInput(String(initialValues?.displayname || ""));
         setAuthorInput(String(initialValues?.author || ""));
+        setIsDisplayNameTouched(false);
         setTagInput("");
         setSelectedTags(Array.isArray(initialValues?.tags) ? initialValues.tags : []);
         setActiveSuggestionField(null);
@@ -489,7 +491,7 @@ export const MediaEditModal = ({
 
         let payload = { tags: selectedTags };
 
-        if (!isMultiMode || displayNameInput.trim() !== "") {
+        if (!isMultiMode || isDisplayNameTouched || displayNameInput.trim() !== "") {
             payload.displayname = displayNameInput;
         }
         if (!isMultiMode || authorInput.trim() !== "") {
@@ -602,6 +604,7 @@ export const MediaEditModal = ({
                                             type="text"
                                             value={displayNameInput}
                                             onChange={(event) => {
+                                                setIsDisplayNameTouched(true);
                                                 setDisplayNameInput(event.target.value);
                                                 openSuggestions("displayname");
                                             }}
@@ -613,13 +616,13 @@ export const MediaEditModal = ({
                                                     "displayname",
                                                     visibleDisplayNameSuggestions,
                                                     (selectedValue) => {
+                                                        setIsDisplayNameTouched(true);
                                                         setDisplayNameInput(selectedValue || "");
                                                         closeSuggestions();
                                                     },
                                                 )
                                             }
                                             placeholder={isMultiMode ? "Keep existing values" : "Undefined"}
-                                            required={!isMultiMode}
                                         />
 
                                         {activeSuggestionField === "displayname" &&
@@ -790,6 +793,7 @@ export const MediaEditModal = ({
                                     </button>
                                 </div>
                             </footer>
+
                         </div>
 
                         <aside className="tagged-media-edit-preview-panel" aria-label="Selected media preview">
@@ -850,6 +854,7 @@ export const MediaEditModal = ({
                             )}
                         </aside>
                     </div>
+
                 </form>
 
                 {isPreviewLightboxOpen && activePreviewItem ? (

@@ -32,11 +32,7 @@ const normalizeActionCode = (value) =>
         .toUpperCase()
         .replace(/\s+/g, "_");
 
-const countWords = (value) =>
-    String(value || "")
-        .trim()
-        .split(/\s+/)
-        .filter(Boolean).length;
+const countCharacters = (value) => String(value || "").length;
 
 const emptyForm = {
     actionname: "",
@@ -104,7 +100,7 @@ export const ActionsPage = () => {
         [actions, deleteConfirmActionId],
     );
 
-    const descriptionWordCount = useMemo(() => countWords(form.description), [form.description]);
+    const descriptionCharCount = useMemo(() => countCharacters(form.description), [form.description]);
 
     useEffect(() => {
         if (!isAdmin) {
@@ -201,12 +197,7 @@ export const ActionsPage = () => {
     };
 
     const handleDescriptionChange = (nextValue) => {
-        const words = String(nextValue || "")
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean);
-
-        const limitedValue = words.length <= 150 ? nextValue : words.slice(0, 150).join(" ");
+        const limitedValue = String(nextValue || "").slice(0, 150);
 
         setForm((current) => ({
             ...current,
@@ -399,7 +390,13 @@ export const ActionsPage = () => {
 
                 <div className="tagged-actions-header-right">
                     <button type="button" className="tagged-actions-create-button" onClick={openCreateEditor}>
-                        <svg className="tagged-actions-create-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                            className="tagged-actions-create-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                        >
                             <path d="M12 5v14M5 12h14" />
                         </svg>
                         <span>New action</span>
@@ -416,7 +413,13 @@ export const ActionsPage = () => {
                         aria-pressed={renderMode === "table"}
                         title="Table view"
                     >
-                        <svg className="tagged-actions-render-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                            className="tagged-actions-render-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                        >
                             <rect x="3" y="3" width="18" height="18" rx="2" />
                             <path d="M3 9h18M9 3v18" />
                         </svg>
@@ -434,7 +437,13 @@ export const ActionsPage = () => {
                         aria-pressed={renderMode === "card"}
                         title="Card view"
                     >
-                        <svg className="tagged-actions-render-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg
+                            className="tagged-actions-render-icon"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                        >
                             <rect x="3" y="3" width="8" height="8" rx="1" />
                             <rect x="13" y="3" width="8" height="8" rx="1" />
                             <rect x="3" y="13" width="8" height="8" rx="1" />
@@ -446,7 +455,10 @@ export const ActionsPage = () => {
             </header>
 
             {actionError ? (
-                <article className="tagged-app-page-card tagged-actions-status-card tagged-actions-status-card--error" aria-live="polite">
+                <article
+                    className="tagged-app-page-card tagged-actions-status-card tagged-actions-status-card--error"
+                    aria-live="polite"
+                >
                     <h2>Action failed</h2>
                     <p>{actionError}</p>
                 </article>
@@ -482,19 +494,31 @@ export const ActionsPage = () => {
                                     <td>{action.actionname || "Unnamed action"}</td>
                                     <td className="tagged-actions-table-code">{action.actioncode || "-"}</td>
                                     <td>
-                                        <span className={`tagged-action-status${action.is_active ? " is-active" : " is-inactive"}`}>
+                                        <span
+                                            className={`tagged-action-status${action.is_active ? " is-active" : " is-inactive"}`}
+                                        >
                                             {action.is_active ? "Active" : "Inactive"}
                                         </span>
                                     </td>
-                                    <td className="tagged-actions-table-description">{action.description || "No description"}</td>
-                                    <td>{action.updated_at ? new Date(action.updated_at).toLocaleDateString("es-ES") : "-"}</td>
+                                    <td className="tagged-actions-table-description">
+                                        {action.description || "No description"}
+                                    </td>
+                                    <td>
+                                        {action.updated_at
+                                            ? new Date(action.updated_at).toLocaleDateString("es-ES")
+                                            : "-"}
+                                    </td>
                                     <td>
                                         <div className="tagged-action-card-footer tagged-action-card-footer--table">
                                             <button type="button" onClick={() => openEditEditor(action)}>
                                                 <img src="/icons/edit.svg" alt="" aria-hidden="true" />
                                                 <span>Edit</span>
                                             </button>
-                                            <button type="button" className="tagged-action-delete" onClick={() => openDeleteConfirm(action.id)}>
+                                            <button
+                                                type="button"
+                                                className="tagged-action-delete"
+                                                onClick={() => openDeleteConfirm(action.id)}
+                                            >
                                                 <img src="/icons/delete.svg" alt="" aria-hidden="true" />
                                                 <span>Delete</span>
                                             </button>
@@ -511,7 +535,9 @@ export const ActionsPage = () => {
                         <article key={action.id} className="tagged-app-page-card tagged-action-card">
                             <header className="tagged-action-card-header">
                                 <h2>{action.actionname || "Unnamed action"}</h2>
-                                <span className={`tagged-action-status${action.is_active ? " is-active" : " is-inactive"}`}>
+                                <span
+                                    className={`tagged-action-status${action.is_active ? " is-active" : " is-inactive"}`}
+                                >
                                     {action.is_active ? "Active" : "Inactive"}
                                 </span>
                             </header>
@@ -524,7 +550,11 @@ export const ActionsPage = () => {
                                     <img src="/icons/edit.svg" alt="" aria-hidden="true" />
                                     <span>Edit</span>
                                 </button>
-                                <button type="button" className="tagged-action-delete" onClick={() => openDeleteConfirm(action.id)}>
+                                <button
+                                    type="button"
+                                    className="tagged-action-delete"
+                                    onClick={() => openDeleteConfirm(action.id)}
+                                >
                                     <img src="/icons/delete.svg" alt="" aria-hidden="true" />
                                     <span>Delete</span>
                                 </button>
@@ -544,7 +574,9 @@ export const ActionsPage = () => {
                 >
                     <article className="tagged-actions-modal-content" onClick={(event) => event.stopPropagation()}>
                         <header className="tagged-actions-modal-header">
-                            <h2 id="tagged-actions-editor-title">{editorMode === "create" ? "Create action" : "Edit action"}</h2>
+                            <h2 id="tagged-actions-editor-title">
+                                {editorMode === "create" ? "Create action" : "Edit action"}
+                            </h2>
                             <button
                                 type="button"
                                 className="tagged-actions-modal-close"
@@ -552,7 +584,7 @@ export const ActionsPage = () => {
                                 aria-label="Close action editor"
                                 disabled={saving}
                             >
-                                x
+                                <img src="/icons/close.svg" alt="" aria-hidden="true" />
                             </button>
                         </header>
 
@@ -595,17 +627,23 @@ export const ActionsPage = () => {
 
                             <label>
                                 <span>
-                                    Description <small>. {descriptionWordCount}/150 words</small>
+                                    Description{" "}
+                                    <small>
+                                        <span className="tagged-actions-separator-dot" aria-hidden="true" />
+                                        {descriptionCharCount}/150 letters
+                                    </small>
                                 </span>
                                 <textarea
                                     value={form.description}
                                     onChange={(event) => handleDescriptionChange(event.target.value)}
                                     rows={4}
                                     placeholder="Optional description"
+                                    maxLength={150}
                                 />
                             </label>
 
                             <label className="tagged-actions-active-toggle">
+                                <span>Active action</span>
                                 <input
                                     type="checkbox"
                                     checked={form.is_active}
@@ -616,7 +654,6 @@ export const ActionsPage = () => {
                                         }))
                                     }
                                 />
-                                <span>Active action</span>
                             </label>
 
                             <div className="tagged-actions-form-actions">
@@ -640,11 +677,14 @@ export const ActionsPage = () => {
                     aria-labelledby="tagged-actions-delete-title"
                     onClick={closeDeleteConfirm}
                 >
-                    <article className="tagged-actions-delete-modal-content" onClick={(event) => event.stopPropagation()}>
+                    <article
+                        className="tagged-actions-delete-modal-content"
+                        onClick={(event) => event.stopPropagation()}
+                    >
                         <h2 id="tagged-actions-delete-title">Delete action?</h2>
                         <p>
-                            This will delete <strong>{deleteConfirmAction.actionname || "this action"}</strong> if it is not
-                            used by history logs.
+                            This will delete <strong>{deleteConfirmAction.actionname || "this action"}</strong> if it is
+                            not used by history logs.
                         </p>
                         <div className="tagged-actions-form-actions">
                             <button
@@ -670,3 +710,4 @@ export const ActionsPage = () => {
         </section>
     );
 };
+
