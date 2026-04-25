@@ -2733,7 +2733,7 @@ export const MediaDetailPage = () => {
                                                     className="tagged-media-edit-tag-chip"
                                                     style={buildTagStyle(
                                                         editTagColorByName[String(tag).toLowerCase()],
-                                                        "light",
+                                                        "dark",
                                                     )}
                                                     onClick={() => removeEditTag(tag)}
                                                     aria-label={`Remove tag ${tag}`}
