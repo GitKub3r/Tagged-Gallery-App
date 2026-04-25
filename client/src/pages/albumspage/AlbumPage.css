@@ -87,7 +87,7 @@
     min-height: 2.5rem;
     min-width: 5.75rem;
     padding: 0.36rem 0.78rem;
-    border-radius: var(--tagged-radius-lg);
+    border-radius: var(--tagged-radius-md);
     border: 1px solid var(--tagged-border-reg);
     background: var(--tagged-surface-raised);
     color: var(--tagged-text-color);
