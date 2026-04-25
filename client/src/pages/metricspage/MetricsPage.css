@@ -70,6 +70,7 @@
     overflow: hidden;
     display: grid;
     gap: 0.48rem;
+    min-height: 8.35rem;
     padding: 1rem 1.05rem 1.1rem;
     border-radius: var(--tagged-radius-lg);
     background: var(--tagged-surface-raised);
@@ -134,8 +135,8 @@
 .tagged-metrics-stat-value {
     position: relative;
     z-index: 1;
-    font-size: clamp(1.8rem, 1.2rem + 1.5vw, 2.75rem);
-    line-height: 1;
+    font-size: clamp(1.45rem, 1.05rem + 0.9vw, 2rem);
+    line-height: 1.05;
     font-weight: 950;
     letter-spacing: -0.04em;
     color: var(--tagged-text-color);
@@ -184,6 +185,7 @@
     overflow: hidden;
     display: grid;
     gap: 0.35rem;
+    min-height: 8.35rem;
     padding: 0.96rem 1rem 1rem;
     border-radius: var(--tagged-radius-lg);
     background: var(--tagged-surface-overlay);
@@ -192,16 +194,14 @@
 .tagged-metrics-compact-tile strong {
     position: relative;
     z-index: 1;
-    font-size: clamp(1.1rem, 0.95rem + 0.5vw, 1.45rem);
-    @media (max-width: 720px) {
-        .tagged-metrics-compact-tile strong {
-            font-size: 1.05rem;
-        }
-    }
-    line-height: 1.1;
+    font-size: clamp(1.45rem, 1.05rem + 0.9vw, 2rem);
+    line-height: 1.05;
     font-weight: 950;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
     color: var(--tagged-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tagged-metrics-compact-tile p {
@@ -262,13 +262,14 @@
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.9rem;
-    align-items: stretch;
     height: 100%;
+    align-content: center;
+    align-items: start;
 }
 
 .tagged-metrics-top3-grid .tagged-media-card {
-    height: 100%;
-    grid-template-rows: 1fr auto;
+    height: auto;
+    grid-template-rows: auto auto;
 }
 
 .tagged-metrics-panel--chart {
@@ -495,8 +496,20 @@
         font-size: clamp(2.3rem, 1.5rem + 1vw, 2.9rem);
     }
 
-    .tagged-metrics-panel--types .tagged-metrics-type-share {
-        font-size: 1rem;
+    .tagged-metrics-panel--types .tagged-metrics-type-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .tagged-metrics-panel--types .tagged-metrics-type-grid--quad .tagged-metrics-type-tile {
+        min-height: 9.8rem;
+    }
+
+    .tagged-metrics-panel--types .tagged-metrics-type-grid--quad .tagged-metrics-type-count {
+        font-size: clamp(1.9rem, 1.45rem + 0.75vw, 2.35rem);
+    }
+
+    .tagged-metrics-panel--types .tagged-metrics-type-grid--quad .tagged-metrics-type-meta-item dd {
+        font-size: 0.86rem;
     }
 }
 
@@ -504,27 +517,111 @@
     position: relative;
     overflow: hidden;
     display: grid;
-    gap: 0.35rem;
-    padding: 0.95rem 1rem 1rem;
+    grid-template-rows: auto auto auto 1fr;
+    gap: 0.5rem;
+    min-height: 12.6rem;
+    padding: 1.05rem 1.1rem 1rem;
     border-radius: var(--tagged-radius-lg);
-    background: var(--tagged-surface-overlay);
+    border: 1px solid var(--tagged-border-fine-mid);
+    background: var(--tagged-surface-raised);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .tagged-metrics-panel--types .tagged-metrics-type-tile {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(46, 46, 69, 0.92);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tagged-metrics-type-head {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.tagged-metrics-type-pill {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+    padding: 0.16rem 0.52rem;
+    border-radius: var(--tagged-radius-full);
+    border: 1px solid var(--tagged-border-fine-mid);
+    background: rgba(100, 58, 255, 0.12);
+    color: var(--tagged-accent-color);
+    font-size: 0.72rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: 0.04em;
 }
 
 .tagged-metrics-type-count {
     position: relative;
     z-index: 1;
-    font-size: clamp(1.7rem, 1.2rem + 1vw, 2.25rem);
-    line-height: 1;
+    font-size: clamp(2.2rem, 1.55rem + 1.1vw, 3.1rem);
+    line-height: 0.92;
     font-weight: 950;
+    letter-spacing: -0.04em;
     color: var(--tagged-text-color);
 }
 
-.tagged-metrics-type-share {
+.tagged-metrics-type-subtitle {
     position: relative;
     z-index: 1;
     margin: 0;
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     color: var(--tagged-border-color-alt);
+}
+
+.tagged-metrics-type-meta {
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    margin-top: 0.15rem;
+    padding-top: 0.58rem;
+    border-top: 1px solid var(--tagged-border-fine);
+    align-self: end;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.48rem;
+}
+
+.tagged-metrics-type-meta-item {
+    min-width: 0;
+    display: grid;
+    gap: 0.12rem;
+}
+
+.tagged-metrics-type-meta-item dt {
+    margin: 0;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--tagged-border-color-alt);
+}
+
+.tagged-metrics-type-meta-item dd {
+    margin: 0;
+    font-size: 0.94rem;
+    font-weight: 900;
+    color: var(--tagged-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tagged-metrics-type-meta-item--wide {
+    grid-column: 1 / -1;
+}
+
+[data-theme="dark"] .tagged-metrics-type-pill {
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(128, 93, 255, 0.2);
+    color: #d9ccff;
 }
 
 .tagged-metrics-status-card {
@@ -629,6 +726,15 @@
 }
 
 @media (max-width: 720px) {
+    .tagged-metrics-stat-card,
+    .tagged-metrics-compact-tile {
+        min-height: auto;
+    }
+
+    .tagged-metrics-compact-tile strong {
+        font-size: 1.3rem;
+    }
+
     .tagged-metrics-panel-header {
         flex-direction: column;
         align-items: flex-start;
@@ -646,14 +752,29 @@
 
     .tagged-metrics-top3-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+        height: auto;
+        align-content: start;
     }
 
     .tagged-metrics-top3-grid .tagged-media-card {
-        grid-template-rows: minmax(9.8rem, 10.8rem) auto;
+        grid-template-rows: auto auto;
     }
 
     .tagged-metrics-insights-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tagged-metrics-type-tile {
+        min-height: 10.2rem;
+        padding: 0.95rem;
+    }
+
+    .tagged-metrics-type-count {
+        font-size: clamp(1.9rem, 1.45rem + 1.6vw, 2.5rem);
+    }
+
+    .tagged-metrics-type-meta-item dd {
+        font-size: 0.9rem;
     }
 
     .tagged-metrics-chart {

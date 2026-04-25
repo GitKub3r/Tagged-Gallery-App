@@ -209,6 +209,9 @@ export const DashboardPage = () => {
                     {
                         mediatype: typeKey,
                         mediaCount: Number(item.mediaCount || 0),
+                        taggedMediaCount: Number(item.taggedMediaCount || 0),
+                        favouriteMediaCount: Number(item.favouriteMediaCount || 0),
+                        totalBytes: Number(item.totalBytes || 0),
                     },
                 ];
             }),
@@ -248,11 +251,19 @@ export const DashboardPage = () => {
             items: visibleTypes.map((typeKey) => {
                 const source = typeMap.get(typeKey);
                 const mediaCount = source ? source.mediaCount : 0;
+                const taggedMediaCount = source ? source.taggedMediaCount : 0;
+                const favouriteMediaCount = source ? source.favouriteMediaCount : 0;
+                const totalBytes = source ? source.totalBytes : 0;
 
                 return {
                     mediatype: typeKey,
                     mediaCount,
+                    taggedMediaCount,
+                    favouriteMediaCount,
+                    totalBytes,
                     mediaShare: totalMedia > 0 ? mediaCount / totalMedia : 0,
+                    taggedRate: mediaCount > 0 ? taggedMediaCount / mediaCount : 0,
+                    favouriteRate: mediaCount > 0 ? favouriteMediaCount / mediaCount : 0,
                 };
             }),
         };
@@ -619,13 +630,32 @@ export const DashboardPage = () => {
                     >
                         {mediaTypeTiles.items.map((typeItem) => (
                             <article key={typeItem.mediatype} className="tagged-metrics-type-tile">
-                                <span className="tagged-metrics-type-name">
-                                    {String(typeItem.mediatype || "unknown").toUpperCase()}
-                                </span>
+                                <div className="tagged-metrics-type-head">
+                                    <span className="tagged-metrics-type-name">
+                                        {String(typeItem.mediatype || "unknown").toUpperCase()}
+                                    </span>
+                                    <span className="tagged-metrics-type-pill">{formatPercent(typeItem.mediaShare)}</span>
+                                </div>
                                 <strong className="tagged-metrics-type-count">
                                     {formatNumber(typeItem.mediaCount)}
                                 </strong>
-                                <p className="tagged-metrics-type-share">{formatPercent(typeItem.mediaShare)}</p>
+                                <p className="tagged-metrics-type-subtitle">
+                                    {typeItem.mediaCount === 1 ? "item in library" : "items in library"}
+                                </p>
+                                <dl className="tagged-metrics-type-meta">
+                                    <div className="tagged-metrics-type-meta-item">
+                                        <dt>Tagged</dt>
+                                        <dd>{formatPercent(typeItem.taggedRate)}</dd>
+                                    </div>
+                                    <div className="tagged-metrics-type-meta-item">
+                                        <dt>Favourites</dt>
+                                        <dd>{formatPercent(typeItem.favouriteRate)}</dd>
+                                    </div>
+                                    <div className="tagged-metrics-type-meta-item tagged-metrics-type-meta-item--wide">
+                                        <dt>Storage</dt>
+                                        <dd>{formatBytes(typeItem.totalBytes)}</dd>
+                                    </div>
+                                </dl>
                             </article>
                         ))}
                     </div>
