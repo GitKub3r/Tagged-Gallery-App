@@ -270,6 +270,7 @@ export const LogsPage = () => {
     const activeFilterCount = useMemo(() => {
         return [search.trim(), actionCode, statusGroup, statusCode, dateFrom, dateTo].filter(Boolean).length;
     }, [search, actionCode, statusGroup, statusCode, dateFrom, dateTo]);
+    const totalPages = Math.max(1, Number(pagination.totalPages || 1));
 
     useEffect(() => {
         let cancelled = false;
@@ -507,7 +508,7 @@ export const LogsPage = () => {
                     tone="violet"
                     label="Today events"
                     value={formatNumber(todaySummary.total)}
-                    hint="Total records for today with current filters"
+                    hint="Events with current filters"
                 />
                 <LogStatCard
                     tone="teal"
@@ -596,15 +597,32 @@ export const LogsPage = () => {
                     <div className="tagged-logs-events-controls">
                         <label className="tagged-logs-field tagged-logs-field--search">
                             <span>Search</span>
-                            <input
-                                type="search"
-                                value={search}
-                                placeholder="Username, Action, Message, Path..."
-                                onChange={(event) => {
-                                    setSearch(event.target.value);
-                                    setPage(1);
-                                }}
-                            />
+                            <div className="tagged-logs-search-input-wrap">
+                                <input
+                                    type="search"
+                                    value={search}
+                                    placeholder="Username, Action, Message, Path..."
+                                    onChange={(event) => {
+                                        setSearch(event.target.value);
+                                        setPage(1);
+                                    }}
+                                />
+                                {search.trim().length > 0 ? (
+                                    <button
+                                        type="button"
+                                        className="tagged-logs-search-inline-clear"
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => {
+                                            setSearch("");
+                                            setPage(1);
+                                        }}
+                                        aria-label="Clear search"
+                                        title="Clear search"
+                                    >
+                                        <span className="tagged-logs-search-inline-clear-icon" aria-hidden="true" />
+                                    </button>
+                                ) : null}
+                            </div>
                         </label>
 
                         <div className="tagged-logs-events-controls-actions">
@@ -665,26 +683,32 @@ export const LogsPage = () => {
 
                             <label className="tagged-logs-field">
                                 <span>Date from</span>
-                                <input
-                                    type="date"
-                                    value={dateFrom}
-                                    onChange={(event) => {
-                                        setDateFrom(event.target.value);
-                                        setPage(1);
-                                    }}
-                                />
+                                <div className="tagged-logs-date-input-wrap">
+                                    <input
+                                        type="date"
+                                        value={dateFrom}
+                                        onChange={(event) => {
+                                            setDateFrom(event.target.value);
+                                            setPage(1);
+                                        }}
+                                    />
+                                    <span className="tagged-logs-date-input-icon" aria-hidden="true" />
+                                </div>
                             </label>
 
                             <label className="tagged-logs-field">
                                 <span>Date to</span>
-                                <input
-                                    type="date"
-                                    value={dateTo}
-                                    onChange={(event) => {
-                                        setDateTo(event.target.value);
-                                        setPage(1);
-                                    }}
-                                />
+                                <div className="tagged-logs-date-input-wrap">
+                                    <input
+                                        type="date"
+                                        value={dateTo}
+                                        onChange={(event) => {
+                                            setDateTo(event.target.value);
+                                            setPage(1);
+                                        }}
+                                    />
+                                    <span className="tagged-logs-date-input-icon" aria-hidden="true" />
+                                </div>
                             </label>
 
                             <label className="tagged-logs-field">
@@ -868,24 +892,96 @@ export const LogsPage = () => {
                             </select>
                         </div>
 
-                        <div className="tagged-logs-page-controls">
+                        <div className="tagged-logs-pagination__nav">
                             <button
                                 type="button"
+                                className="tagged-logs-pagination__btn tagged-logs-pagination__btn--icon"
+                                onClick={() => setPage(1)}
+                                disabled={page <= 1}
+                                aria-label="First page"
+                                title="First page"
+                            >
+                                <span
+                                    className="tagged-logs-pagination__double-icon tagged-logs-pagination__double-icon--first"
+                                    aria-hidden="true"
+                                >
+                                    <span className="tagged-logs-pagination__double-icon-arrow tagged-logs-pagination__double-icon-arrow--back" />
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                className="tagged-logs-pagination__btn tagged-logs-pagination__btn--icon"
                                 onClick={() => setPage((current) => Math.max(1, current - 1))}
                                 disabled={page <= 1}
+                                aria-label="Previous page"
+                                title="Previous page"
                             >
-                                Previous
+                                <span
+                                    className="tagged-logs-pagination__icon tagged-logs-pagination__icon--back"
+                                    aria-hidden="true"
+                                />
                             </button>
-                            <span>
-                                {formatNumber(page)} / {formatNumber(pagination.totalPages)}
-                            </span>
+
+                            {(() => {
+                                const visibleCount = Math.min(3, totalPages);
+                                let startPage = Math.max(1, page - 1);
+                                let endPage = startPage + visibleCount - 1;
+
+                                if (endPage > totalPages) {
+                                    endPage = totalPages;
+                                    startPage = Math.max(1, endPage - visibleCount + 1);
+                                }
+
+                                const pages = Array.from(
+                                    { length: endPage - startPage + 1 },
+                                    (_, index) => startPage + index,
+                                );
+
+                                return pages.map((pageNumber) => (
+                                    <button
+                                        key={pageNumber}
+                                        type="button"
+                                        className={`tagged-logs-pagination__btn${pageNumber === page ? " tagged-logs-pagination__btn--active" : ""}`}
+                                        onClick={() => setPage(pageNumber)}
+                                        aria-current={pageNumber === page ? "page" : undefined}
+                                    >
+                                        {pageNumber}
+                                    </button>
+                                ));
+                            })()}
+
                             <button
                                 type="button"
-                                onClick={() => setPage((current) => Math.min(pagination.totalPages, current + 1))}
-                                disabled={page >= pagination.totalPages}
+                                className="tagged-logs-pagination__btn tagged-logs-pagination__btn--icon"
+                                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                                disabled={page >= totalPages}
+                                aria-label="Next page"
+                                title="Next page"
                             >
-                                Next
+                                <span
+                                    className="tagged-logs-pagination__icon tagged-logs-pagination__icon--forward"
+                                    aria-hidden="true"
+                                />
                             </button>
+                            <button
+                                type="button"
+                                className="tagged-logs-pagination__btn tagged-logs-pagination__btn--icon"
+                                onClick={() => setPage(totalPages)}
+                                disabled={page >= totalPages}
+                                aria-label="Last page"
+                                title="Last page"
+                            >
+                                <span
+                                    className="tagged-logs-pagination__double-icon tagged-logs-pagination__double-icon--last"
+                                    aria-hidden="true"
+                                >
+                                    <span className="tagged-logs-pagination__double-icon-arrow tagged-logs-pagination__double-icon-arrow--forward" />
+                                </span>
+                            </button>
+
+                            <span className="tagged-logs-pagination__count">
+                                {formatNumber(page)} / {formatNumber(totalPages)}
+                            </span>
                         </div>
                     </div>
                 </article>
