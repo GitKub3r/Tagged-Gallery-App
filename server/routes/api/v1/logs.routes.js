@@ -16,6 +16,10 @@ router.get("/today", LogsController.getTodayLogs);
 // GET /api/v1/logs/dates
 router.get("/dates", LogsController.getLogDates);
 
+// POST /api/v1/logs/backup
+router.post("/backup", LogsController.downloadDatabaseBackup);
+router.post("/backup/cancel", LogsController.cancelDatabaseBackup);
+
 // GET /api/v1/logs
 router.get("/", LogsController.getLogs);
 
