@@ -513,7 +513,7 @@ export const LogsPage = () => {
                     tone="teal"
                     label="Today success"
                     value={formatNumber(todaySummary.success)}
-                    hint="Status codes 2xx"
+                    hint="Successful events"
                 />
                 <LogStatCard
                     tone="gold"
@@ -599,7 +599,7 @@ export const LogsPage = () => {
                             <input
                                 type="search"
                                 value={search}
-                                placeholder="username, action, message, path..."
+                                placeholder="Username, Action, Message, Path..."
                                 onChange={(event) => {
                                     setSearch(event.target.value);
                                     setPage(1);
