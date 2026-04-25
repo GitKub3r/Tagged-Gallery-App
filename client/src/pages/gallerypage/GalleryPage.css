@@ -566,6 +566,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center center;
     display: block;
 }
 
@@ -1532,6 +1533,11 @@
 /* Upload toast — same position as download toast; rarely overlap in practice */
 .tagged-gallery-upload-toast {
     top: 1rem;
+}
+
+.tagged-gallery-action-toast {
+    top: 1rem;
+    background: var(--tagged-surface);
 }
 
 .tagged-gallery-download-toast-progress {

@@ -54,7 +54,10 @@ const getRelativeLuminance = ({ r, g, b }) => {
     return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 };
 
-const toHexChannel = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+const toHexChannel = (value) =>
+    Math.max(0, Math.min(255, Math.round(value)))
+        .toString(16)
+        .padStart(2, "0");
 
 const mixRgbWithWhite = (rgb, amount = 0.5) => {
     const ratio = Math.max(0, Math.min(1, amount));
@@ -559,7 +562,7 @@ export const MediaEditModal = ({
         >
             <div className="tagged-media-edit-modal-content" onClick={(event) => event.stopPropagation()}>
                 <header className="tagged-media-edit-modal-header">
-                    <h2>{isMultiMode ? `Edit ${selectedCount} media` : "Edit media"}</h2>
+                    <h2>Edit media</h2>
                     <button
                         type="button"
                         className="tagged-media-edit-modal-close"
@@ -570,13 +573,6 @@ export const MediaEditModal = ({
                         ×
                     </button>
                 </header>
-
-                {isMultiMode ? (
-                    <p className="tagged-media-edit-hint">
-                        Tags start with the values shared by all selected media. Leave name or author empty to keep each
-                        current value.
-                    </p>
-                ) : null}
 
                 <form className="tagged-media-edit-form" id="tagged-media-edit-form" onSubmit={handleSubmit}>
                     <div className="tagged-media-edit-form-layout">
@@ -764,19 +760,6 @@ export const MediaEditModal = ({
                                             <span aria-hidden="true">×</span>
                                         </button>
                                     ))}
-                                </div>
-                            ) : null}
-
-                            {isMultiMode ? (
-                                <div className="tagged-media-edit-tag-diff" aria-live="polite">
-                                    <p>
-                                        <strong>Add:</strong>{" "}
-                                        {tagsToAddPreview.length > 0 ? tagsToAddPreview.join(", ") : "none"}
-                                    </p>
-                                    <p>
-                                        <strong>Remove:</strong>{" "}
-                                        {tagsToRemovePreview.length > 0 ? tagsToRemovePreview.join(", ") : "none"}
-                                    </p>
                                 </div>
                             ) : null}
 

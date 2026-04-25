@@ -356,6 +356,7 @@ export const MediaDetailPage = () => {
     const [isDeletingMedia, setIsDeletingMedia] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isMediaChanging, setIsMediaChanging] = useState(false);
+    const [actionToast, setActionToast] = useState(null);
     const [editError, setEditError] = useState(null);
     const [editDisplayNameInput, setEditDisplayNameInput] = useState("");
     const [editAuthorInput, setEditAuthorInput] = useState("");
@@ -406,6 +407,7 @@ export const MediaDetailPage = () => {
     const lightboxVideoRef = useRef(null);
     const detailVideoRef = useRef(null);
     const mediaChangeTimeoutRef = useRef(null);
+    const actionToastTimeoutRef = useRef(null);
 
     const clampLightboxScale = (scale) =>
         Math.min(LIGHTBOX_MAX_ZOOM, Math.max(LIGHTBOX_MIN_ZOOM, Number(scale) || LIGHTBOX_MIN_ZOOM));
@@ -428,6 +430,40 @@ export const MediaDetailPage = () => {
         setLightboxImagePan({ x: 0, y: 0 });
         resetLightboxGestureState();
     };
+
+    const clearActionToastTimer = () => {
+        if (actionToastTimeoutRef.current) {
+            window.clearTimeout(actionToastTimeoutRef.current);
+            actionToastTimeoutRef.current = null;
+        }
+    };
+
+    const showActionToast = (nextToast, autoCloseMs = 0) => {
+        clearActionToastTimer();
+        setActionToast(nextToast);
+
+        if (autoCloseMs > 0) {
+            actionToastTimeoutRef.current = window.setTimeout(() => {
+                setActionToast(null);
+                actionToastTimeoutRef.current = null;
+            }, autoCloseMs);
+        }
+    };
+
+    const hideActionToast = () => {
+        clearActionToastTimer();
+        setActionToast(null);
+    };
+
+    useEffect(
+        () => () => {
+            if (actionToastTimeoutRef.current) {
+                window.clearTimeout(actionToastTimeoutRef.current);
+                actionToastTimeoutRef.current = null;
+            }
+        },
+        [],
+    );
 
     const activeTagFilter = useMemo(() => {
         const params = new URLSearchParams(location.search);
@@ -898,6 +934,7 @@ export const MediaDetailPage = () => {
         if (!currentMedia?.id || isDeletingMedia) {
             return;
         }
+        const deletedMediaLabel = String(currentMedia.displayname || currentMedia.filename || "media").trim();
 
         try {
             setError(null);
@@ -923,6 +960,14 @@ export const MediaDetailPage = () => {
             );
 
             setMediaItems(remainingMediaItems);
+            showActionToast(
+                {
+                    status: "success",
+                    title: "Media deleted",
+                    message: `${deletedMediaLabel} was deleted successfully.`,
+                },
+                3200,
+            );
 
             if (remainingMediaItems.length === 0) {
                 navigate(`/gallery${location.search || ""}`, {
@@ -941,7 +986,14 @@ export const MediaDetailPage = () => {
                 },
             });
         } catch (requestError) {
-            setError(requestError.message || "Could not delete media");
+            showActionToast(
+                {
+                    status: "error",
+                    title: "Delete failed",
+                    message: requestError.message || "Could not delete media",
+                },
+                4200,
+            );
         } finally {
             setIsDeletingMedia(false);
         }
@@ -1895,8 +1947,24 @@ export const MediaDetailPage = () => {
                 setEditTagInput("");
                 closeEditSuggestions();
             }
+            showActionToast(
+                {
+                    status: "success",
+                    title: "Media updated",
+                    message: "Changes saved successfully.",
+                },
+                3200,
+            );
         } catch (requestError) {
             setEditError(requestError.message || "Could not update media");
+            showActionToast(
+                {
+                    status: "error",
+                    title: "Update failed",
+                    message: requestError.message || "Could not update media",
+                },
+                4200,
+            );
         } finally {
             setIsSavingEdit(false);
         }
@@ -1904,6 +1972,28 @@ export const MediaDetailPage = () => {
 
     return (
         <section className="tagged-app-page tagged-media-detail-page">
+            {actionToast ? (
+                <aside
+                    className={`tagged-media-detail-toast tagged-media-detail-toast--${actionToast.status || "info"}`}
+                    role={actionToast.status === "error" ? "alert" : "status"}
+                    aria-live="polite"
+                    aria-atomic="true"
+                >
+                    <header className="tagged-media-detail-toast-header">
+                        <strong>{actionToast.title}</strong>
+                        <button
+                            type="button"
+                            className="tagged-media-detail-toast-close"
+                            onClick={hideActionToast}
+                            aria-label="Close media action status"
+                        >
+                            ×
+                        </button>
+                    </header>
+                    <p>{actionToast.message}</p>
+                </aside>
+            ) : null}
+
             <div className="tagged-media-detail-shell">
                 <div
                     className="tagged-media-detail-media-column"

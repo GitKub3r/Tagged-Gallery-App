@@ -662,6 +662,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [isSingleDeleteFlow, setIsSingleDeleteFlow] = useState(false);
     const [selectionActionError, setSelectionActionError] = useState(null);
     const [downloadToast, setDownloadToast] = useState(null);
+    const [selectionActionToast, setSelectionActionToast] = useState(null);
     const [isEditSelectedModalOpen, setIsEditSelectedModalOpen] = useState(false);
     const [isSavingSelectedEdit, setIsSavingSelectedEdit] = useState(false);
     const [selectedEditError, setSelectedEditError] = useState(null);
@@ -699,6 +700,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const uploadPreviewTouchStartXRef = useRef(0);
     const uploadPreviewTouchStartYRef = useRef(0);
     const downloadToastTimeoutRef = useRef(null);
+    const selectionActionToastTimeoutRef = useRef(null);
     const galleryScrollSaveRafRef = useRef(null);
     const isRestoringGalleryScrollRef = useRef(false);
 
@@ -1037,6 +1039,40 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         clearDownloadToastTimer();
         setDownloadToast(null);
     };
+
+    const clearSelectionActionToastTimer = () => {
+        if (selectionActionToastTimeoutRef.current) {
+            window.clearTimeout(selectionActionToastTimeoutRef.current);
+            selectionActionToastTimeoutRef.current = null;
+        }
+    };
+
+    const showSelectionActionToast = (nextToast, autoCloseMs = 0) => {
+        clearSelectionActionToastTimer();
+        setSelectionActionToast(nextToast);
+
+        if (autoCloseMs > 0) {
+            selectionActionToastTimeoutRef.current = window.setTimeout(() => {
+                setSelectionActionToast(null);
+                selectionActionToastTimeoutRef.current = null;
+            }, autoCloseMs);
+        }
+    };
+
+    const hideSelectionActionToast = () => {
+        clearSelectionActionToastTimer();
+        setSelectionActionToast(null);
+    };
+
+    useEffect(
+        () => () => {
+            if (selectionActionToastTimeoutRef.current) {
+                window.clearTimeout(selectionActionToastTimeoutRef.current);
+                selectionActionToastTimeoutRef.current = null;
+            }
+        },
+        [],
+    );
 
     const albumTagFilterCandidates = useMemo(() => {
         const uniqueTags = new Map();
@@ -1467,15 +1503,36 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             setMediaItems((previous) => previous.map((item) => updatedById.get(String(item.id)) || item));
 
             if (successfulUpdates.length < selectedItems.length) {
-                setSelectionActionError(
-                    `Updated ${successfulUpdates.length} item(s). Some media could not be updated.`,
+                showSelectionActionToast(
+                    {
+                        status: "error",
+                        title: "Partial update",
+                        message: `Edited ${successfulUpdates.length} of ${selectedItems.length} selected media.`,
+                    },
+                    4200,
                 );
-
+            } else {
+                showSelectionActionToast(
+                    {
+                        status: "success",
+                        title: "Media updated",
+                        message: `Edited ${successfulUpdates.length} selected media.`,
+                    },
+                    3200,
+                );
             }
             setIsEditSelectedModalOpen(false);
             clearSelectionMode();
         } catch (requestError) {
             setSelectedEditError(requestError.message || "Could not update selected media.");
+            showSelectionActionToast(
+                {
+                    status: "error",
+                    title: "Update failed",
+                    message: requestError.message || "Could not update selected media.",
+                },
+                4200,
+            );
         } finally {
             setIsSavingSelectedEdit(false);
     };
@@ -2048,9 +2105,24 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             const refreshedMedia = await fetchMediaList();
             setMediaItems(Array.isArray(refreshedMedia.data) ? refreshedMedia.data : []);
             setTotalMediaCount(Number.isFinite(refreshedMedia.total) ? refreshedMedia.total : 0);
+            showSelectionActionToast(
+                {
+                    status: "success",
+                    title: "Media deleted",
+                    message: `Deleted ${selectedIds.length} selected media.`,
+                },
+                3200,
+            );
             clearSelectionMode();
         } catch (requestError) {
-            setSelectionActionError(requestError.message || "Could not delete selected media");
+            showSelectionActionToast(
+                {
+                    status: "error",
+                    title: "Delete failed",
+                    message: requestError.message || "Could not delete selected media",
+                },
+                4200,
+            );
         } finally {
             setIsDeletingSelected(false);
     };
@@ -3370,6 +3442,28 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             </small>
                         </div>
                     ) : null}
+                </aside>
+            ) : null}
+
+            {selectionActionToast ? (
+                <aside
+                    className={`tagged-gallery-download-toast tagged-gallery-download-toast--${selectionActionToast.status || "info"} tagged-gallery-action-toast`}
+                    role={selectionActionToast.status === "error" ? "alert" : "status"}
+                    aria-live="polite"
+                    aria-atomic="true"
+                >
+                    <header className="tagged-gallery-download-toast-header">
+                        <strong>{selectionActionToast.title}</strong>
+                        <button
+                            type="button"
+                            className="tagged-gallery-download-toast-close"
+                            onClick={hideSelectionActionToast}
+                            aria-label="Close selection status"
+                        >
+                            ×
+                        </button>
+                    </header>
+                    <p>{selectionActionToast.message}</p>
                 </aside>
             ) : null}
 

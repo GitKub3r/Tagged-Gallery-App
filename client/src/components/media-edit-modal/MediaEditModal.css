@@ -197,6 +197,26 @@
     cursor: not-allowed;
 }
 
+[data-theme="dark"] .tagged-media-edit-preview-nav-button {
+    background: var(--tagged-surface-alt);
+    border-color: var(--tagged-border-strong);
+}
+
+[data-theme="dark"] .tagged-media-edit-preview-nav-button:hover,
+[data-theme="dark"] .tagged-media-edit-preview-nav-button:focus-visible,
+[data-theme="dark"] .tagged-media-edit-preview-nav-button:active {
+    background: var(--tagged-surface-hover);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+[data-theme="dark"] .tagged-media-edit-preview-nav-button img,
+[data-theme="dark"] .tagged-media-edit-preview-nav-button:hover img,
+[data-theme="dark"] .tagged-media-edit-preview-nav-button:focus-visible img,
+[data-theme="dark"] .tagged-media-edit-preview-nav-button:active img {
+    filter: brightness(0) saturate(100%) invert(88%) sepia(6%) saturate(421%) hue-rotate(198deg) brightness(98%)
+        contrast(90%);
+}
+
 .tagged-media-edit-preview-counter {
     margin: 0;
     font-size: 0.84rem;

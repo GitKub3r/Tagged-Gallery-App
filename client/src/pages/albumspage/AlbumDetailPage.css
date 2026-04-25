@@ -825,6 +825,7 @@
 
 .tagged-album-add-media-option-preview {
     object-fit: cover;
+    object-position: center center;
     display: block;
 }
 
