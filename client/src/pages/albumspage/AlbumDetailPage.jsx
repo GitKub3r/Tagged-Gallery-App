@@ -149,7 +149,7 @@ const formatDownloadSpeed = (bytesPerSecond) => {
     return `${value.toFixed(decimals)} ${units[unitIndex]}`;
 };
 
-const parseScopedAddMediaSearchQuery = (rawQuery) => {
+const parseScopedMediaSearchQuery = (rawQuery) => {
     const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
 
     if (!normalizedRaw) {
@@ -218,6 +218,7 @@ export const AlbumDetailPage = () => {
     const [isAddingMedia, setIsAddingMedia] = useState(false);
     const [addMediaError, setAddMediaError] = useState(null);
     const [activeAlbumTagFilter, setActiveAlbumTagFilter] = useState("");
+    const [albumMediaSearch, setAlbumMediaSearch] = useState("");
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
     const [isAlbumSelectionMode, setIsAlbumSelectionMode] = useState(false);
     const [selectedAlbumMediaIds, setSelectedAlbumMediaIds] = useState(new Set());
@@ -305,6 +306,9 @@ export const AlbumDetailPage = () => {
     }, [albumMediaItems]);
 
     const activeAlbumMediaItems = useMemo(() => {
+        const scopedSearch = parseScopedMediaSearchQuery(albumMediaSearch);
+        const hasScopedSearch =
+            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
         const normalizedFilter = activeAlbumTagFilter.trim().toLowerCase();
         const normalizedIncludedSidebarTags = selectedIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludedSidebarTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
@@ -340,19 +344,48 @@ export const AlbumDetailPage = () => {
                 }
             }
 
-            if (normalizedFilter) {
-                return mediaTagNames.includes(normalizedFilter);
+            if (normalizedFilter && !mediaTagNames.includes(normalizedFilter)) {
+                return false;
+            }
+
+            if (hasScopedSearch) {
+                const displayName = String(media.displayname || media.filename || "").toLowerCase();
+                const authorName = String(media.author || "").toLowerCase();
+                const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
+
+                const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
+                if (!matchesAuthorTerms) {
+                    return false;
+                }
+
+                const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
+                if (!matchesNameTerms) {
+                    return false;
+                }
+
+                const matchesFreeTerms = scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
+                if (!matchesFreeTerms) {
+                    return false;
+                }
             }
 
             return true;
         });
-    }, [albumMediaItems, activeAlbumTagFilter, selectedIncludeFilterTags, selectedExcludeFilterTags, mediaTypeFilter]);
+    }, [
+        albumMediaItems,
+        albumMediaSearch,
+        activeAlbumTagFilter,
+        selectedIncludeFilterTags,
+        selectedExcludeFilterTags,
+        mediaTypeFilter,
+    ]);
 
     const hasAnyActiveFilter =
         mediaTypeFilter !== "all" ||
         Boolean(activeAlbumTagFilter) ||
         selectedIncludeFilterTags.length > 0 ||
         selectedExcludeFilterTags.length > 0;
+    const hasActiveAlbumMediaSearch = albumMediaSearch.trim().length > 0;
 
     useEffect(() => {
         window.dispatchEvent(
@@ -594,7 +627,7 @@ export const AlbumDetailPage = () => {
     }, [libraryMediaItems, albumMediaItems]);
 
     const filteredAvailableMediaItems = useMemo(() => {
-        const scopedSearch = parseScopedAddMediaSearchQuery(addMediaSearch);
+        const scopedSearch = parseScopedMediaSearchQuery(addMediaSearch);
         const normalizedIncludeTags = selectedAddMediaIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludeTags = selectedAddMediaExcludeFilterTags.map((tag) => tag.toLowerCase());
 
@@ -780,7 +813,7 @@ export const AlbumDetailPage = () => {
     );
 
     const filteredCoverCandidates = useMemo(() => {
-        const scopedSearch = parseScopedAddMediaSearchQuery(coverSearch);
+        const scopedSearch = parseScopedMediaSearchQuery(coverSearch);
         const normalizedFilterTags = selectedEditFilterTags.map((tag) => tag.toLowerCase());
         const hasScopedSearch =
             scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
@@ -2105,30 +2138,62 @@ export const AlbumDetailPage = () => {
                 className={`tagged-album-detail-top-controls${albumMediaViewMode === "list" ? " is-list-mode" : ""}`}
                 aria-label="Album media controls"
             >
-                {!isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? (
-                    <div className="tagged-album-reorder-controls" aria-label="Album reorder controls">
-                        <button
-                            type="button"
-                            className={`tagged-album-reorder-toggle${isReorderMode ? " is-active" : ""}`}
-                            disabled={!canReorderAlbumMedia || isReorderingMedia}
-                            onClick={toggleReorderMode}
-                        >
-                            {isReorderMode ? "Done reordering" : "Reorder media"}
-                        </button>
+                {albumMediaItems.length > 0 ? (
+                    <div className="tagged-album-detail-top-search" aria-label="Search album media">
+                        <div className="tagged-album-search-wrap tagged-album-search-field">
+                            <div className="tagged-album-search-input-wrap">
+                                <input
+                                    type="text"
+                                    inputMode="search"
+                                    enterKeyHint="search"
+                                    className="tagged-album-search-input"
+                                    value={albumMediaSearch}
+                                    onChange={(event) => setAlbumMediaSearch(event.target.value)}
+                                    placeholder="Search media... (tip: a:author n:name)"
+                                    aria-label="Search media by name or author. Supports a:author and n:name."
+                                />
 
-                        {isReorderMode && isMobileViewport ? (
-                            <p className="tagged-album-reorder-hint" aria-live="polite">
-                                {mobileReorderSourceId
-                                    ? "Now tap the destination media to move it there."
-                                    : "Tap one media, then tap another to move it."}
-                            </p>
-                        ) : null}
+                                {hasActiveAlbumMediaSearch ? (
+                                    <button
+                                        type="button"
+                                        className="tagged-album-search-inline-clear"
+                                        onMouseDown={(event) => event.preventDefault()}
+                                        onClick={() => setAlbumMediaSearch("")}
+                                        aria-label="Clear search"
+                                        title="Clear search"
+                                    >
+                                        <span className="tagged-album-search-inline-clear-icon" aria-hidden="true" />
+                                    </button>
+                                ) : null}
+                            </div>
+                        </div>
                     </div>
                 ) : (
                     <div className="tagged-album-reorder-controls-spacer" aria-hidden="true" />
                 )}
 
-                <div className="tagged-album-detail-view-switch" aria-label="Album media view mode">
+                <div
+                    className={`tagged-album-detail-view-switch${
+                        !isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? " has-reorder" : ""
+                    }`}
+                    aria-label="Album media view mode"
+                >
+                    {!isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? (
+                        <button
+                            type="button"
+                            className={`tagged-album-view-switch-button${isReorderMode ? " is-active" : ""}`}
+                            disabled={!canReorderAlbumMedia || isReorderingMedia}
+                            onClick={toggleReorderMode}
+                            aria-pressed={isReorderMode}
+                            aria-label="Reorder media"
+                            title={isReorderMode ? "Done reordering" : "Reorder media"}
+                        >
+                            <span className="tagged-album-view-switch-label">
+                                {isReorderMode ? "Done reordering" : "Reorder media"}
+                            </span>
+                        </button>
+                    ) : null}
+
                     <button
                         type="button"
                         className={`tagged-album-view-switch-button${albumMediaViewMode === "card" ? " is-active" : ""}`}
@@ -2154,6 +2219,14 @@ export const AlbumDetailPage = () => {
                     </button>
                 </div>
             </div>
+
+            {!isAlbumSelectionMode && isReorderMode && isMobileViewport ? (
+                <p className="tagged-album-reorder-hint" aria-live="polite">
+                    {mobileReorderSourceId
+                        ? "Now tap the destination media to move it there."
+                        : "Tap one media, then tap another to move it."}
+                </p>
+            ) : null}
 
             {isAlbumSelectionMode ? (
                 <aside className="tagged-album-selection-toolbar" aria-label="Album selection actions toolbar">

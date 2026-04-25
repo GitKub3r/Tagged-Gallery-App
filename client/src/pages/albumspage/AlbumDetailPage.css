@@ -199,6 +199,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
     gap: 0.75rem;
 }
 
@@ -207,10 +208,32 @@
     justify-self: auto;
     margin-top: 0;
     margin-bottom: 0;
+    margin-left: auto;
+}
+
+.tagged-album-detail-top-controls .tagged-album-detail-view-switch.has-reorder {
+    grid-template-columns: repeat(3, max-content);
 }
 
 .tagged-album-detail-top-controls.is-list-mode {
     width: min(100%, var(--tagged-gallery-content-max, calc((17.5rem * 5) + (1rem * 4))));
+}
+
+.tagged-album-detail-top-search {
+    flex: 1 1 24rem;
+    max-width: var(--tagged-album-search-max, 54rem);
+    min-width: min(100%, 18rem);
+}
+
+.tagged-album-detail-top-search .tagged-album-search-wrap {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "input switch";
+    justify-content: start;
+    row-gap: 0;
+}
+
+.tagged-album-detail-top-search .tagged-album-search-wrap > span {
+    display: none;
 }
 
 .tagged-album-detail-list {
@@ -364,6 +387,8 @@
 .tagged-album-detail-grid--empty .tagged-album-detail-add-tile {
     width: 100%;
     max-width: none;
+    min-height: clamp(11.8rem, 18vw, 13.6rem);
+    height: auto;
 }
 
 .tagged-album-detail-empty-filter {
@@ -413,6 +438,7 @@
     .tagged-album-detail-grid--empty .tagged-album-detail-add-tile {
         width: 100%;
         max-width: none;
+        min-height: clamp(10.8rem, 42vw, 13.2rem);
     }
 
     .tagged-album-detail-empty-filter {
@@ -1403,18 +1429,18 @@
         width: 100%;
         margin-top: 0.08rem;
         margin-bottom: 0.05rem;
-        align-items: center;
+        align-items: flex-end;
     }
 
-    .tagged-album-reorder-controls {
-        width: auto;
-        margin: 0;
-        justify-self: auto;
-        gap: 0.34rem;
+    .tagged-album-detail-top-search {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
     }
 
     .tagged-album-reorder-hint {
-        display: none;
+        width: 100%;
+        margin: 0.2rem 0 0;
     }
 
     .tagged-album-reorder-toggle {
