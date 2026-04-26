@@ -1177,13 +1177,34 @@ export const MediaDetailPage = () => {
             return;
         }
 
-        const tempLink = document.createElement("a");
-        tempLink.href = mediaUrl;
-        tempLink.download = filename || true;
-        tempLink.rel = "noopener noreferrer";
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        tempLink.remove();
+        try {
+            const response = await fetch(mediaUrl);
+
+            if (!response.ok) {
+                throw new Error("Could not download media file");
+            }
+
+            const blob = await response.blob();
+
+            if (!(blob instanceof Blob) || blob.size <= 0) {
+                throw new Error("Downloaded file is empty or invalid.");
+            }
+
+            const tempUrl = URL.createObjectURL(blob);
+            const tempLink = document.createElement("a");
+            tempLink.href = tempUrl;
+            tempLink.download = filename || "download";
+            tempLink.rel = "noopener noreferrer";
+            document.body.appendChild(tempLink);
+            tempLink.click();
+            tempLink.remove();
+
+            window.setTimeout(() => {
+                URL.revokeObjectURL(tempUrl);
+            }, 60_000);
+        } catch {
+            window.open(mediaUrl, "_blank", "noopener,noreferrer");
+        }
     };
 
     const handleCloseLightbox = () => {
@@ -2116,6 +2137,16 @@ export const MediaDetailPage = () => {
                                             disabled={isDeletingMedia}
                                         >
                                             <img src="/icons/delete.svg" alt="" aria-hidden="true" />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="tagged-media-detail-action tagged-media-detail-action--download tagged-media-detail-action--icon"
+                                            onClick={handleDownloadMedia}
+                                            aria-label="Download media"
+                                            title="Download media"
+                                            disabled={!mediaUrl || !currentMedia}
+                                        >
+                                            <img src="/icons/download.svg" alt="" aria-hidden="true" />
                                         </button>
                                     </div>
                                 </div>
