@@ -633,7 +633,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         const stored = Number(localStorage.getItem(GALLERY_CURRENT_PAGE_STORAGE_KEY));
         return Number.isFinite(stored) && stored > 0 ? stored : 1;
     });
-    const [totalMediaCount, setTotalMediaCount] = useState(0);
     const [isUploadPreviewLightboxOpen, setIsUploadPreviewLightboxOpen] = useState(false);
     const [uploadPreviewIndex, setUploadPreviewIndex] = useState(0);
     const [uploadPreviewUrls, setUploadPreviewUrls] = useState([]);
@@ -908,7 +907,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setRandomOrderIds(shuffleArray(mediaItems.map((item) => item.id)));
     }, [mediaItems, isRandomOrderEnabled]);
 
-    const visibleMediaItems = useMemo(() => {
+    const filteredMediaItems = useMemo(() => {
         const normalizedFilter = activeTagFilter.toLowerCase();
         const normalizedAuthorFilter = activeAuthorFilter.toLowerCase();
         const scopedSearch = parseScopedMediaSearchQuery(gallerySearchQuery);
@@ -1009,6 +1008,19 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         selectedExcludeFilterTags,
         mediaTypeFilter,
     ]);
+
+    const totalFilteredMediaCount = filteredMediaItems.length;
+    const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(totalFilteredMediaCount / pageSize));
+
+    const visibleMediaItems = useMemo(() => {
+        if (pageSize === "all") {
+            return filteredMediaItems;
+
+        }
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        return filteredMediaItems.slice(startIndex, endIndex);
+    }, [filteredMediaItems, pageSize, currentPage]);
 
     const hasActiveSearch = gallerySearchQuery.trim().length > 0;
     const hasActiveFilterTags = selectedIncludeFilterTags.length > 0 || selectedExcludeFilterTags.length > 0;
@@ -2103,7 +2115,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             }
             const refreshedMedia = await fetchMediaList();
             setMediaItems(Array.isArray(refreshedMedia.data) ? refreshedMedia.data : []);
-            setTotalMediaCount(Number.isFinite(refreshedMedia.total) ? refreshedMedia.total : 0);
             showSelectionActionToast(
                 {
                     status: "success",
@@ -2205,12 +2216,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         return [];
     };
 
-    const fetchMediaList = async (page = currentPage, limit = pageSize) => {
+    const fetchMediaList = async () => {
         if (!user || user.type === "admin") {
             return { data: [], total: 0 };
         }
-        const effectiveLimit = limit === "all" ? 10000 : limit;
-        const params = new URLSearchParams({ page: String(page), limit: String(effectiveLimit) });
+        const params = new URLSearchParams({ page: "1", limit: "10000" });
         const response = await fetchWithAuth(`${API_URL}/media?${params.toString()}`, {
             method: "GET",
             headers: {
@@ -2460,7 +2470,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
             const refreshedMedia = await fetchMediaList();
             setMediaItems(Array.isArray(refreshedMedia.data) ? refreshedMedia.data : []);
-            setTotalMediaCount(Number.isFinite(refreshedMedia.total) ? refreshedMedia.total : 0);
             setIsUploadModalOpen(false);
             setIsUploadToastMode(false);
             resetUploadForm();
@@ -2552,23 +2561,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     };
 
     }
-    useEffect(() => {
-        const loadMedia = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const result = await fetchMediaList(currentPage, pageSize);
-                setMediaItems(Array.isArray(result.data) ? result.data : []);
-                setTotalMediaCount(Number.isFinite(result.total) ? result.total : 0);
-            } catch (err) {
-                setError(err.message || "Error loading gallery");
-            } finally {
-                setLoading(false);
-        };
-        }
-        loadMedia();
-    }, [user, onlyFavourites, currentPage, pageSize]);
-
     const handlePageSizeChange = (e) => {
         const raw = e.target.value;
         if (raw === "all") {
@@ -2584,12 +2576,18 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             }
         }
     };
-    const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(totalMediaCount / pageSize));
     const handlePageChange = (newPage) => {
         const clamped = Math.max(1, Math.min(totalPages, newPage));
         setCurrentPage(clamped);
         localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, String(clamped));
     };
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+            localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, String(totalPages));
+        }
+    }, [currentPage, totalPages]);
 
     useEffect(() => {
         let cancelled = false;
@@ -2613,7 +2611,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
                 if (!cancelled) {
                     setMediaItems(Array.isArray(items.data) ? items.data : []);
-                    setTotalMediaCount(Number.isFinite(items.total) ? items.total : 0);
                 }
             } catch (requestError) {
                 if (!cancelled) {
@@ -3101,7 +3098,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
                     </div>
 
-                    {totalMediaCount > 0 && (
+                    {totalFilteredMediaCount > 0 && (
                         <label className="tagged-gallery-pagination__size-label tagged-gallery-pagination__size-label--inline">
                             Per page
                             <select
@@ -3957,7 +3954,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             ) : null}
 
             {/* Pagination bar -- below grid */}
-            {totalMediaCount > 0 && (
+            {totalFilteredMediaCount > 0 && (
                 <div className="tagged-gallery-pagination">
                     {pageSize !== "all" && (
                         <div className="tagged-gallery-pagination__nav">
