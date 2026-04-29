@@ -127,6 +127,18 @@
     mask-position: center;
 }
 
+.tagged-album-view-switch-icon-image {
+    flex: 0 0 auto;
+    width: 0.92rem;
+    height: 0.92rem;
+    display: inline-block;
+    object-fit: contain;
+}
+
+[data-theme="dark"] .tagged-album-view-switch-icon-image {
+    filter: brightness(0) saturate(100%) invert(100%);
+}
+
 .tagged-album-view-switch-icon--card {
     -webkit-mask-image: url("/icons/album.svg");
     mask-image: url("/icons/album.svg");
@@ -135,6 +147,11 @@
 .tagged-album-view-switch-icon--list {
     -webkit-mask-image: url("/icons/list.svg");
     mask-image: url("/icons/list.svg");
+}
+
+.tagged-album-view-switch-icon--reorder {
+    -webkit-mask-image: url("/icons/reorder.svg");
+    mask-image: url("/icons/reorder.svg");
 }
 
 .tagged-album-view-switch-label {

@@ -2188,7 +2188,12 @@ export const AlbumDetailPage = () => {
                             aria-label="Reorder media"
                             title={isReorderMode ? "Done reordering" : "Reorder media"}
                         >
-                            <span className="tagged-album-view-switch-icon tagged-album-view-switch-icon--list" />
+                            <img
+                                src="/icons/reorder.svg"
+                                alt=""
+                                aria-hidden="true"
+                                className="tagged-album-view-switch-icon-image"
+                            />
                             <span className="tagged-album-view-switch-label">
                                 {isReorderMode ? "Done reordering" : "Reorder media"}
                             </span>
