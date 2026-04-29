@@ -25,6 +25,25 @@ const DEFAULT_NEW_TAG_COLOR = "#643aff";
 
 const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
 
+const mergeDistinctValues = (currentValues, newValues) => {
+    const valuesByKey = new Map();
+
+    [...currentValues, ...newValues].forEach((value) => {
+        const trimmed = String(value || "").trim();
+        const normalized = trimmed.toLowerCase();
+
+        if (!trimmed || valuesByKey.has(normalized)) {
+            return;
+        }
+
+        valuesByKey.set(normalized, trimmed);
+    });
+
+    return Array.from(valuesByKey.values()).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }),
+    );
+};
+
 const isVideoOrGifMedia = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
     return mediaType.includes("video") || mediaType.includes("gif");
@@ -1527,6 +1546,21 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             const updatedById = new Map(successfulUpdates.map((item) => [String(item.id), item]));
 
             setMediaItems((previous) => previous.map((item) => updatedById.get(String(item.id)) || item));
+            setDistinctDisplayNames((previous) =>
+                mergeDistinctValues(
+                    previous,
+                    successfulUpdates.map((item) => item?.displayname),
+                ),
+            );
+            setDistinctAuthors((previous) =>
+                mergeDistinctValues(
+                    previous,
+                    successfulUpdates.map((item) => item?.author),
+                ),
+            );
+            setDistinctTagNames((previous) =>
+                mergeDistinctValues(previous, successfulUpdates.flatMap((item) => mapTagsFromMedia(item))),
+            );
 
             if (successfulUpdates.length < selectedItems.length) {
                 showSelectionActionToast(
@@ -2482,6 +2516,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             setUploadRemaining(0);
             setUploadProgressPercent(100);
             setUploadSpeedLabel(null);
+            setDistinctDisplayNames((previous) => mergeDistinctValues(previous, [finalDisplayName]));
+            setDistinctAuthors((previous) => mergeDistinctValues(previous, [finalAuthor]));
+            setDistinctTagNames((previous) => mergeDistinctValues(previous, selectedTags));
 
             const refreshedMedia = await fetchMediaList();
             setMediaItems(Array.isArray(refreshedMedia.data) ? refreshedMedia.data : []);

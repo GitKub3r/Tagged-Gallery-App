@@ -19,6 +19,43 @@ const EDIT_MODAL_CLOSE_ON_SAVE_STORAGE_KEY = "tagged.mediaDetail.closeEditModalO
 const MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY = "tagged.mediaDetail.autoplay";
 const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
 
+const mergeDistinctValues = (currentValues, newValues) => {
+    const valuesByKey = new Map();
+
+    [...currentValues, ...newValues].forEach((value) => {
+        const trimmed = String(value || "").trim();
+        const normalized = trimmed.toLowerCase();
+
+        if (!trimmed || valuesByKey.has(normalized)) {
+            return;
+        }
+
+        valuesByKey.set(normalized, trimmed);
+    });
+
+    return Array.from(valuesByKey.values()).sort((a, b) =>
+        a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }),
+    );
+};
+
+const mapTagsFromMedia = (media) => {
+    const candidates = media?.tags || media?.tag_names || media?.mediaTags || media?.relatedTags || [];
+
+    if (!Array.isArray(candidates)) {
+        return [];
+    }
+
+    return candidates
+        .map((tag) => {
+            if (typeof tag === "string") {
+                return tag;
+            }
+
+            return String(tag?.tagname || tag?.name || "").trim();
+        })
+        .filter(Boolean);
+};
+
 const normalizeHexColor = (input) => {
     const raw = String(input || "").trim();
 
@@ -1952,6 +1989,9 @@ export const MediaDetailPage = () => {
                     String(item.id) === String(currentMedia.id) ? { ...item, ...data.data } : item,
                 ),
             );
+            setEditDistinctDisplayNames((previous) => mergeDistinctValues(previous, [data.data.displayname]));
+            setEditDistinctAuthors((previous) => mergeDistinctValues(previous, [data.data.author]));
+            setEditDistinctTagNames((previous) => mergeDistinctValues(previous, mapTagsFromMedia(data.data)));
 
             if (closeEditModalOnSave) {
                 setIsEditModalOpen(false);
