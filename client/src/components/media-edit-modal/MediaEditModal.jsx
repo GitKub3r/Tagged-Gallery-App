@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import "./MediaEditModal.css";
 
 const MAX_SUGGESTIONS = 8;
@@ -572,7 +572,7 @@ export const MediaEditModal = ({
                         disabled={isSaving}
                         aria-label="Close edit modal"
                     >
-                        ×
+                        &times;
                     </button>
                 </header>
 
@@ -760,7 +760,7 @@ export const MediaEditModal = ({
                                             aria-label={`Remove tag ${tag}`}
                                         >
                                             <span>{tag}</span>
-                                            <span aria-hidden="true">×</span>
+                                            <span aria-hidden="true">&times;</span>
                                         </button>
                                     ))}
                                 </div>
@@ -875,7 +875,7 @@ export const MediaEditModal = ({
                                 }}
                                 aria-label="Close selected media preview"
                             >
-                                ×
+                                &times;
                             </button>
 
                             {activePreviewItem.isVideo ? (
@@ -939,3 +939,4 @@ export const MediaEditModal = ({
         </div>
     );
 };
+

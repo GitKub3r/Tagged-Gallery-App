@@ -572,7 +572,7 @@
     .tagged-media-edit-modal-actions {
         width: 100%;
         display: flex;
-        flex-direction: column;
+        flex-direction: column-reverse;
         align-items: stretch;
     }
 

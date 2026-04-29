@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import "./MediaDetailPage.css";
@@ -296,7 +296,7 @@ const TagGroup = ({
 
                     {hasOverflow ? (
                         <button type="button" className="tagged-media-detail-expand-button" onClick={onToggle}>
-                            <span aria-hidden="true">{expanded ? "▲" : "▼"}</span>
+                            <span aria-hidden="true">{expanded ? "â–²" : "â–¼"}</span>
                         </button>
                     ) : null}
                 </div>
@@ -2008,7 +2008,7 @@ export const MediaDetailPage = () => {
                             onClick={hideActionToast}
                             aria-label="Close media action status"
                         >
-                            ×
+                            &times;
                         </button>
                     </header>
                     <p>{actionToast.message}</p>
@@ -2190,7 +2190,7 @@ export const MediaDetailPage = () => {
                                                 aria-label="Collapse copyright tags"
                                                 title="Collapse tags"
                                             >
-                                                <span aria-hidden="true">▲</span>
+                                                <span aria-hidden="true">â–²</span>
                                             </button>
                                         ) : null}
                                     </div>
@@ -2228,7 +2228,7 @@ export const MediaDetailPage = () => {
                                                 aria-label="Collapse tags"
                                                 title="Collapse tags"
                                             >
-                                                <span aria-hidden="true">▲</span>
+                                                <span aria-hidden="true">â–²</span>
                                             </button>
                                         ) : null}
                                     </div>
@@ -2528,7 +2528,7 @@ export const MediaDetailPage = () => {
                                 disabled={isSavingEdit}
                                 aria-label="Close edit modal"
                             >
-                                ×
+                                &times;
                             </button>
                         </header>
 
@@ -2770,7 +2770,7 @@ export const MediaDetailPage = () => {
                                                     aria-label={`Remove tag ${tag}`}
                                                 >
                                                     <span>{tag}</span>
-                                                    <span aria-hidden="true">×</span>
+                                                    <span aria-hidden="true">&times;</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -2876,7 +2876,7 @@ export const MediaDetailPage = () => {
                                         onClick={() => setIsEditPreviewLightboxOpen(false)}
                                         aria-label="Close selected media preview"
                                     >
-                                        ×
+                                        &times;
                                     </button>
 
                                     {isEditPreviewVideo ? (
@@ -2966,7 +2966,7 @@ export const MediaDetailPage = () => {
                                 }}
                                 aria-label="Close modal"
                             >
-                                ×
+                                &times;
                             </button>
                         </header>
 
@@ -3017,3 +3017,4 @@ export const MediaDetailPage = () => {
         </section>
     );
 };
+
