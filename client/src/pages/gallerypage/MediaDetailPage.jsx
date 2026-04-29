@@ -13,6 +13,8 @@ const DESKTOP_DEFAULT_TAG_LIMIT = 6;
 const DESKTOP_COPYRIGHT_TAG_LIMIT = 3;
 const MEDIA_SWITCH_ANIMATION_MS = 320;
 const DEFAULT_NEW_TAG_COLOR = "#643aff";
+
+const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
 const EDIT_MODAL_CLOSE_ON_SAVE_STORAGE_KEY = "tagged.mediaDetail.closeEditModalOnSave";
 const MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY = "tagged.mediaDetail.autoplay";
 const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
@@ -79,28 +81,20 @@ const isDarkThemeActive = () => {
 };
 
 const buildTagStyle = (hexColor, surface = "light") => {
-    const rgb = getHexRgb(hexColor);
+    const rgb = isDefaultTagColor(hexColor) ? null : getHexRgb(hexColor);
     const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
-        if (!darkTheme && surface === "light") {
-            return {
-                backgroundColor: `${DEFAULT_NEW_TAG_COLOR}22`,
-                color: DEFAULT_NEW_TAG_COLOR,
-                "--tagged-media-detail-tag-hover-color": DEFAULT_NEW_TAG_COLOR,
-                borderColor: `${DEFAULT_NEW_TAG_COLOR}66`,
-                borderWidth: "2px",
-                boxShadow: "inset 0 0 0 1px rgba(0, 0, 0, 0.22)",
-            };
-        }
+        const isDarkSurface = surface === "dark" || darkTheme;
+        const defaultTone = isDarkSurface ? mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56) : DEFAULT_NEW_TAG_COLOR;
 
         return {
-            backgroundColor: `${DEFAULT_NEW_TAG_COLOR}38`,
-            color: "#f7f9ff",
-            "--tagged-media-detail-tag-hover-color": "#f7f9ff",
-            borderColor: `${DEFAULT_NEW_TAG_COLOR}BB`,
+            backgroundColor: `${defaultTone}${isDarkSurface ? "38" : "22"}`,
+            color: defaultTone,
+            "--tagged-media-detail-tag-hover-color": defaultTone,
+            borderColor: `${defaultTone}${isDarkSurface ? "BB" : "66"}`,
             borderWidth: "2px",
-            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
+            boxShadow: `inset 0 0 0 1px ${isDarkSurface ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.22)"}`,
         };
     }
 

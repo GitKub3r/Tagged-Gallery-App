@@ -6,8 +6,6 @@ const MediaTagModel = require("../models/MediaTag.model");
 const { detectMediaType, generateThumbnail } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR, THUMBNAILS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 
-const DEFAULT_TAG_COLOR = "#643aff";
-
 const removeFileIfExists = async (filePath) => {
     try {
         await fs.unlink(filePath);
@@ -144,7 +142,7 @@ class MediaService {
                     tag = await TagModel.create({
                         user_id: userId,
                         tagname: tagName,
-                        tagcolor_hex: DEFAULT_TAG_COLOR,
+                        tagcolor_hex: null,
                         type: "default",
                     });
                 } catch (error) {

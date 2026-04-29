@@ -4,6 +4,8 @@ import "./MediaEditModal.css";
 const MAX_SUGGESTIONS = 8;
 const DEFAULT_NEW_TAG_COLOR = "#643aff";
 
+const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
+
 const isVideoLike = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
     return mediaType.includes("video") || mediaType.includes("gif");
@@ -74,16 +76,18 @@ const isDarkThemeActive = () => {
 };
 
 const buildTagStyle = (hexColor) => {
-    const rgb = getHexRgb(hexColor);
+    const rgb = isDefaultTagColor(hexColor) ? null : getHexRgb(hexColor);
     const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
+        const defaultTone = darkTheme ? mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56) : DEFAULT_NEW_TAG_COLOR;
+
         return {
-            backgroundColor: `${DEFAULT_NEW_TAG_COLOR}22`,
-            color: DEFAULT_NEW_TAG_COLOR,
-            borderColor: `${DEFAULT_NEW_TAG_COLOR}66`,
+            backgroundColor: `${defaultTone}${darkTheme ? "38" : "22"}`,
+            color: defaultTone,
+            borderColor: `${defaultTone}${darkTheme ? "BB" : "66"}`,
             borderWidth: "2px",
-            boxShadow: "inset 0 0 0 1px rgba(0, 0, 0, 0.22)",
+            boxShadow: `inset 0 0 0 1px ${darkTheme ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.22)"}`,
         };
     }
 
