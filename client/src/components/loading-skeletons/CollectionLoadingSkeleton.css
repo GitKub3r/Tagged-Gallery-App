@@ -1,0 +1,262 @@
+.tagged-loading-skeleton-collection,
+.tagged-loading-skeleton-hero {
+    --tagged-skeleton-base: color-mix(in srgb, var(--tagged-surface-card-footer) 82%, var(--tagged-text-color) 18%);
+    --tagged-skeleton-highlight: color-mix(in srgb, var(--tagged-surface-card-footer) 68%, var(--tagged-accent-color) 32%);
+    --tagged-skeleton-soft: color-mix(in srgb, var(--tagged-surface-card-footer) 92%, var(--tagged-accent-color) 8%);
+}
+
+[data-theme="dark"] .tagged-loading-skeleton-collection,
+[data-theme="dark"] .tagged-loading-skeleton-hero {
+    --tagged-skeleton-base: color-mix(in srgb, var(--tagged-surface-card-footer) 78%, #ffffff 12%);
+    --tagged-skeleton-highlight: color-mix(in srgb, var(--tagged-surface-card-footer) 66%, var(--tagged-accent-color) 28%);
+    --tagged-skeleton-soft: color-mix(in srgb, var(--tagged-surface-card-footer) 88%, #ffffff 8%);
+}
+
+.tagged-loading-skeleton-card,
+.tagged-loading-skeleton-list-item {
+    pointer-events: none;
+    cursor: default;
+}
+
+.tagged-loading-skeleton-card:hover,
+.tagged-loading-skeleton-list-item:hover,
+.tagged-loading-skeleton-card:focus-visible,
+.tagged-loading-skeleton-list-item:focus-visible {
+    transform: none;
+    box-shadow: var(--tagged-shadow-card);
+}
+
+.tagged-skeleton-block {
+    display: block;
+}
+
+.tagged-skeleton-block,
+.tagged-loading-skeleton-card .tagged-loading-skeleton-preview,
+.tagged-loading-skeleton-list-item .tagged-loading-skeleton-list-preview,
+.tagged-loading-skeleton-hero-block,
+.tagged-loading-skeleton-hero-button {
+    background:
+        linear-gradient(
+            105deg,
+            transparent 0%,
+            transparent 34%,
+            color-mix(in srgb, var(--tagged-skeleton-highlight) 74%, #ffffff 16%) 47%,
+            transparent 60%,
+            transparent 100%
+        ),
+        linear-gradient(135deg, var(--tagged-skeleton-base), var(--tagged-skeleton-soft));
+    background-size:
+        220% 100%,
+        100% 100%;
+    animation: tagged-loading-skeleton-shimmer 1.45s ease-in-out infinite;
+}
+
+.tagged-loading-skeleton-card .tagged-loading-skeleton-preview {
+    min-height: 0;
+}
+
+.tagged-loading-skeleton-media-card .tagged-loading-skeleton-preview {
+    display: block;
+}
+
+.tagged-loading-skeleton-play-pill {
+    position: absolute;
+    top: 0.62rem;
+    left: 0.62rem;
+    width: 2.05rem;
+    height: 1.15rem;
+    border-radius: var(--tagged-radius-full);
+    opacity: 0.72;
+}
+
+.tagged-loading-skeleton-card .tagged-loading-skeleton-body {
+    gap: 0.48rem;
+}
+
+.tagged-loading-skeleton-line {
+    display: block;
+    height: 0.72rem;
+    border-radius: var(--tagged-radius-full);
+}
+
+.tagged-loading-skeleton-line--title {
+    width: min(78%, 11rem);
+}
+
+.tagged-loading-skeleton-line--meta {
+    width: min(48%, 7.5rem);
+    height: 0.58rem;
+    opacity: 0.78;
+}
+
+.tagged-loading-skeleton-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+}
+
+.tagged-loading-skeleton-dot {
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: var(--tagged-radius-full);
+    flex: 0 0 auto;
+    opacity: 0.82;
+}
+
+.tagged-loading-skeleton-list-preview::before {
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.tagged-loading-skeleton-list-preview::after {
+    background: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, var(--tagged-surface-card-footer) 100%);
+}
+
+.tagged-loading-skeleton-list-item .tagged-loading-skeleton-list-main {
+    gap: 0.42rem;
+}
+
+.tagged-loading-skeleton-line--list-title {
+    width: min(86%, 15rem);
+    height: 0.78rem;
+}
+
+.tagged-loading-skeleton-line--list-meta {
+    width: min(56%, 10rem);
+    height: 0.58rem;
+    opacity: 0.78;
+}
+
+.tagged-loading-skeleton-list-actions {
+    opacity: 0.9;
+}
+
+.tagged-loading-skeleton-action {
+    width: 2.45rem;
+    height: 2.45rem;
+    border-radius: var(--tagged-radius-full);
+}
+
+.tagged-album-card.tagged-loading-skeleton-album-card {
+    grid-template-rows: minmax(8.3rem, 8.9rem) auto;
+}
+
+.tagged-loading-skeleton-hero {
+    pointer-events: none;
+}
+
+.tagged-loading-skeleton-hero .tagged-album-detail-hero-overlay {
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.74) 0%,
+        rgba(0, 0, 0, 0.56) 34%,
+        rgba(0, 0, 0, 0.16) 100%
+    );
+}
+
+.tagged-loading-skeleton-hero-button {
+    position: absolute;
+    top: 1rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--tagged-radius-full);
+    z-index: 3;
+    opacity: 0.72;
+}
+
+.tagged-loading-skeleton-hero-button--left {
+    left: 1rem;
+    width: 5.2rem;
+}
+
+.tagged-loading-skeleton-hero-button--right {
+    right: 1rem;
+}
+
+.tagged-loading-skeleton-hero-copy {
+    display: grid;
+    gap: 0.58rem;
+    width: min(100%, 34rem);
+}
+
+.tagged-loading-skeleton-hero-title {
+    width: min(70%, 22rem);
+    height: clamp(1.75rem, 1.2rem + 1.2vw, 2.4rem);
+    border-radius: var(--tagged-radius-full);
+}
+
+.tagged-loading-skeleton-hero-subtitle {
+    width: min(46%, 15rem);
+    height: 0.85rem;
+    border-radius: var(--tagged-radius-full);
+    opacity: 0.78;
+}
+
+.tagged-loading-skeleton-hero-metric {
+    width: 7.5rem;
+    height: 2.15rem;
+    border-radius: var(--tagged-radius-full);
+    opacity: 0.84;
+}
+
+@keyframes tagged-loading-skeleton-shimmer {
+    from {
+        background-position:
+            140% 0,
+            0 0;
+    }
+
+    to {
+        background-position:
+            -90% 0,
+            0 0;
+    }
+}
+
+@media (max-width: 760px) {
+    .tagged-album-card.tagged-loading-skeleton-album-card {
+        height: auto;
+        grid-template-rows: auto auto;
+    }
+
+    .tagged-album-card.tagged-loading-skeleton-album-card .tagged-loading-skeleton-preview {
+        aspect-ratio: 16 / 9;
+    }
+}
+
+@media (max-width: 720px) {
+    .tagged-loading-skeleton-action {
+        width: 2.2rem;
+        height: 2.2rem;
+    }
+
+    .tagged-loading-skeleton-hero-button--left {
+        width: 4.6rem;
+    }
+
+    .tagged-loading-skeleton-hero-copy {
+        width: 100%;
+    }
+
+    .tagged-loading-skeleton-hero-title {
+        width: 76%;
+    }
+
+    .tagged-loading-skeleton-hero-subtitle {
+        width: 56%;
+    }
+
+    .tagged-loading-skeleton-hero-metric {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tagged-skeleton-block,
+    .tagged-loading-skeleton-card .tagged-loading-skeleton-preview,
+    .tagged-loading-skeleton-list-item .tagged-loading-skeleton-list-preview,
+    .tagged-loading-skeleton-hero-block,
+    .tagged-loading-skeleton-hero-button {
+        animation: none;
+    }
+}

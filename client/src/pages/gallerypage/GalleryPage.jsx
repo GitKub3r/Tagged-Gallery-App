@@ -2,6 +2,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import JSZip from "jszip";
 import { MediaCard } from "../../components/media-card/MediaCard";
+import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
@@ -3119,14 +3120,12 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             ) : null}
 
             {loading ? (
-                <article
-                    className="tagged-app-page-card tagged-gallery-empty-card tagged-gallery-empty-card--no-media tagged-gallery-empty-card--loading"
-                    aria-live="polite"
-                >
-                    <h2>Loading media</h2>
-                    <p>Fetching your media library.</p>
-                    <span className="tagged-gallery-loading-spinner" aria-hidden="true" />
-                </article>
+                <CollectionLoadingSkeleton
+                    itemType="media"
+                    viewMode={gridViewMode}
+                    gridColumns={gridColumns}
+                    ariaLabel="Loading media"
+                />
             ) : null}
 
             {!loading && error ? (

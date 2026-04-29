@@ -90,6 +90,7 @@ export const HomePage = () => {
                     <Input label="Email" type="email" {...register("email")} />
                     <Input label="Password" type="password" {...register("password")} />
                     <label className="tagged-login-remember">
+                        <span>Remember me</span>
                         <input
                             type="checkbox"
                             checked={rememberMe}
@@ -101,7 +102,6 @@ export const HomePage = () => {
                                 }
                             }}
                         />
-                        <span>Remember me</span>
                     </label>
                     <button className="tagged-login-button" type="submit">
                         Log In
