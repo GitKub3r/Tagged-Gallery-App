@@ -69,7 +69,7 @@
 }
 
 .tagged-gallery-view-switch-button {
-    min-height: 2.5rem;
+    min-height: 2.65rem;
     padding: 0.36rem 0.78rem;
     min-width: 5.75rem;
     border-radius: var(--tagged-radius-md);
@@ -776,7 +776,7 @@
 
     .tagged-gallery-view-switch-button {
         min-width: 2.6rem;
-        min-height: 2.45rem;
+        min-height: 2.65rem;
         padding: 0.3rem;
     }
 

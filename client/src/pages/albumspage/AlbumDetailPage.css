@@ -1430,12 +1430,20 @@
         margin-top: 0.08rem;
         margin-bottom: 0.05rem;
         align-items: flex-end;
+        flex-wrap: nowrap;
+        gap: 0.5rem;
     }
 
     .tagged-album-detail-top-search {
-        width: 100%;
+        width: auto;
+        flex: 1 1 auto;
         max-width: none;
         min-width: 0;
+    }
+
+    .tagged-album-detail-top-controls .tagged-album-detail-view-switch {
+        margin-left: 0;
+        flex: 0 0 auto;
     }
 
     .tagged-album-reorder-hint {

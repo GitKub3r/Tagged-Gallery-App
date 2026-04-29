@@ -84,7 +84,7 @@
 }
 
 .tagged-album-view-switch-button {
-    min-height: 2.5rem;
+    min-height: 2.65rem;
     min-width: 5.75rem;
     padding: 0.36rem 0.78rem;
     border-radius: var(--tagged-radius-md);
@@ -660,7 +660,7 @@
 
     .tagged-album-view-switch {
         grid-template-columns: repeat(2, max-content);
-        gap: 0.5rem;
+        gap: 0.75rem;
     }
 
     .tagged-album-detail-view-switch {
@@ -668,13 +668,13 @@
         justify-self: end;
         grid-template-columns: repeat(2, max-content);
         justify-content: end;
-        gap: 0.5rem;
+        gap: 0.75rem;
         padding-inline: 0.2rem;
     }
 
     .tagged-album-view-switch-button {
         min-width: 2.6rem;
-        min-height: 2.45rem;
+        min-height: 2.65rem;
         padding: 0.3rem;
     }
 
