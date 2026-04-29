@@ -391,6 +391,13 @@
     min-height: 13.2rem;
 }
 
+.tagged-album-detail-grid:not(.tagged-album-detail-grid--empty) .tagged-album-detail-add-tile {
+    min-height: 0;
+    height: 100%;
+    aspect-ratio: auto;
+    align-self: stretch;
+}
+
 .tagged-album-detail-empty-filter {
     grid-row: 1;
     grid-column: 2 / -1;

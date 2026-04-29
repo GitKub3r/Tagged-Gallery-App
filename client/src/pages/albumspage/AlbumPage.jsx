@@ -3,6 +3,7 @@ import JSZip from "jszip";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useGridView } from "../../context/GridViewContext";
+import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
 import "./AlbumPage.css";
@@ -1234,14 +1235,12 @@ export const AlbumPage = () => {
             ) : null}
 
             {loading ? (
-                <article
-                    className="tagged-app-page-card tagged-album-empty-card tagged-album-empty-card--no-albums tagged-album-empty-card--loading"
-                    aria-live="polite"
-                >
-                    <span className="tagged-album-loading-spinner" aria-hidden="true" />
-                    <h2>Loading albums</h2>
-                    <p>Fetching albums and available cover media.</p>
-                </article>
+                <CollectionLoadingSkeleton
+                    itemType="album"
+                    viewMode={albumViewMode}
+                    gridColumns={gridColumns}
+                    ariaLabel="Loading albums"
+                />
             ) : null}
 
             {!loading && error ? (

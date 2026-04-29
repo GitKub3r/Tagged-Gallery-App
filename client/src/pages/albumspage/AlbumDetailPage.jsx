@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
 import { MediaCard } from "../../components/media-card/MediaCard";
+import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { GalleryListItem } from "../gallerypage/GalleryPage";
 import { useAuth } from "../../hooks/useAuth";
@@ -2032,11 +2033,32 @@ export const AlbumDetailPage = () => {
 
     if (loading) {
         return (
-            <section className="tagged-app-page tagged-album-page tagged-album-page--centered">
-                <article className="tagged-app-page-card tagged-album-status-card" aria-live="polite">
-                    <h2>Loading album detail</h2>
-                    <p>Fetching album information and media items.</p>
-                </article>
+            <section className="tagged-app-page tagged-album-detail-page" aria-label="Loading album detail">
+                <header
+                    className="tagged-album-detail-hero tagged-loading-skeleton-hero"
+                    aria-hidden="true"
+                >
+                    <div className="tagged-album-detail-hero-overlay" />
+                    <span className="tagged-loading-skeleton-hero-button tagged-loading-skeleton-hero-button--left" />
+                    <span className="tagged-loading-skeleton-hero-button tagged-loading-skeleton-hero-button--right" />
+                    <div className="tagged-album-detail-hero-content">
+                        <div className="tagged-loading-skeleton-hero-copy">
+                            <span className="tagged-loading-skeleton-hero-block tagged-loading-skeleton-hero-title" />
+                            <span className="tagged-loading-skeleton-hero-block tagged-loading-skeleton-hero-subtitle" />
+                        </div>
+                        <span className="tagged-loading-skeleton-hero-block tagged-loading-skeleton-hero-metric" />
+                    </div>
+                </header>
+
+                <div className="tagged-album-detail-grid-wrap" aria-live="polite">
+                    <CollectionLoadingSkeleton
+                        itemType="media"
+                        viewMode={albumMediaViewMode}
+                        gridColumns={gridColumns}
+                        context="album-detail"
+                        ariaLabel="Loading album media"
+                    />
+                </div>
             </section>
         );
     }
