@@ -1,8 +1,15 @@
+.tagged-shell-content:has(> .tagged-album-detail-page),
 .tagged-album-detail-page {
     --tagged-gallery-content-max: calc((17.5rem * 5) + (1rem * 4));
+    --tagged-album-detail-background: var(--tagged-app-background);
     display: grid;
     gap: 1.2rem;
     align-content: start;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-album-detail-page) {
+    background: var(--tagged-album-detail-background);
 }
 
 .tagged-album-detail-hero {

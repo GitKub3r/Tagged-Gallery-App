@@ -1,8 +1,15 @@
+.tagged-shell-content:has(> .tagged-users-page),
 .tagged-users-page {
+    --tagged-users-background: var(--tagged-app-background);
     min-height: 0;
     display: grid;
     align-content: start;
     gap: 1rem;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-users-page) {
+    background: var(--tagged-users-background);
 }
 
 .tagged-users-header {

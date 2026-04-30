@@ -1,9 +1,16 @@
+.tagged-shell-content:has(> .tagged-album-page),
 .tagged-album-page {
     --tagged-album-content-max: calc((17.5rem * 5) + (1rem * 4));
     --tagged-album-search-max: 54rem;
+    --tagged-album-background: var(--tagged-app-background);
     display: grid;
     gap: 1.4rem;
     align-content: start;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-album-page) {
+    background: var(--tagged-album-background);
 }
 
 .tagged-album-items-count {
@@ -740,6 +747,19 @@
     margin: 0;
 }
 
+.tagged-album-list-create-tile {
+    background: color-mix(in srgb, var(--tagged-surface-raised) 58%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 12px 28px rgba(24, 24, 31, 0.05);
+}
+
+.tagged-album-list-create-tile:hover,
+.tagged-album-list-create-tile:focus-visible,
+.tagged-album-list-create-tile:active {
+    background: color-mix(in srgb, var(--tagged-surface-raised) 72%, rgba(100, 58, 255, 0.1));
+}
+
 .tagged-album-card.tagged-album-create-tile:hover > span:not(.tagged-album-create-icon) {
     color: var(--tagged-accent-color) !important;
 }
@@ -749,6 +769,19 @@
 .tagged-album-card.tagged-album-create-tile:active .tagged-album-create-icon {
     color: var(--tagged-accent-color);
     opacity: 0.9;
+}
+
+.tagged-album-card.tagged-album-create-tile {
+    background: color-mix(in srgb, var(--tagged-surface-raised) 58%, transparent) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 14px 32px rgba(24, 24, 31, 0.06);
+}
+
+.tagged-album-card.tagged-album-create-tile:hover,
+.tagged-album-card.tagged-album-create-tile:focus-visible,
+.tagged-album-card.tagged-album-create-tile:active {
+    background: color-mix(in srgb, var(--tagged-surface-raised) 72%, rgba(100, 58, 255, 0.1)) !important;
 }
 
 .tagged-album-card {

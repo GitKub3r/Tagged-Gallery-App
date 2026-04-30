@@ -1,9 +1,16 @@
+.tagged-shell-content:has(> .tagged-tags-page),
 .tagged-tags-page {
+    --tagged-tags-background: var(--tagged-app-background);
     position: relative;
     min-height: calc(100dvh - 5.2rem);
     display: grid;
     align-content: start;
     gap: 1.1rem;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-tags-page) {
+    background: var(--tagged-tags-background);
 }
 
 .tagged-tags-page--global-empty {

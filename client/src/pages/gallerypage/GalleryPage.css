@@ -1,9 +1,19 @@
+.tagged-shell-content:has(> .tagged-gallery-page),
 .tagged-gallery-page {
     --tagged-gallery-content-max: calc((17.5rem * 5) + (1rem * 4));
     --tagged-gallery-search-max: 54rem;
+    --tagged-gallery-background: var(--tagged-app-background);
+}
+
+.tagged-gallery-page {
     display: grid;
     gap: 1.4rem;
     align-content: start;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-gallery-page) {
+    background: var(--tagged-gallery-background);
 }
 
 .tagged-gallery-items-count {

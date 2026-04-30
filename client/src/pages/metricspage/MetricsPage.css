@@ -1,14 +1,21 @@
+.tagged-shell-content:has(> .tagged-metrics-page),
 .tagged-metrics-page {
+    --tagged-metrics-background: var(--tagged-app-background);
     min-height: calc(100dvh - 5.2rem);
     display: grid;
     align-content: start;
     gap: 1.2rem;
     position: relative;
     isolation: isolate;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-metrics-page) {
+    background: var(--tagged-metrics-background);
 }
 
 .tagged-metrics-page::before {
-    content: "";
+    content: none;
     position: fixed;
     inset: 0;
     z-index: -1;
