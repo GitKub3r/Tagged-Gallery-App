@@ -191,6 +191,14 @@ CREATE TABLE history (
         ON DELETE SET NULL
 );
 
+-- =========================
+-- DEFAULT USERS (password: 123456, bcrypt 10 rounds)
+-- =========================
+INSERT INTO users (username, email, password, type) VALUES
+    ('Demo User',  'demo@tagged.com',  '$2b$10$oRGNbc30oL1Xy84v6MsY0ORasKfxSr7e3/oAjgfFjTTHZCRqIkbT.', 'basic'),
+    ('Admin User', 'admin@tagged.com', '$2b$10$A/IBB19E57dkmcl8C277YOo/L2gWOlvH4wrHYsomLf5Mw.2d30yqe', 'admin')
+ON DUPLICATE KEY UPDATE username = VALUES(username);
+
 INSERT INTO actions (actionname, actioncode, description, is_active)
 VALUES
     ('Unauthorized access', 'AUTH_UNAUTHORIZED', 'Authentication failed or missing token', TRUE),
