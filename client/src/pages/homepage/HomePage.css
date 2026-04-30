@@ -3,19 +3,7 @@
     height: 100dvh;
 
     display: flex;
-    background:
-        radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.32), transparent 36%),
-        radial-gradient(circle at 88% 22%, rgba(100, 58, 255, 0.3), transparent 40%),
-        radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.26), transparent 34%),
-        linear-gradient(165deg, #f8f9fb 0%, #eef2f8 54%, #ffffff 100%);
-}
-
-[data-theme="dark"] .tagged-home-page {
-    background:
-        radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.28), transparent 36%),
-        radial-gradient(circle at 88% 22%, rgba(100, 58, 255, 0.32), transparent 40%),
-        radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.22), transparent 34%),
-        linear-gradient(165deg, #0f1220 0%, #161a2d 54%, #0d1020 100%);
+    background: var(--tagged-app-background-gradients);
 }
 
 .tagged-login-section {
@@ -253,19 +241,7 @@
 
 .tagged-home-page-main-section {
     isolation: isolate;
-    background:
-        radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.32), transparent 36%),
-        radial-gradient(circle at 88% 22%, rgba(100, 58, 255, 0.3), transparent 40%),
-        radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.26), transparent 34%),
-        linear-gradient(165deg, #f8f9fb 0%, #eef2f8 54%, #ffffff 100%);
-}
-
-[data-theme="dark"] .tagged-home-page-main-section {
-    background:
-        radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.28), transparent 36%),
-        radial-gradient(circle at 88% 22%, rgba(100, 58, 255, 0.32), transparent 40%),
-        radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.22), transparent 34%),
-        linear-gradient(165deg, #0f1220 0%, #161a2d 54%, #0d1020 100%);
+    background: var(--tagged-app-background-gradients);
 }
 
 .tagged-home-page-main-section::before {
@@ -785,17 +761,7 @@
         place-items: center;
         padding: clamp(1rem, 2.2vw, 1.8rem);
         overflow: hidden;
-        background:
-            radial-gradient(circle at 14% 16%, rgba(100, 58, 255, 0.3), transparent 36%),
-            radial-gradient(circle at 86% 12%, rgba(17, 181, 255, 0.24), transparent 34%),
-            linear-gradient(150deg, rgba(12, 17, 28, 0.08), rgba(12, 17, 28, 0));
-    }
-
-    [data-theme="dark"] .tagged-home-page {
-        background:
-            radial-gradient(circle at 14% 16%, rgba(100, 58, 255, 0.24), transparent 36%),
-            radial-gradient(circle at 86% 12%, rgba(17, 181, 255, 0.16), transparent 34%),
-            linear-gradient(150deg, rgba(6, 8, 16, 0.42), rgba(6, 8, 16, 0.08));
+        background: var(--tagged-app-background-gradients);
     }
 
     .tagged-home-page::before {
@@ -932,19 +898,7 @@
         position: relative;
         overflow: hidden;
         padding: 1.05rem;
-        background:
-            radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.32), transparent 36%),
-            radial-gradient(circle at 88% 22%, rgba(100, 58, 255, 0.28), transparent 40%),
-            radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.24), transparent 34%),
-            linear-gradient(165deg, #f8f9fb 0%, #eef2f8 54%, #ffffff 100%);
-    }
-
-    [data-theme="dark"] .tagged-home-page {
-        background:
-            radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.28), transparent 36%),
-            radial-gradient(circle at 88% 22%, rgba(100, 58, 255, 0.32), transparent 40%),
-            radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.22), transparent 34%),
-            linear-gradient(165deg, #0f1220 0%, #161a2d 54%, #0d1020 100%);
+        background: var(--tagged-app-background-gradients);
     }
 
     .tagged-home-page::before,

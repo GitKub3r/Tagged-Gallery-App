@@ -1,14 +1,21 @@
+.tagged-shell-content:has(> .tagged-logs-page),
 .tagged-logs-page {
+    --tagged-logs-background: var(--tagged-app-background);
     min-height: calc(100dvh - 5.2rem);
     display: grid;
     align-content: start;
     gap: 1.05rem;
     position: relative;
     isolation: isolate;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-logs-page) {
+    background: var(--tagged-logs-background);
 }
 
 .tagged-logs-page::before {
-    content: "";
+    content: none;
     position: fixed;
     inset: 0;
     z-index: -1;

@@ -1,8 +1,15 @@
+.tagged-shell-content:has(> .tagged-actions-page),
 .tagged-actions-page {
+    --tagged-actions-background: var(--tagged-app-background);
     min-height: 0;
     display: grid;
     align-content: start;
     gap: 1rem;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-actions-page) {
+    background: var(--tagged-actions-background);
 }
 
 .tagged-actions-header {
