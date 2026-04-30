@@ -1,9 +1,53 @@
+.tagged-shell-content:has(> .tagged-album-page),
 .tagged-album-page {
     --tagged-album-content-max: calc((17.5rem * 5) + (1rem * 4));
     --tagged-album-search-max: 54rem;
+    --tagged-album-background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='22' y='22' width='116' height='116' rx='20' fill='none' stroke='%233d3d3d' stroke-opacity='.18' stroke-width='2.5' transform='rotate(-16 80 80)'/%3E%3C/svg%3E")
+            7% 8% / clamp(7rem, 10vw, 12rem) clamp(7rem, 10vw, 12rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='18' y='18' width='124' height='124' rx='24' fill='none' stroke='%233d3d3d' stroke-opacity='.16' stroke-width='2.2' transform='rotate(22 80 80)'/%3E%3C/svg%3E")
+            98% -4% / clamp(12rem, 17vw, 18rem) clamp(12rem, 17vw, 18rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='30' y='30' width='100' height='100' rx='18' fill='%233d3d3d' fill-opacity='.08' transform='rotate(14 80 80)'/%3E%3C/svg%3E")
+            19% 44% / clamp(6rem, 8vw, 9.5rem) clamp(6rem, 8vw, 9.5rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='24' y='24' width='112' height='112' rx='22' fill='none' stroke='%233d3d3d' stroke-opacity='.15' stroke-width='2.2' transform='rotate(-11 80 80)'/%3E%3C/svg%3E")
+            86% 42% / clamp(8rem, 12vw, 13rem) clamp(8rem, 12vw, 13rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='24' y='24' width='112' height='112' rx='22' fill='%233d3d3d' fill-opacity='.07' transform='rotate(18 80 80)'/%3E%3C/svg%3E")
+            92% 104% / clamp(10rem, 15vw, 16rem) clamp(10rem, 15vw, 16rem) no-repeat,
+        radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.2), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(var(--tagged-accent-rgb), 0.18), transparent 38%),
+        radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.16), transparent 34%),
+        linear-gradient(
+            165deg,
+            color-mix(in srgb, var(--tagged-primary-color) 92%, #ffffff),
+            var(--tagged-primary-color)
+        );
     display: grid;
     gap: 1.4rem;
     align-content: start;
+    background: transparent;
+}
+
+.tagged-shell-content:has(> .tagged-album-page) {
+    background: var(--tagged-album-background);
+}
+
+[data-theme="dark"] .tagged-shell-content:has(> .tagged-album-page),
+[data-theme="dark"] .tagged-album-page {
+    --tagged-album-background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='22' y='22' width='116' height='116' rx='20' fill='none' stroke='%23ffffff' stroke-opacity='.16' stroke-width='2.5' transform='rotate(-16 80 80)'/%3E%3C/svg%3E")
+            7% 8% / clamp(7rem, 10vw, 12rem) clamp(7rem, 10vw, 12rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='18' y='18' width='124' height='124' rx='24' fill='none' stroke='%23ffffff' stroke-opacity='.14' stroke-width='2.2' transform='rotate(22 80 80)'/%3E%3C/svg%3E")
+            98% -4% / clamp(12rem, 17vw, 18rem) clamp(12rem, 17vw, 18rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='30' y='30' width='100' height='100' rx='18' fill='%23ffffff' fill-opacity='.055' transform='rotate(14 80 80)'/%3E%3C/svg%3E")
+            19% 44% / clamp(6rem, 8vw, 9.5rem) clamp(6rem, 8vw, 9.5rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='24' y='24' width='112' height='112' rx='22' fill='none' stroke='%23ffffff' stroke-opacity='.13' stroke-width='2.2' transform='rotate(-11 80 80)'/%3E%3C/svg%3E")
+            86% 42% / clamp(8rem, 12vw, 13rem) clamp(8rem, 12vw, 13rem) no-repeat,
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 160'%3E%3Crect x='24' y='24' width='112' height='112' rx='22' fill='%23ffffff' fill-opacity='.045' transform='rotate(18 80 80)'/%3E%3C/svg%3E")
+            92% 104% / clamp(10rem, 15vw, 16rem) clamp(10rem, 15vw, 16rem) no-repeat,
+        radial-gradient(circle at 12% 12%, rgba(255, 112, 67, 0.18), transparent 34%),
+        radial-gradient(circle at 88% 18%, rgba(var(--tagged-accent-rgb), 0.2), transparent 38%),
+        radial-gradient(circle at 72% 88%, rgba(27, 190, 255, 0.12), transparent 34%),
+        linear-gradient(165deg, #101321 0%, var(--tagged-primary-color) 58%, #0d1020 100%);
 }
 
 .tagged-album-items-count {
