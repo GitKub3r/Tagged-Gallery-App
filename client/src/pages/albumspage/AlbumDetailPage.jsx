@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
@@ -17,12 +17,18 @@ import "../gallerypage/GalleryPage.css";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
 const ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY = "tagged_album_detail_media_view_mode";
+const ALBUM_DETAIL_MONTAGE_SETTINGS_STORAGE_KEY = "tagged_album_detail_montage_settings";
 const GENERAL_FILTER_COMMAND_EVENT = "tagged:general-filter-command";
 const GENERAL_FILTER_STATE_EVENT = "tagged:general-filter-state";
 
 const isVideoOrGifMedia = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
     return mediaType.includes("video") || mediaType.includes("gif");
+};
+
+const isVideoMedia = (media) => {
+    const mediaType = String(media?.mediatype || "").toLowerCase();
+    return mediaType.includes("video");
 };
 
 const parseApiResponse = async (response, fallbackMessage) => {
@@ -66,6 +72,153 @@ const getAssetUrl = (assetPath) => {
     return `${UPLOADS_BASE_URL}${assetPath}`;
 };
 
+const getMontageMediaUrl = (media) => getAssetUrl(media?.filepath || media?.thumbpath || "");
+const getMontagePosterUrl = (media) => getAssetUrl(media?.thumbpath || "");
+const getMontageBackgroundUrl = (media) => getAssetUrl(media?.thumbpath || media?.filepath || "");
+
+const MONTAGE_IMAGE_DURATION_MS = 4200;
+const MONTAGE_DEFAULT_IMAGE_DURATION_SECONDS = MONTAGE_IMAGE_DURATION_MS / 1000;
+const MONTAGE_MIN_IMAGE_DURATION_SECONDS = 3;
+const MONTAGE_MAX_IMAGE_DURATION_SECONDS = 60;
+const MONTAGE_VIDEO_FALLBACK_DURATION_MS = 9000;
+const MONTAGE_TRANSITION_DURATION_MS = 820;
+const MONTAGE_DEFAULT_TAG_LIMIT = 6;
+const MONTAGE_COPYRIGHT_TAG_LIMIT = 3;
+const DEFAULT_NEW_TAG_COLOR = "#643aff";
+
+const normalizeHexColor = (input) => {
+    const raw = String(input || "").trim();
+
+    if (!raw) {
+        return null;
+    }
+
+    if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
+        return raw;
+    }
+
+    if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+        const [, r, g, b] = raw;
+        return `#${r}${r}${g}${g}${b}${b}`;
+    }
+
+    return null;
+};
+
+const getHexRgb = (hexColor) => {
+    const normalized = normalizeHexColor(hexColor);
+
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = Number.parseInt(normalized.slice(1), 16);
+
+    return {
+        r: (parsed >> 16) & 255,
+        g: (parsed >> 8) & 255,
+        b: parsed & 255,
+        hex: normalized,
+    };
+};
+
+const getRelativeLuminance = ({ r, g, b }) => {
+    const toLinear = (channel) => {
+        const normalized = channel / 255;
+        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    };
+
+    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+};
+
+const toHexChannel = (value) =>
+    Math.max(0, Math.min(255, Math.round(value)))
+        .toString(16)
+        .padStart(2, "0");
+
+const mixRgbWithWhite = (rgb, amount = 0.5) => {
+    const ratio = Math.max(0, Math.min(1, amount));
+    const mix = (channel) => channel + (255 - channel) * ratio;
+    return `#${toHexChannel(mix(rgb.r))}${toHexChannel(mix(rgb.g))}${toHexChannel(mix(rgb.b))}`;
+};
+
+const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
+
+const buildMontageTagStyle = (hexColor) => {
+    const rgb = isDefaultTagColor(hexColor) ? null : getHexRgb(hexColor);
+
+    if (!rgb) {
+        const defaultTone = mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56);
+
+        return {
+            backgroundColor: `${defaultTone}38`,
+            color: defaultTone,
+            "--tagged-album-montage-tag-hover-color": defaultTone,
+            borderColor: `${defaultTone}BB`,
+            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
+        };
+    }
+
+    const luminance = getRelativeLuminance(rgb);
+    const isNearWhite = luminance > 0.88;
+    const isDarkTone = luminance < 0.3;
+    const isVeryDark = luminance < 0.12;
+    let textColor = rgb.hex;
+
+    if (isNearWhite) {
+        textColor = "#f7f9ff";
+    } else if (isDarkTone) {
+        textColor = mixRgbWithWhite(rgb, isVeryDark ? 0.72 : 0.56);
+    }
+
+    return {
+        backgroundColor: isNearWhite ? "rgba(255, 255, 255, 0.16)" : `${textColor}38`,
+        color: textColor,
+        "--tagged-album-montage-tag-hover-color": textColor,
+        borderColor: isNearWhite ? "rgba(255, 255, 255, 0.72)" : `${textColor}BB`,
+        boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
+    };
+};
+
+const formatMontageMediaSize = (sizeInBytes) => {
+    const numericSize = Number(sizeInBytes);
+
+    if (!Number.isFinite(numericSize) || numericSize <= 0) {
+        return "0 KB";
+    }
+
+    const bytesInKb = 1024;
+    const bytesInMb = bytesInKb * 1024;
+    const bytesInGb = bytesInMb * 1024;
+
+    if (numericSize < bytesInMb) {
+        return `${(numericSize / bytesInKb).toFixed(2)} KB`;
+    }
+
+    if (numericSize < bytesInGb) {
+        return `${(numericSize / bytesInMb).toFixed(2)} MB`;
+    }
+
+    return `${(numericSize / bytesInGb).toFixed(2)} GB`;
+};
+
+const formatMontageUploadDate = (dateValue) => {
+    if (!dateValue) {
+        return "Unknown";
+    }
+
+    const parsedDate = new Date(dateValue);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+        return "Unknown";
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+    }).format(parsedDate);
+};
+
 const formatAlbumDate = (rawDate) => {
     if (!rawDate) {
         return "";
@@ -101,6 +254,78 @@ const mapTagsFromMedia = (media) => {
         })
         .filter(Boolean);
 };
+
+const normalizeMontageTags = (media) => {
+    const candidates = media?.tags || media?.tag_names || media?.mediaTags || media?.relatedTags || [];
+
+    if (!Array.isArray(candidates)) {
+        return [];
+    }
+
+    return candidates
+        .map((tag, index) => {
+            if (typeof tag === "string") {
+                return {
+                    id: `${tag}-${index}`,
+                    tagname: tag,
+                    tagcolor_hex: null,
+                    type: "default",
+                };
+            }
+
+            return {
+                id: tag.id || `${tag.tagname || tag.name || "tag"}-${index}`,
+                tagname: tag.tagname || tag.name || "Tag",
+                tagcolor_hex: tag.tagcolor_hex || null,
+                type: tag.type || "default",
+            };
+        })
+        .filter((tag) => String(tag.tagname || "").trim());
+};
+
+const clampMontageImageDurationSeconds = (value) => {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+        return MONTAGE_DEFAULT_IMAGE_DURATION_SECONDS;
+    }
+
+    return Math.min(MONTAGE_MAX_IMAGE_DURATION_SECONDS, Math.max(MONTAGE_MIN_IMAGE_DURATION_SECONDS, numericValue));
+};
+
+const normalizeMontageAnimationType = (value) => {
+    const normalizedValue = String(value || "").toLowerCase();
+    const allowedTypes = new Set(["slide", "fade", "drop", "none"]);
+    return allowedTypes.has(normalizedValue) ? normalizedValue : "slide";
+};
+
+const getInitialMontageSettings = () => {
+    if (typeof window === "undefined") {
+        return {
+            imageDurationSeconds: MONTAGE_DEFAULT_IMAGE_DURATION_SECONDS,
+            animationType: "slide",
+        };
+    }
+
+    try {
+        const storedSettings = JSON.parse(
+            window.localStorage.getItem(ALBUM_DETAIL_MONTAGE_SETTINGS_STORAGE_KEY) || "{}",
+        );
+
+        return {
+            imageDurationSeconds: clampMontageImageDurationSeconds(storedSettings.imageDurationSeconds),
+            animationType: normalizeMontageAnimationType(storedSettings.animationType),
+        };
+    } catch {
+        return {
+            imageDurationSeconds: MONTAGE_DEFAULT_IMAGE_DURATION_SECONDS,
+            animationType: "slide",
+        };
+    }
+};
+
+const getMontageTransitionClass = (animationType) =>
+    `tagged-album-montage-frame--${normalizeMontageAnimationType(animationType)}`;
 
 const getCommonTagNames = (mediaList) => {
     if (!Array.isArray(mediaList) || mediaList.length === 0) {
@@ -151,7 +376,9 @@ const formatDownloadSpeed = (bytesPerSecond) => {
 };
 
 const parseScopedMediaSearchQuery = (rawQuery) => {
-    const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
+    const normalizedRaw = String(rawQuery || "")
+        .trim()
+        .toLowerCase();
 
     if (!normalizedRaw) {
         return {
@@ -196,6 +423,7 @@ const parseScopedMediaSearchQuery = (rawQuery) => {
 export const AlbumDetailPage = () => {
     const { albumId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user, fetchWithAuth } = useAuth();
     const { selectedIncludeFilterTags, selectedExcludeFilterTags, clearFilterTags } = useTagFilter();
     const { gridColumns } = useGridView();
@@ -228,7 +456,9 @@ export const AlbumDetailPage = () => {
             return "card";
         }
 
-        const storedMode = String(window.localStorage.getItem(ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY) || "card").toLowerCase();
+        const storedMode = String(
+            window.localStorage.getItem(ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY) || "card",
+        ).toLowerCase();
         return storedMode === "list" ? "list" : "card";
     });
     const [isDownloadingSelected, setIsDownloadingSelected] = useState(false);
@@ -267,7 +497,34 @@ export const AlbumDetailPage = () => {
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [editError, setEditError] = useState(null);
     const [isHeroCoverBroken, setIsHeroCoverBroken] = useState(false);
+    const [isMontageSettingsOpen, setIsMontageSettingsOpen] = useState(false);
+    const [montageSettings, setMontageSettings] = useState(getInitialMontageSettings);
+    const [isMontageOpen, setIsMontageOpen] = useState(false);
+    const [montageIndex, setMontageIndex] = useState(0);
+    const [isMontagePlaying, setIsMontagePlaying] = useState(true);
+    const [montagePreviousFrame, setMontagePreviousFrame] = useState(null);
+    const [montageDirection, setMontageDirection] = useState("next");
+    const [isMontageTransitionFromVideo, setIsMontageTransitionFromVideo] = useState(false);
+    const [montageProgressRatio, setMontageProgressRatio] = useState(0);
+    const [currentMontageDurationMs, setCurrentMontageDurationMs] = useState(MONTAGE_IMAGE_DURATION_MS);
+    const [montageRemainingSeconds, setMontageRemainingSeconds] = useState(Math.ceil(MONTAGE_IMAGE_DURATION_MS / 1000));
+    const [montageSeekRevision, setMontageSeekRevision] = useState(0);
+    const [areMontageVideoControlsVisible, setAreMontageVideoControlsVisible] = useState(false);
     const downloadToastTimeoutRef = useRef(null);
+    const montageVideoRef = useRef(null);
+    const montageProgressTrackRef = useRef(null);
+    const montageProgressBarRef = useRef(null);
+    const montagePreviousFrameTimeoutRef = useRef(null);
+    const montageTimerStartedAtRef = useRef(0);
+    const montageTimerDurationMsRef = useRef(MONTAGE_IMAGE_DURATION_MS);
+    const montageRemainingMsRef = useRef(MONTAGE_IMAGE_DURATION_MS);
+    const montageTimerStartRemainingMsRef = useRef(MONTAGE_IMAGE_DURATION_MS);
+    const montageLastRenderedSecondRef = useRef(Math.ceil(MONTAGE_IMAGE_DURATION_MS / 1000));
+    const skipNextMontageTimerCleanupRef = useRef(false);
+    const montageAdvanceLockedRef = useRef(false);
+    const isMontageSeekingRef = useRef(false);
+    const suppressMontageRestoreRef = useRef(false);
+    const montagePreloadedImagesRef = useRef(new Map());
 
     const albumDisplayName = album?.displayname || album?.albumname || "Untitled album";
     const albumCreatedLabel = formatAlbumDate(album?.created_at);
@@ -284,6 +541,20 @@ export const AlbumDetailPage = () => {
 
         window.localStorage.setItem(ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY, albumMediaViewMode);
     }, [albumMediaViewMode]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        window.localStorage.setItem(
+            ALBUM_DETAIL_MONTAGE_SETTINGS_STORAGE_KEY,
+            JSON.stringify({
+                imageDurationSeconds: montageSettings.imageDurationSeconds,
+                animationType: montageSettings.animationType,
+            }),
+        );
+    }, [montageSettings]);
 
     const mediaTypeSummary = useMemo(() => {
         const imageCount = albumMediaItems.filter(
@@ -309,7 +580,9 @@ export const AlbumDetailPage = () => {
     const activeAlbumMediaItems = useMemo(() => {
         const scopedSearch = parseScopedMediaSearchQuery(albumMediaSearch);
         const hasScopedSearch =
-            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
+            scopedSearch.authorTerms.length > 0 ||
+            scopedSearch.nameTerms.length > 0 ||
+            scopedSearch.freeTerms.length > 0;
         const normalizedFilter = activeAlbumTagFilter.trim().toLowerCase();
         const normalizedIncludedSidebarTags = selectedIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludedSidebarTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
@@ -447,10 +720,68 @@ export const AlbumDetailPage = () => {
     const hasVisibleAlbumMediaItems = activeAlbumMediaItems.length > 0;
     const areAllVisibleAlbumMediaSelected =
         hasVisibleAlbumMediaItems && activeAlbumMediaItems.every((media) => selectedAlbumMediaIds.has(media.id));
+    const montageMediaItems = activeAlbumMediaItems;
+    const currentMontageMedia = montageMediaItems[montageIndex] || null;
+    const currentMontageMediaUrl = getMontageMediaUrl(currentMontageMedia);
+    const currentMontagePosterUrl = getMontagePosterUrl(currentMontageMedia);
+    const currentMontageBackgroundUrl = getMontageBackgroundUrl(currentMontageMedia);
+    const currentMontageIsVideo = isVideoMedia(currentMontageMedia);
+    const currentMontageTitle =
+        String(currentMontageMedia?.displayname || currentMontageMedia?.filename || "").trim() || "Untitled media";
+    const currentMontageAuthor = String(currentMontageMedia?.author || "").trim() || "Unknown";
+    const montageImageDurationMs = montageSettings.imageDurationSeconds * 1000;
+    const currentMontageTransitionClass = getMontageTransitionClass(montageSettings.animationType);
+    const currentMontageElapsedSeconds = Math.max(
+        0,
+        Math.floor((montageProgressRatio * currentMontageDurationMs) / 1000),
+    );
+    const currentMontageRemainingSeconds = currentMontageIsVideo ? montageRemainingSeconds : 0;
+    const currentMontageRemainingLabel = `${String(Math.floor(currentMontageRemainingSeconds / 60)).padStart(
+        2,
+        "0",
+    )}:${String(currentMontageRemainingSeconds % 60).padStart(2, "0")}`;
+    const currentMontageSizeLabel = formatMontageMediaSize(currentMontageMedia?.size);
+    const currentMontageDateLabel = formatMontageUploadDate(
+        currentMontageMedia?.updatedAt ||
+            currentMontageMedia?.updated_at ||
+            currentMontageMedia?.createdAt ||
+            currentMontageMedia?.created_at,
+    );
+    const currentMontageTags = useMemo(() => normalizeMontageTags(currentMontageMedia), [currentMontageMedia]);
+    const currentMontageDefaultTags = currentMontageTags.filter((tag) => String(tag.type).toLowerCase() === "default");
+    const currentMontageCopyrightTags = currentMontageTags.filter(
+        (tag) => String(tag.type).toLowerCase() === "copyright",
+    );
+    const visibleMontageDefaultTags = currentMontageDefaultTags.slice(0, MONTAGE_DEFAULT_TAG_LIMIT);
+    const visibleMontageCopyrightTags = currentMontageCopyrightTags.slice(0, MONTAGE_COPYRIGHT_TAG_LIMIT);
+    const hiddenMontageDefaultTagCount = Math.max(0, currentMontageDefaultTags.length - MONTAGE_DEFAULT_TAG_LIMIT);
+    const hiddenMontageCopyrightTagCount = Math.max(
+        0,
+        currentMontageCopyrightTags.length - MONTAGE_COPYRIGHT_TAG_LIMIT,
+    );
 
     const canReorderAlbumMedia = !isAlbumSelectionMode && albumMediaItems.length > 1;
     const canUseDragReorder = canReorderAlbumMedia && isReorderMode && !isMobileViewport;
     const canUseTapReorder = canReorderAlbumMedia && isReorderMode && isMobileViewport;
+
+    const replaceAlbumHistoryState = useCallback(
+        (nextAlbumState) => {
+            const currentState = location.state && typeof location.state === "object" ? location.state : {};
+            const nextState = { ...currentState };
+
+            if (nextAlbumState) {
+                nextState.albumMontageReturn = nextAlbumState;
+            } else {
+                delete nextState.albumMontageReturn;
+            }
+
+            navigate(".", {
+                replace: true,
+                state: nextState,
+            });
+        },
+        [location.state, navigate],
+    );
 
     const clearDownloadToastTimer = () => {
         if (downloadToastTimeoutRef.current) {
@@ -707,12 +1038,7 @@ export const AlbumDetailPage = () => {
 
             return true;
         });
-    }, [
-        availableMediaItems,
-        addMediaSearch,
-        selectedAddMediaIncludeFilterTags,
-        selectedAddMediaExcludeFilterTags,
-    ]);
+    }, [availableMediaItems, addMediaSearch, selectedAddMediaIncludeFilterTags, selectedAddMediaExcludeFilterTags]);
     const areAllVisibleAddMediaSelected =
         filteredAvailableMediaItems.length > 0 &&
         filteredAvailableMediaItems.every((media) => selectedMediaToAddIds.has(media.id));
@@ -817,7 +1143,9 @@ export const AlbumDetailPage = () => {
         const scopedSearch = parseScopedMediaSearchQuery(coverSearch);
         const normalizedFilterTags = selectedEditFilterTags.map((tag) => tag.toLowerCase());
         const hasScopedSearch =
-            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
+            scopedSearch.authorTerms.length > 0 ||
+            scopedSearch.nameTerms.length > 0 ||
+            scopedSearch.freeTerms.length > 0;
 
         return imageLibraryMediaItems.filter((item) => {
             const displayName = String(item.displayname || item.filename || "").toLowerCase();
@@ -1540,13 +1868,13 @@ export const AlbumDetailPage = () => {
         }
     };
 
-    const closeRemoveSelectedConfirm = () => {
+    const closeRemoveSelectedConfirm = useCallback(() => {
         if (isRemovingSelected) {
             return;
         }
 
         setIsRemoveConfirmOpen(false);
-    };
+    }, [isRemovingSelected]);
 
     const handleRemoveSelectedMedia = async () => {
         if (selectedAlbumMediaIds.size === 0 || isRemovingSelected) {
@@ -1721,6 +2049,485 @@ export const AlbumDetailPage = () => {
         isAlbumSelectionMode,
         isReorderMode,
     ]);
+
+    const openMontage = () => {
+        if (montageMediaItems.length === 0) {
+            return;
+        }
+
+        suppressMontageRestoreRef.current = false;
+        setIsReorderMode(false);
+        setMobileReorderSourceId(null);
+        setIsAlbumSelectionMode(false);
+        setSelectedAlbumMediaIds(new Set());
+        setMontageIndex(0);
+        setIsMontagePlaying(true);
+        setMontagePreviousFrame(null);
+        setMontageDirection("next");
+        setIsMontageTransitionFromVideo(false);
+        setMontageProgressRatio(0);
+        setMontageRemainingSeconds(Math.ceil(montageImageDurationMs / 1000));
+        setAreMontageVideoControlsVisible(false);
+        if (montageProgressBarRef.current) {
+            montageProgressBarRef.current.style.transform = "scaleX(0)";
+        }
+        setIsMontageOpen(true);
+    };
+
+    useEffect(() => {
+        const returnState = location.state?.albumMontageReturn;
+
+        if (
+            !returnState ||
+            String(returnState.albumId) !== String(albumId) ||
+            montageMediaItems.length === 0 ||
+            isMontageOpen
+        ) {
+            if (!returnState || String(returnState.albumId) !== String(albumId)) {
+                suppressMontageRestoreRef.current = false;
+            }
+            return;
+        }
+
+        if (suppressMontageRestoreRef.current) {
+            return;
+        }
+
+        const restoredIndex = Math.max(
+            0,
+            Math.min(Number.parseInt(returnState.index, 10) || 0, montageMediaItems.length - 1),
+        );
+
+        setIsReorderMode(false);
+        setMobileReorderSourceId(null);
+        setIsAlbumSelectionMode(false);
+        setSelectedAlbumMediaIds(new Set());
+        setMontageIndex(restoredIndex);
+        setIsMontagePlaying(true);
+        setMontagePreviousFrame(null);
+        setMontageDirection("next");
+        setIsMontageTransitionFromVideo(false);
+        setMontageProgressRatio(0);
+        setMontageRemainingSeconds(Math.ceil(montageImageDurationMs / 1000));
+        setAreMontageVideoControlsVisible(false);
+        if (montageProgressBarRef.current) {
+            montageProgressBarRef.current.style.transform = "scaleX(0)";
+        }
+        setIsMontageOpen(true);
+    }, [albumId, isMontageOpen, location.state, montageImageDurationMs, montageMediaItems.length]);
+
+    const closeMontage = useCallback(() => {
+        suppressMontageRestoreRef.current = true;
+        replaceAlbumHistoryState(null);
+        setIsMontageOpen(false);
+        setMontagePreviousFrame(null);
+    }, [replaceAlbumHistoryState]);
+
+    const openMontageSettings = () => {
+        setIsMontageSettingsOpen(true);
+    };
+
+    const closeMontageSettings = () => {
+        setIsMontageSettingsOpen(false);
+    };
+
+    const updateMontageImageDurationSeconds = (value) => {
+        setMontageSettings((previous) => ({
+            ...previous,
+            imageDurationSeconds: clampMontageImageDurationSeconds(value),
+        }));
+    };
+
+    const updateMontageAnimationType = (value) => {
+        setMontageSettings((previous) => ({
+            ...previous,
+            animationType: normalizeMontageAnimationType(value),
+        }));
+    };
+
+    const queuePreviousMontageFrame = useCallback(
+        (direction = "next") => {
+            if (!currentMontageMedia) {
+                return;
+            }
+
+            if (montagePreviousFrameTimeoutRef.current) {
+                window.clearTimeout(montagePreviousFrameTimeoutRef.current);
+            }
+
+            setMontageDirection(direction);
+
+            if (currentMontageIsVideo) {
+                const video = montageVideoRef.current;
+                if (video) {
+                    video.pause();
+                    video.removeAttribute("src");
+                    video.load();
+                }
+
+                setIsMontageTransitionFromVideo(true);
+                setMontagePreviousFrame(null);
+                montagePreviousFrameTimeoutRef.current = null;
+                return;
+            }
+
+            setIsMontageTransitionFromVideo(false);
+            setMontagePreviousFrame({
+                media: currentMontageMedia,
+                index: montageIndex,
+                mediaUrl: currentMontageMediaUrl,
+                posterUrl: currentMontagePosterUrl,
+                backgroundUrl: currentMontageBackgroundUrl,
+                isVideo: currentMontageIsVideo,
+                title: currentMontageTitle,
+                transitionClass: currentMontageTransitionClass,
+            });
+
+            montagePreviousFrameTimeoutRef.current = window.setTimeout(() => {
+                setMontagePreviousFrame(null);
+                montagePreviousFrameTimeoutRef.current = null;
+            }, MONTAGE_TRANSITION_DURATION_MS);
+        },
+        [
+            currentMontageIsVideo,
+            currentMontageMedia,
+            currentMontageMediaUrl,
+            currentMontagePosterUrl,
+            currentMontageBackgroundUrl,
+            currentMontageTitle,
+            currentMontageTransitionClass,
+            montageIndex,
+        ],
+    );
+
+    const showNextMontageMedia = useCallback(() => {
+        if (isMontageSeekingRef.current) {
+            return;
+        }
+
+        if (montageAdvanceLockedRef.current) {
+            return;
+        }
+
+        montageAdvanceLockedRef.current = true;
+        queuePreviousMontageFrame("next");
+        setMontageIndex((previous) => {
+            if (montageMediaItems.length <= 1) {
+                return 0;
+            }
+
+            return (previous + 1) % montageMediaItems.length;
+        });
+    }, [montageMediaItems.length, queuePreviousMontageFrame]);
+
+    const showPreviousMontageMedia = useCallback(() => {
+        if (isMontageSeekingRef.current) {
+            return;
+        }
+
+        if (montageAdvanceLockedRef.current) {
+            return;
+        }
+
+        montageAdvanceLockedRef.current = true;
+        queuePreviousMontageFrame("previous");
+        setMontageIndex((previous) => {
+            if (montageMediaItems.length <= 1) {
+                return 0;
+            }
+
+            return (previous - 1 + montageMediaItems.length) % montageMediaItems.length;
+        });
+    }, [montageMediaItems.length, queuePreviousMontageFrame]);
+
+    const seekMontageProgress = useCallback(
+        (clientX) => {
+            const track = montageProgressTrackRef.current;
+
+            if (!track) {
+                return;
+            }
+
+            const bounds = track.getBoundingClientRect();
+            const rawRatio = bounds.width > 0 ? (clientX - bounds.left) / bounds.width : 0;
+            const nextRatio = Math.max(0, Math.min(0.995, rawRatio));
+            const totalDuration = Math.max(1, montageTimerDurationMsRef.current || currentMontageDurationMs);
+            const nextRemainingMs = Math.max(0, totalDuration * (1 - nextRatio));
+            const nextRemainingSeconds = Math.max(0, Math.ceil(nextRemainingMs / 1000));
+
+            montageTimerStartedAtRef.current = performance.now();
+            montageTimerStartRemainingMsRef.current = nextRemainingMs;
+            montageRemainingMsRef.current = nextRemainingMs;
+            montageLastRenderedSecondRef.current = nextRemainingSeconds;
+            setMontageRemainingSeconds(nextRemainingSeconds);
+            setMontageProgressRatio(nextRatio);
+
+            if (montageProgressBarRef.current) {
+                montageProgressBarRef.current.style.transform = `scaleX(${nextRatio})`;
+            }
+
+            const video = montageVideoRef.current;
+            if (currentMontageIsVideo && video && Number.isFinite(video.duration) && video.duration > 0) {
+                video.currentTime = Math.min(video.duration - 0.05, Math.max(0, video.duration * nextRatio));
+            }
+        },
+        [currentMontageDurationMs, currentMontageIsVideo],
+    );
+
+    const handleMontageProgressPointerDown = useCallback(
+        (event) => {
+            event.preventDefault();
+            isMontageSeekingRef.current = true;
+            event.currentTarget.setPointerCapture?.(event.pointerId);
+            seekMontageProgress(event.clientX);
+        },
+        [seekMontageProgress],
+    );
+
+    const handleMontageProgressPointerMove = useCallback(
+        (event) => {
+            if (!isMontageSeekingRef.current) {
+                return;
+            }
+
+            event.preventDefault();
+            seekMontageProgress(event.clientX);
+        },
+        [seekMontageProgress],
+    );
+
+    const handleMontageProgressPointerEnd = useCallback((event) => {
+        if (!isMontageSeekingRef.current) {
+            return;
+        }
+
+        isMontageSeekingRef.current = false;
+        setMontageSeekRevision((previous) => previous + 1);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }, []);
+
+    const handleMontageProgressKeyDown = useCallback(
+        (event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+                return;
+            }
+
+            event.preventDefault();
+            const step = event.key === "ArrowRight" ? 0.05 : -0.05;
+            const nextRatio = Math.max(0, Math.min(0.995, montageProgressRatio + step));
+            const track = montageProgressTrackRef.current;
+
+            if (!track) {
+                return;
+            }
+
+            const bounds = track.getBoundingClientRect();
+            seekMontageProgress(bounds.left + bounds.width * nextRatio);
+            setMontageSeekRevision((previous) => previous + 1);
+        },
+        [montageProgressRatio, seekMontageProgress],
+    );
+
+    useEffect(() => {
+        if (!isMontageOpen) {
+            return;
+        }
+
+        if (montageMediaItems.length === 0) {
+            closeMontage();
+            return;
+        }
+
+        setMontageIndex((previous) => Math.min(previous, montageMediaItems.length - 1));
+    }, [closeMontage, isMontageOpen, montageMediaItems.length]);
+
+    useEffect(() => {
+        if (!isMontageOpen || !currentMontageMedia) {
+            return undefined;
+        }
+
+        const nextDuration = currentMontageIsVideo ? MONTAGE_VIDEO_FALLBACK_DURATION_MS : montageImageDurationMs;
+        montageAdvanceLockedRef.current = false;
+        setCurrentMontageDurationMs(nextDuration);
+        montageTimerDurationMsRef.current = nextDuration;
+        montageRemainingMsRef.current = nextDuration;
+        montageTimerStartRemainingMsRef.current = nextDuration;
+        montageLastRenderedSecondRef.current = Math.ceil(nextDuration / 1000);
+        setMontageProgressRatio(0);
+        setMontageRemainingSeconds(Math.ceil(nextDuration / 1000));
+        setAreMontageVideoControlsVisible(false);
+        if (montageProgressBarRef.current) {
+            montageProgressBarRef.current.style.transform = "scaleX(0)";
+        }
+
+        return undefined;
+    }, [currentMontageIsVideo, currentMontageMedia, isMontageOpen, montageImageDurationMs, montageIndex]);
+
+    useEffect(() => {
+        if (!isMontageOpen || !isMontagePlaying || montageMediaItems.length <= 1) {
+            return undefined;
+        }
+
+        const duration = Math.max(300, montageRemainingMsRef.current || currentMontageDurationMs);
+        montageTimerStartedAtRef.current = performance.now();
+        montageTimerStartRemainingMsRef.current = duration;
+
+        const timeout = window.setTimeout(showNextMontageMedia, duration);
+
+        return () => {
+            if (skipNextMontageTimerCleanupRef.current) {
+                skipNextMontageTimerCleanupRef.current = false;
+            } else {
+                const elapsed = performance.now() - montageTimerStartedAtRef.current;
+                montageRemainingMsRef.current = Math.max(0, montageTimerStartRemainingMsRef.current - elapsed);
+            }
+            window.clearTimeout(timeout);
+        };
+    }, [
+        currentMontageDurationMs,
+        isMontageOpen,
+        isMontagePlaying,
+        montageIndex,
+        montageMediaItems.length,
+        montageSeekRevision,
+        showNextMontageMedia,
+    ]);
+
+    useEffect(() => {
+        if (!isMontageOpen) {
+            return undefined;
+        }
+
+        let frameId = 0;
+
+        const updateProgress = () => {
+            if (isMontagePlaying) {
+                const elapsed = performance.now() - montageTimerStartedAtRef.current;
+                const remaining = Math.max(0, montageTimerStartRemainingMsRef.current - elapsed);
+                montageRemainingMsRef.current = remaining;
+                const totalDuration = Math.max(1, montageTimerDurationMsRef.current);
+                const ratio = 1 - remaining / totalDuration;
+                const nextRatio = Math.max(0, Math.min(1, ratio));
+                const nextRemainingSecond = Math.max(0, Math.ceil(remaining / 1000));
+
+                if (montageProgressBarRef.current) {
+                    montageProgressBarRef.current.style.transform = `scaleX(${nextRatio})`;
+                }
+
+                if (nextRemainingSecond !== montageLastRenderedSecondRef.current) {
+                    montageLastRenderedSecondRef.current = nextRemainingSecond;
+                    setMontageRemainingSeconds(nextRemainingSecond);
+                }
+            }
+
+            frameId = window.requestAnimationFrame(updateProgress);
+        };
+
+        frameId = window.requestAnimationFrame(updateProgress);
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, [isMontageOpen, isMontagePlaying, montageIndex]);
+
+    useEffect(() => {
+        const video = montageVideoRef.current;
+
+        if (!isMontageOpen || !currentMontageIsVideo || !video) {
+            return;
+        }
+
+        if (!isMontagePlaying) {
+            video.pause();
+            return;
+        }
+
+        const playPromise = video.play();
+        if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch(() => {
+                setIsMontagePlaying(false);
+            });
+        }
+    }, [currentMontageIsVideo, isMontageOpen, isMontagePlaying, montageIndex]);
+
+    useEffect(() => {
+        if (!isMontageOpen) {
+            return undefined;
+        }
+
+        if (typeof window === "undefined") {
+            return undefined;
+        }
+
+        montageMediaItems.forEach((media) => {
+            if (isVideoMedia(media)) {
+                return;
+            }
+
+            const mediaUrl = getMontageMediaUrl(media);
+
+            if (!mediaUrl || montagePreloadedImagesRef.current.has(mediaUrl)) {
+                return;
+            }
+
+            const image = new Image();
+            image.decoding = "async";
+            image.src = mediaUrl;
+            montagePreloadedImagesRef.current.set(mediaUrl, image);
+        });
+
+        return undefined;
+    }, [isMontageOpen, montageMediaItems]);
+
+    useEffect(() => {
+        if (!isMontageOpen) {
+            return undefined;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        const handleMontageKeyDown = (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeMontage();
+                return;
+            }
+
+            if (event.key === "ArrowRight") {
+                event.preventDefault();
+                showNextMontageMedia();
+                return;
+            }
+
+            if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                showPreviousMontageMedia();
+                return;
+            }
+
+            if (event.key === " ") {
+                event.preventDefault();
+                setIsMontagePlaying((previous) => !previous);
+            }
+        };
+
+        window.addEventListener("keydown", handleMontageKeyDown);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            window.removeEventListener("keydown", handleMontageKeyDown);
+        };
+    }, [closeMontage, isMontageOpen, showNextMontageMedia, showPreviousMontageMedia]);
+
+    useEffect(() => {
+        return () => {
+            if (montagePreviousFrameTimeoutRef.current) {
+                window.clearTimeout(montagePreviousFrameTimeoutRef.current);
+                montagePreviousFrameTimeoutRef.current = null;
+            }
+        };
+    }, []);
 
     const openEditAlbumModal = () => {
         setEditingAlbumName(albumDisplayName);
@@ -1944,8 +2751,32 @@ export const AlbumDetailPage = () => {
         });
     };
 
+    const handleOpenMontageMediaDetail = () => {
+        if (!currentMontageMedia?.id) {
+            return;
+        }
+
+        setIsMontageOpen(false);
+        setMontagePreviousFrame(null);
+        replaceAlbumHistoryState({
+            albumId,
+            index: montageIndex,
+        });
+
+        navigate(`/gallery/${currentMontageMedia.id}`, {
+            state: {
+                mediaItems: activeAlbumMediaItems,
+                mediaScope: "album",
+            },
+        });
+    };
+
     useEffect(() => {
         const handleGlobalKeyDown = (event) => {
+            if (isMontageOpen) {
+                return;
+            }
+
             const target = event.target;
             const isTypingElement =
                 target instanceof HTMLElement &&
@@ -1975,7 +2806,7 @@ export const AlbumDetailPage = () => {
         return () => {
             window.removeEventListener("keydown", handleGlobalKeyDown);
         };
-    }, [isRemoveConfirmOpen, isRemovingSelected, isReorderMode]);
+    }, [closeRemoveSelectedConfirm, isMontageOpen, isRemoveConfirmOpen, isReorderMode]);
 
     const handleToggleFavourite = async (mediaId) => {
         if (!mediaId || togglingIds.has(mediaId)) {
@@ -2034,10 +2865,7 @@ export const AlbumDetailPage = () => {
     if (loading) {
         return (
             <section className="tagged-app-page tagged-album-detail-page" aria-label="Loading album detail">
-                <header
-                    className="tagged-album-detail-hero tagged-loading-skeleton-hero"
-                    aria-hidden="true"
-                >
+                <header className="tagged-album-detail-hero tagged-loading-skeleton-hero" aria-hidden="true">
                     <div className="tagged-album-detail-hero-overlay" />
                     <span className="tagged-loading-skeleton-hero-button tagged-loading-skeleton-hero-button--left" />
                     <span className="tagged-loading-skeleton-hero-button tagged-loading-skeleton-hero-button--right" />
@@ -2127,6 +2955,32 @@ export const AlbumDetailPage = () => {
                     <img src="/icons/edit.svg" alt="" aria-hidden="true" />
                     <span>Edit</span>
                 </button>
+
+                {!isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? (
+                    <div className="tagged-album-detail-montage-actions" aria-label="Montage actions">
+                        <button
+                            type="button"
+                            className="tagged-album-detail-montage-button"
+                            disabled={isReorderingMedia}
+                            onClick={openMontage}
+                            aria-label="Open montage"
+                            title="Montage"
+                        >
+                            <img src="/icons/montage.svg" alt="" aria-hidden="true" />
+                            <span>Montage</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className="tagged-album-detail-montage-settings-button"
+                            onClick={openMontageSettings}
+                            aria-label="Configure montage"
+                            title="Montage settings"
+                        >
+                            <img src="/icons/settings.svg" alt="" aria-hidden="true" />
+                        </button>
+                    </div>
+                ) : null}
 
                 <div className="tagged-album-detail-hero-content">
                     <div className="tagged-album-detail-hero-text">
@@ -2381,6 +3235,354 @@ export const AlbumDetailPage = () => {
                 </aside>
             ) : null}
 
+            {isMontageSettingsOpen ? (
+                <div className="tagged-album-montage-settings-modal" role="dialog" aria-modal="true">
+                    <div
+                        className="tagged-album-montage-settings-backdrop"
+                        onClick={closeMontageSettings}
+                        aria-hidden="true"
+                    />
+                    <section className="tagged-album-montage-settings-panel" aria-labelledby="montage-settings-title">
+                        <header className="tagged-album-montage-settings-header">
+                            <div>
+                                <h2 id="montage-settings-title">Montage settings</h2>
+                                <p>Videos always use their own duration.</p>
+                            </div>
+                            <button
+                                type="button"
+                                className="tagged-album-montage-settings-close"
+                                onClick={closeMontageSettings}
+                                aria-label="Close montage settings"
+                            >
+                                <img src="/icons/close.svg" alt="" aria-hidden="true" />
+                            </button>
+                        </header>
+
+                        <section className="tagged-album-montage-settings-field">
+                            <div className="tagged-album-montage-settings-field-heading">
+                                <span>Image duration</span>
+                            </div>
+                            <div className="tagged-album-montage-settings-duration">
+                                <div className="tagged-album-montage-settings-duration-row">
+                                    <span className="tagged-album-montage-settings-duration-copy">
+                                        Time before the next image:{" "}
+                                        <strong>{Math.round(montageSettings.imageDurationSeconds)} seconds</strong>
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min={MONTAGE_MIN_IMAGE_DURATION_SECONDS}
+                                    max={MONTAGE_MAX_IMAGE_DURATION_SECONDS}
+                                    step="1"
+                                    value={Math.round(montageSettings.imageDurationSeconds)}
+                                    onChange={(event) => updateMontageImageDurationSeconds(event.target.value)}
+                                />
+                                <div className="tagged-album-montage-settings-duration-scale" aria-hidden="true">
+                                    <span>{MONTAGE_MIN_IMAGE_DURATION_SECONDS}s</span>
+                                    <span>{MONTAGE_MAX_IMAGE_DURATION_SECONDS}s</span>
+                                </div>
+                            </div>
+                        </section>
+
+                        <label className="tagged-album-montage-settings-field">
+                            <span>Animation</span>
+                            <select
+                                value={montageSettings.animationType}
+                                onChange={(event) => updateMontageAnimationType(event.target.value)}
+                            >
+                                <option value="slide">Slide in/out</option>
+                                <option value="fade">Fade in/out</option>
+                                <option value="drop">Drop</option>
+                                <option value="none">No animation</option>
+                            </select>
+                        </label>
+                    </section>
+                </div>
+            ) : null}
+
+            {isMontageOpen && currentMontageMedia ? (
+                <div className="tagged-album-montage" role="dialog" aria-modal="true" aria-label="Album montage">
+                    <div className="tagged-album-montage-backdrop" aria-hidden="true" />
+
+                    <div className="tagged-album-montage-topbar">
+                        <div className="tagged-album-montage-title-block">
+                            <div className="tagged-album-montage-title-line">
+                                <strong title={currentMontageTitle}>{currentMontageTitle}</strong>
+                                {currentMontageIsVideo ? (
+                                    <span className="tagged-album-montage-countdown">
+                                        {currentMontageRemainingLabel}
+                                    </span>
+                                ) : null}
+                            </div>
+                            <span className="tagged-album-montage-count">
+                                {montageIndex + 1} / {montageMediaItems.length}
+                                <span className="tagged-album-montage-meta-dot" aria-hidden="true">
+                                    ·
+                                </span>
+                                {currentMontageAuthor}
+                            </span>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="tagged-album-montage-icon-button"
+                            onClick={closeMontage}
+                            aria-label="Close montage"
+                            title="Close"
+                        >
+                            <img src="/icons/close.svg" alt="" aria-hidden="true" />
+                        </button>
+                    </div>
+
+                    <div className="tagged-album-montage-stage">
+                        {montagePreviousFrame ? (
+                            <div
+                                key={`previous-${montagePreviousFrame.media.id}-${montagePreviousFrame.index}`}
+                                className={`tagged-album-montage-frame tagged-album-montage-frame--previous ${montagePreviousFrame.transitionClass} is-${montageDirection}${
+                                    montagePreviousFrame.isVideo ? " tagged-album-montage-frame--previous-video" : ""
+                                }`}
+                            >
+                                {montagePreviousFrame.mediaUrl ? (
+                                    <div className="tagged-album-montage-frame-inner">
+                                        {montagePreviousFrame.backgroundUrl ? (
+                                            <div
+                                                className="tagged-album-montage-blur-bg"
+                                                style={{
+                                                    backgroundImage: `url(${montagePreviousFrame.backgroundUrl})`,
+                                                }}
+                                                aria-hidden="true"
+                                            />
+                                        ) : null}
+                                        {montagePreviousFrame.isVideo && !montagePreviousFrame.posterUrl ? (
+                                            <video
+                                                className="tagged-album-montage-media"
+                                                src={montagePreviousFrame.mediaUrl}
+                                                muted
+                                                playsInline
+                                                style={{ objectFit: "contain" }}
+                                            />
+                                        ) : (
+                                            <img
+                                                className="tagged-album-montage-media"
+                                                src={
+                                                    montagePreviousFrame.isVideo
+                                                        ? montagePreviousFrame.posterUrl
+                                                        : montagePreviousFrame.mediaUrl
+                                                }
+                                                alt={montagePreviousFrame.title}
+                                            />
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="tagged-album-montage-empty">No preview</div>
+                                )}
+                            </div>
+                        ) : null}
+
+                        <div
+                            key={`${currentMontageMedia.id}-${montageIndex}`}
+                            className={`tagged-album-montage-frame tagged-album-montage-frame--current ${currentMontageTransitionClass} is-${montageDirection}${
+                                isMontageTransitionFromVideo ? " tagged-album-montage-frame--after-video" : ""
+                            }`}
+                        >
+                            {currentMontageMediaUrl ? (
+                                <div className="tagged-album-montage-frame-inner">
+                                    {currentMontageBackgroundUrl ? (
+                                        <div
+                                            className="tagged-album-montage-blur-bg"
+                                            style={{ backgroundImage: `url(${currentMontageBackgroundUrl})` }}
+                                            aria-hidden="true"
+                                        />
+                                    ) : null}
+                                    {currentMontageIsVideo ? (
+                                        <video
+                                            ref={montageVideoRef}
+                                            className="tagged-album-montage-media"
+                                            src={currentMontageMediaUrl}
+                                            poster={currentMontagePosterUrl || undefined}
+                                            autoPlay={isMontagePlaying}
+                                            muted
+                                            playsInline
+                                            controls={areMontageVideoControlsVisible}
+                                            style={{ objectFit: "contain" }}
+                                            onPointerDown={() => setAreMontageVideoControlsVisible(true)}
+                                            onFocus={() => setAreMontageVideoControlsVisible(true)}
+                                            onLoadedMetadata={(event) => {
+                                                const durationMs = event.currentTarget.duration * 1000;
+
+                                                if (!Number.isFinite(durationMs) || durationMs <= 0) {
+                                                    return;
+                                                }
+
+                                                skipNextMontageTimerCleanupRef.current = true;
+                                                setCurrentMontageDurationMs(durationMs);
+                                                montageTimerDurationMsRef.current = durationMs;
+                                                montageRemainingMsRef.current = durationMs;
+                                                montageTimerStartRemainingMsRef.current = durationMs;
+                                                montageLastRenderedSecondRef.current = Math.ceil(durationMs / 1000);
+                                                setMontageProgressRatio(0);
+                                                setMontageRemainingSeconds(Math.ceil(durationMs / 1000));
+                                                if (montageProgressBarRef.current) {
+                                                    montageProgressBarRef.current.style.transform = "scaleX(0)";
+                                                }
+                                            }}
+                                            onTimeUpdate={(event) => {
+                                                const video = event.currentTarget;
+                                                if (
+                                                    Number.isFinite(video.duration) &&
+                                                    video.duration > 0 &&
+                                                    video.duration - video.currentTime <= 0.45
+                                                ) {
+                                                    showNextMontageMedia();
+                                                }
+                                            }}
+                                            onEnded={showNextMontageMedia}
+                                        />
+                                    ) : (
+                                        <img
+                                            className="tagged-album-montage-media"
+                                            src={currentMontageMediaUrl}
+                                            alt={currentMontageTitle}
+                                        />
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        className="tagged-album-montage-media-hitbox"
+                                        onClick={handleOpenMontageMediaDetail}
+                                        aria-label={`Open ${currentMontageTitle} detail`}
+                                    />
+
+                                    <div className="tagged-album-montage-media-info" aria-hidden="true">
+                                        <div className="tagged-album-montage-media-info-top">
+                                            <div className="tagged-album-montage-media-info-top-main">
+                                                <span className="tagged-album-montage-media-info-pill">
+                                                    {currentMontageAuthor}
+                                                </span>
+                                                <span className="tagged-album-montage-media-info-pill">
+                                                    {currentMontageSizeLabel}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="tagged-album-montage-media-info-bottom">
+                                            <h2 title={currentMontageTitle}>{currentMontageTitle}</h2>
+                                            <p className="tagged-album-montage-media-info-date">
+                                                {currentMontageDateLabel}
+                                            </p>
+                                            {visibleMontageCopyrightTags.length > 0 ? (
+                                                <div
+                                                    className="tagged-album-montage-media-info-tag-row"
+                                                    aria-label="Copyright tags"
+                                                >
+                                                    {visibleMontageCopyrightTags.map((tag) => (
+                                                        <span
+                                                            key={`montage-copyright-${tag.id}`}
+                                                            className="tagged-album-montage-media-info-tag tagged-album-montage-media-info-tag--copyright"
+                                                            style={buildMontageTagStyle(tag.tagcolor_hex)}
+                                                        >
+                                                            {tag.tagname}
+                                                        </span>
+                                                    ))}
+                                                    {hiddenMontageCopyrightTagCount > 0 ? (
+                                                        <span className="tagged-album-montage-media-info-tag tagged-album-montage-media-info-tag--more">
+                                                            +{hiddenMontageCopyrightTagCount}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            ) : null}
+                                            {visibleMontageDefaultTags.length > 0 ? (
+                                                <div
+                                                    className="tagged-album-montage-media-info-tag-row"
+                                                    aria-label="Tags"
+                                                >
+                                                    {visibleMontageDefaultTags.map((tag) => (
+                                                        <span
+                                                            key={`montage-default-${tag.id}`}
+                                                            className="tagged-album-montage-media-info-tag"
+                                                            style={buildMontageTagStyle(tag.tagcolor_hex)}
+                                                        >
+                                                            {tag.tagname}
+                                                        </span>
+                                                    ))}
+                                                    {hiddenMontageDefaultTagCount > 0 ? (
+                                                        <span className="tagged-album-montage-media-info-tag tagged-album-montage-media-info-tag--more">
+                                                            +{hiddenMontageDefaultTagCount}
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="tagged-album-montage-empty">No preview</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="tagged-album-montage-bottom">
+                        <div
+                            ref={montageProgressTrackRef}
+                            className="tagged-album-montage-progress"
+                            role="slider"
+                            tabIndex={0}
+                            aria-label="Montage progress"
+                            aria-valuemin={0}
+                            aria-valuemax={Math.max(1, Math.round(currentMontageDurationMs / 1000))}
+                            aria-valuenow={currentMontageElapsedSeconds}
+                            onPointerDown={handleMontageProgressPointerDown}
+                            onPointerMove={handleMontageProgressPointerMove}
+                            onPointerUp={handleMontageProgressPointerEnd}
+                            onPointerCancel={handleMontageProgressPointerEnd}
+                            onLostPointerCapture={handleMontageProgressPointerEnd}
+                            onKeyDown={handleMontageProgressKeyDown}
+                        >
+                            <span
+                                ref={montageProgressBarRef}
+                                style={{ transform: `scaleX(${montageProgressRatio})` }}
+                            />
+                        </div>
+
+                        <div className="tagged-album-montage-controls" aria-label="Montage controls">
+                            <button
+                                type="button"
+                                className="tagged-album-montage-icon-button"
+                                onClick={showPreviousMontageMedia}
+                                disabled={montageMediaItems.length <= 1}
+                                aria-label="Previous media"
+                                title="Previous"
+                            >
+                                <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
+                            </button>
+
+                            <button
+                                type="button"
+                                className="tagged-album-montage-icon-button tagged-album-montage-play-button"
+                                onClick={() => setIsMontagePlaying((previous) => !previous)}
+                                aria-label={isMontagePlaying ? "Pause montage" : "Play montage"}
+                                title={isMontagePlaying ? "Pause" : "Play"}
+                            >
+                                <span
+                                    className={`tagged-album-montage-play-icon${isMontagePlaying ? " is-playing" : ""}`}
+                                    aria-hidden="true"
+                                />
+                            </button>
+
+                            <button
+                                type="button"
+                                className="tagged-album-montage-icon-button"
+                                onClick={showNextMontageMedia}
+                                disabled={montageMediaItems.length <= 1}
+                                aria-label="Next media"
+                                title="Next"
+                            >
+                                <img src="/icons/arrow_forward.svg" alt="" aria-hidden="true" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
             <MediaEditModal
                 isOpen={isEditSelectedModalOpen}
                 mode={selectedAlbumMediaIds.size > 1 ? "multi" : "single"}
@@ -2407,7 +3609,10 @@ export const AlbumDetailPage = () => {
                             onClick={openAddMediaModal}
                             aria-label="Add new media to album"
                         >
-                            <span className="tagged-album-create-icon tagged-album-create-icon--list" aria-hidden="true" />
+                            <span
+                                className="tagged-album-create-icon tagged-album-create-icon--list"
+                                aria-hidden="true"
+                            />
                             <span>Add new media</span>
                         </button>
 
@@ -2441,7 +3646,10 @@ export const AlbumDetailPage = () => {
                             onClick={openAddMediaModal}
                             aria-label="Add new media to album"
                         >
-                            <span className="tagged-album-create-icon tagged-album-create-icon--card" aria-hidden="true" />
+                            <span
+                                className="tagged-album-create-icon tagged-album-create-icon--card"
+                                aria-hidden="true"
+                            />
                             <span>Add new media</span>
                         </button>
 
