@@ -510,8 +510,10 @@ export const AlbumDetailPage = () => {
     const [montageRemainingSeconds, setMontageRemainingSeconds] = useState(Math.ceil(MONTAGE_IMAGE_DURATION_MS / 1000));
     const [montageSeekRevision, setMontageSeekRevision] = useState(0);
     const [areMontageVideoControlsVisible, setAreMontageVideoControlsVisible] = useState(false);
+    const [isMontageMediaZoomed, setIsMontageMediaZoomed] = useState(false);
     const downloadToastTimeoutRef = useRef(null);
     const montageVideoRef = useRef(null);
+    const montageFrameInnerRef = useRef(null);
     const montageProgressTrackRef = useRef(null);
     const montageProgressBarRef = useRef(null);
     const montagePreviousFrameTimeoutRef = useRef(null);
@@ -524,6 +526,28 @@ export const AlbumDetailPage = () => {
     const montageAdvanceLockedRef = useRef(false);
     const isMontageSeekingRef = useRef(false);
     const suppressMontageRestoreRef = useRef(false);
+    const montageTapTimeoutRef = useRef(null);
+    const montageLastTapRef = useRef({ time: 0, x: 0, y: 0 });
+    const montagePanRef = useRef({
+        isPanning: false,
+        startX: 0,
+        startY: 0,
+        originX: 0,
+        originY: 0,
+        currentX: 0,
+        currentY: 0,
+        pendingX: 0,
+        pendingY: 0,
+        rafId: null,
+        moved: false,
+    });
+    const montageSwipeRef = useRef({
+        tracking: false,
+        startX: 0,
+        startY: 0,
+        moved: false,
+    });
+    const suppressNextMontageClickRef = useRef(false);
     const montagePreloadedImagesRef = useRef(new Map());
 
     const albumDisplayName = album?.displayname || album?.albumname || "Untitled album";
@@ -857,9 +881,10 @@ export const AlbumDetailPage = () => {
     }, [fetchWithAuth]);
 
     const loadPageData = useCallback(async () => {
+        const cacheBust = `t=${Date.now()}`;
         const [albumResponse, albumMediaResponse, libraryMediaResponse] = await Promise.all([
-            fetchWithAuth(`${API_URL}/albums/${albumId}`, { method: "GET" }),
-            fetchWithAuth(`${API_URL}/albums/${albumId}/media`, { method: "GET" }),
+            fetchWithAuth(`${API_URL}/albums/${albumId}?${cacheBust}`, { method: "GET", cache: "no-store" }),
+            fetchWithAuth(`${API_URL}/albums/${albumId}/media?${cacheBust}`, { method: "GET", cache: "no-store" }),
             fetchAllUserMedia(),
         ]);
 
@@ -894,6 +919,12 @@ export const AlbumDetailPage = () => {
         setAlbum(nextAlbum);
         setAlbumMediaItems(enrichedAlbumMedia);
         setLibraryMediaItems(nextLibraryMedia);
+
+        return {
+            album: nextAlbum,
+            albumMediaItems: enrichedAlbumMedia,
+            libraryMediaItems: nextLibraryMedia,
+        };
     }, [albumId, fetchAllUserMedia, fetchWithAuth]);
 
     useEffect(() => {
@@ -1252,19 +1283,29 @@ export const AlbumDetailPage = () => {
         setSelectedMediaToAddIds(new Set());
         setIsAddSelectionMode(false);
     };
-    const selectAllVisibleAddMedia = () => {
-        if (isAddingMedia || filteredAvailableMediaItems.length === 0) {
+    const selectAllVisibleAddMedia = (
+        visibleMediaItems = filteredAvailableMediaItems,
+        areAllVisibleSelected = areAllVisibleAddMediaSelected,
+    ) => {
+        if (isAddingMedia || visibleMediaItems.length === 0) {
             return;
         }
 
-        if (areAllVisibleAddMediaSelected) {
-            setSelectedMediaToAddIds(new Set());
-            setIsAddSelectionMode(false);
+        if (areAllVisibleSelected) {
+            const visibleIds = new Set(visibleMediaItems.map((media) => media.id));
+            const nextSelection = new Set([...selectedMediaToAddIds].filter((mediaId) => !visibleIds.has(mediaId)));
+
+            setSelectedMediaToAddIds(nextSelection);
+            setIsAddSelectionMode(nextSelection.size > 0);
             setAddMediaError(null);
             return;
         }
 
-        setSelectedMediaToAddIds(new Set(filteredAvailableMediaItems.map((media) => media.id)));
+        setSelectedMediaToAddIds((previous) => {
+            const nextSelection = new Set(previous);
+            visibleMediaItems.forEach((media) => nextSelection.add(media.id));
+            return nextSelection;
+        });
         setIsAddSelectionMode(true);
         setAddMediaError(null);
     };
@@ -2055,6 +2096,11 @@ export const AlbumDetailPage = () => {
             return;
         }
 
+        if (montageTapTimeoutRef.current) {
+            window.clearTimeout(montageTapTimeoutRef.current);
+            montageTapTimeoutRef.current = null;
+        }
+
         suppressMontageRestoreRef.current = false;
         setIsReorderMode(false);
         setMobileReorderSourceId(null);
@@ -2068,6 +2114,8 @@ export const AlbumDetailPage = () => {
         setMontageProgressRatio(0);
         setMontageRemainingSeconds(Math.ceil(montageImageDurationMs / 1000));
         setAreMontageVideoControlsVisible(false);
+        setIsMontageMediaZoomed(false);
+        resetMontagePan();
         if (montageProgressBarRef.current) {
             montageProgressBarRef.current.style.transform = "scaleX(0)";
         }
@@ -2110,6 +2158,8 @@ export const AlbumDetailPage = () => {
         setMontageProgressRatio(0);
         setMontageRemainingSeconds(Math.ceil(montageImageDurationMs / 1000));
         setAreMontageVideoControlsVisible(false);
+        setIsMontageMediaZoomed(false);
+        resetMontagePan();
         if (montageProgressBarRef.current) {
             montageProgressBarRef.current.style.transform = "scaleX(0)";
         }
@@ -2117,10 +2167,17 @@ export const AlbumDetailPage = () => {
     }, [albumId, isMontageOpen, location.state, montageImageDurationMs, montageMediaItems.length]);
 
     const closeMontage = useCallback(() => {
+        if (montageTapTimeoutRef.current) {
+            window.clearTimeout(montageTapTimeoutRef.current);
+            montageTapTimeoutRef.current = null;
+        }
+
         suppressMontageRestoreRef.current = true;
         replaceAlbumHistoryState(null);
         setIsMontageOpen(false);
         setMontagePreviousFrame(null);
+        setIsMontageMediaZoomed(false);
+        resetMontagePan();
     }, [replaceAlbumHistoryState]);
 
     const openMontageSettings = () => {
@@ -2130,6 +2187,69 @@ export const AlbumDetailPage = () => {
     const closeMontageSettings = () => {
         setIsMontageSettingsOpen(false);
     };
+
+    const applyMontagePan = (x, y) => {
+        montagePanRef.current.currentX = x;
+        montagePanRef.current.currentY = y;
+        montagePanRef.current.pendingX = x;
+        montagePanRef.current.pendingY = y;
+
+        if (montagePanRef.current.rafId !== null) {
+            return;
+        }
+
+        montagePanRef.current.rafId = window.requestAnimationFrame(() => {
+            montagePanRef.current.rafId = null;
+            const frame = montageFrameInnerRef.current;
+
+            if (!(frame instanceof HTMLElement)) {
+                return;
+            }
+
+            frame.style.setProperty("--tagged-montage-pan-x", `${montagePanRef.current.pendingX}px`);
+            frame.style.setProperty("--tagged-montage-pan-y", `${montagePanRef.current.pendingY}px`);
+        });
+    };
+
+    const resetMontagePan = () => {
+        if (montagePanRef.current.rafId !== null) {
+            window.cancelAnimationFrame(montagePanRef.current.rafId);
+        }
+
+        montagePanRef.current = {
+            isPanning: false,
+            startX: 0,
+            startY: 0,
+            originX: 0,
+            originY: 0,
+            currentX: 0,
+            currentY: 0,
+            pendingX: 0,
+            pendingY: 0,
+            rafId: null,
+            moved: false,
+        };
+
+        const frame = montageFrameInnerRef.current;
+        if (frame instanceof HTMLElement) {
+            frame.style.setProperty("--tagged-montage-pan-x", "0px");
+            frame.style.setProperty("--tagged-montage-pan-y", "0px");
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (montageTapTimeoutRef.current) {
+                window.clearTimeout(montageTapTimeoutRef.current);
+                montageTapTimeoutRef.current = null;
+            }
+
+            if (montagePanRef.current.rafId !== null) {
+                window.cancelAnimationFrame(montagePanRef.current.rafId);
+                montagePanRef.current.rafId = null;
+            }
+        };
+    }, []);
 
     const updateMontageImageDurationSeconds = (value) => {
         setMontageSettings((previous) => ({
@@ -2211,6 +2331,8 @@ export const AlbumDetailPage = () => {
 
         montageAdvanceLockedRef.current = true;
         queuePreviousMontageFrame("next");
+        setIsMontageMediaZoomed(false);
+        resetMontagePan();
         setMontageIndex((previous) => {
             if (montageMediaItems.length <= 1) {
                 return 0;
@@ -2231,6 +2353,8 @@ export const AlbumDetailPage = () => {
 
         montageAdvanceLockedRef.current = true;
         queuePreviousMontageFrame("previous");
+        setIsMontageMediaZoomed(false);
+        resetMontagePan();
         setMontageIndex((previous) => {
             if (montageMediaItems.length <= 1) {
                 return 0;
@@ -2696,7 +2820,16 @@ export const AlbumDetailPage = () => {
                 }
             }
 
-            await loadPageData();
+            const refreshedPageData = await loadPageData();
+            const refreshedAlbumMediaIds = new Set(
+                (refreshedPageData?.albumMediaItems || []).map((media) => Number(media.id)),
+            );
+            const missingMediaIds = mediaIds.filter((mediaId) => !refreshedAlbumMediaIds.has(Number(mediaId)));
+
+            if (missingMediaIds.length > 0) {
+                throw new Error("The media could not be linked to this album. Please try again.");
+            }
+
             setIsAddMediaModalOpen(false);
             setAddMediaSearch("");
             setAddMediaTagFilterSearch("");
@@ -2756,8 +2889,15 @@ export const AlbumDetailPage = () => {
             return;
         }
 
+        if (montageTapTimeoutRef.current) {
+            window.clearTimeout(montageTapTimeoutRef.current);
+            montageTapTimeoutRef.current = null;
+        }
+
         setIsMontageOpen(false);
         setMontagePreviousFrame(null);
+        setIsMontageMediaZoomed(false);
+        resetMontagePan();
         replaceAlbumHistoryState({
             albumId,
             index: montageIndex,
@@ -2769,6 +2909,215 @@ export const AlbumDetailPage = () => {
                 mediaScope: "album",
             },
         });
+    };
+
+    const handleMontageMediaHitboxTouchEnd = (event) => {
+        if (!isMobileViewport || event.changedTouches.length !== 1) {
+            return;
+        }
+
+        if (!isMontageMediaZoomed && montageSwipeRef.current.tracking) {
+            const touch = event.changedTouches[0];
+            const deltaX = touch.clientX - montageSwipeRef.current.startX;
+            const deltaY = touch.clientY - montageSwipeRef.current.startY;
+            const absX = Math.abs(deltaX);
+            const absY = Math.abs(deltaY);
+            const isSwipe = absX >= 48 && absX > absY * 1.35;
+
+            montageSwipeRef.current = {
+                tracking: false,
+                startX: 0,
+                startY: 0,
+                moved: false,
+            };
+
+            if (isSwipe) {
+                event.preventDefault();
+                suppressNextMontageClickRef.current = true;
+
+                if (deltaX < 0) {
+                    showNextMontageMedia();
+                } else {
+                    showPreviousMontageMedia();
+                }
+
+                window.setTimeout(() => {
+                    suppressNextMontageClickRef.current = false;
+                }, 160);
+                return;
+            }
+        }
+
+        if (montagePanRef.current.moved) {
+            event.preventDefault();
+            suppressNextMontageClickRef.current = true;
+            montagePanRef.current.isPanning = false;
+            montagePanRef.current.moved = false;
+
+            window.setTimeout(() => {
+                suppressNextMontageClickRef.current = false;
+            }, 120);
+            return;
+        }
+
+        const touch = event.changedTouches[0];
+        const now = Date.now();
+        const lastTap = montageLastTapRef.current;
+        const elapsedMs = now - lastTap.time;
+        const distancePx = Math.hypot(touch.clientX - lastTap.x, touch.clientY - lastTap.y);
+        const isDoubleTap = elapsedMs > 0 && elapsedMs <= 280 && distancePx <= 34;
+
+        if (!isDoubleTap) {
+            montageLastTapRef.current = {
+                time: now,
+                x: touch.clientX,
+                y: touch.clientY,
+            };
+            return;
+        }
+
+        event.preventDefault();
+
+        if (montageTapTimeoutRef.current) {
+            window.clearTimeout(montageTapTimeoutRef.current);
+            montageTapTimeoutRef.current = null;
+        }
+
+        suppressNextMontageClickRef.current = true;
+        montageLastTapRef.current = { time: 0, x: 0, y: 0 };
+        setIsMontageMediaZoomed((previous) => {
+            const nextZoomed = !previous;
+            if (nextZoomed) {
+                const zoomPan = getMontagePanForZoomPoint(touch.clientX, touch.clientY);
+                applyMontagePan(zoomPan.x, zoomPan.y);
+            } else {
+                resetMontagePan();
+            }
+            return nextZoomed;
+        });
+
+        window.setTimeout(() => {
+            suppressNextMontageClickRef.current = false;
+        }, 320);
+    };
+
+    const handleMontageMediaHitboxClick = (event) => {
+        if (suppressNextMontageClickRef.current) {
+            event.preventDefault();
+            return;
+        }
+
+        if (!isMobileViewport) {
+            handleOpenMontageMediaDetail();
+            return;
+        }
+
+        event.preventDefault();
+
+        if (montageTapTimeoutRef.current) {
+            window.clearTimeout(montageTapTimeoutRef.current);
+        }
+
+        montageTapTimeoutRef.current = window.setTimeout(() => {
+            montageTapTimeoutRef.current = null;
+            handleOpenMontageMediaDetail();
+        }, 285);
+    };
+
+    const getConstrainedMontagePan = (rawX, rawY) => {
+        const frame = montageFrameInnerRef.current;
+
+        if (!(frame instanceof HTMLElement)) {
+            return { x: rawX, y: rawY };
+        }
+
+        const bounds = frame.getBoundingClientRect();
+        const maxX = Math.max(0, bounds.width / 2);
+        const maxY = Math.max(0, bounds.height / 2);
+
+        return {
+            x: Math.max(-maxX, Math.min(maxX, rawX)),
+            y: Math.max(-maxY, Math.min(maxY, rawY)),
+        };
+    };
+
+    const getMontagePanForZoomPoint = (clientX, clientY) => {
+        const frame = montageFrameInnerRef.current;
+
+        if (!(frame instanceof HTMLElement)) {
+            return { x: 0, y: 0 };
+        }
+
+        const bounds = frame.getBoundingClientRect();
+        const offsetX = clientX - (bounds.left + bounds.width / 2);
+        const offsetY = clientY - (bounds.top + bounds.height / 2);
+
+        return getConstrainedMontagePan(-offsetX, -offsetY);
+    };
+
+    const handleMontageMediaHitboxTouchStart = (event) => {
+        if (!isMobileViewport || event.touches.length !== 1) {
+            return;
+        }
+
+        const touch = event.touches[0];
+
+        if (!isMontageMediaZoomed) {
+            montageSwipeRef.current = {
+                tracking: true,
+                startX: touch.clientX,
+                startY: touch.clientY,
+                moved: false,
+            };
+            return;
+        }
+
+        montagePanRef.current = {
+            isPanning: true,
+            startX: touch.clientX,
+            startY: touch.clientY,
+            originX: montagePanRef.current.currentX,
+            originY: montagePanRef.current.currentY,
+            currentX: montagePanRef.current.currentX,
+            currentY: montagePanRef.current.currentY,
+            pendingX: montagePanRef.current.currentX,
+            pendingY: montagePanRef.current.currentY,
+            rafId: montagePanRef.current.rafId,
+            moved: false,
+        };
+    };
+
+    const handleMontageMediaHitboxTouchMove = (event) => {
+        if (isMobileViewport && !isMontageMediaZoomed && montageSwipeRef.current.tracking && event.touches.length === 1) {
+            const touch = event.touches[0];
+            const deltaX = touch.clientX - montageSwipeRef.current.startX;
+            const deltaY = touch.clientY - montageSwipeRef.current.startY;
+
+            if (Math.abs(deltaX) > 8 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                montageSwipeRef.current.moved = true;
+                event.preventDefault();
+            }
+            return;
+        }
+
+        if (!isMobileViewport || !isMontageMediaZoomed || !montagePanRef.current.isPanning || event.touches.length !== 1) {
+            return;
+        }
+
+        const touch = event.touches[0];
+        const deltaX = touch.clientX - montagePanRef.current.startX;
+        const deltaY = touch.clientY - montagePanRef.current.startY;
+
+        if (Math.hypot(deltaX, deltaY) > 4) {
+            montagePanRef.current.moved = true;
+        }
+
+        event.preventDefault();
+        const nextPan = getConstrainedMontagePan(
+            montagePanRef.current.originX + deltaX,
+            montagePanRef.current.originY + deltaY,
+        );
+        applyMontagePan(nextPan.x, nextPan.y);
     };
 
     useEffect(() => {
@@ -3386,7 +3735,12 @@ export const AlbumDetailPage = () => {
                             }`}
                         >
                             {currentMontageMediaUrl ? (
-                                <div className="tagged-album-montage-frame-inner">
+                                <div
+                                    ref={montageFrameInnerRef}
+                                    className={`tagged-album-montage-frame-inner${
+                                        isMontageMediaZoomed ? " is-zoomed" : ""
+                                    }`}
+                                >
                                     {currentMontageBackgroundUrl ? (
                                         <div
                                             className="tagged-album-montage-blur-bg"
@@ -3449,7 +3803,10 @@ export const AlbumDetailPage = () => {
                                     <button
                                         type="button"
                                         className="tagged-album-montage-media-hitbox"
-                                        onClick={handleOpenMontageMediaDetail}
+                                        onClick={handleMontageMediaHitboxClick}
+                                        onTouchStart={handleMontageMediaHitboxTouchStart}
+                                        onTouchMove={handleMontageMediaHitboxTouchMove}
+                                        onTouchEnd={handleMontageMediaHitboxTouchEnd}
                                         aria-label={`Open ${currentMontageTitle} detail`}
                                     />
 
@@ -3744,9 +4101,7 @@ export const AlbumDetailPage = () => {
                 onMediaViewModeChange={setAddMediaPickerViewMode}
                 availableMediaItems={availableMediaItems}
                 filteredMediaCandidates={filteredAvailableMediaItems}
-                visibleMediaCount={filteredAvailableMediaItems.length}
                 selectedMediaIds={selectedMediaToAddIds}
-                isAllVisibleMediaSelected={areAllVisibleAddMediaSelected}
                 onSelectAllVisibleMedia={selectAllVisibleAddMedia}
                 onToggleMediaSelection={handleAddPickerSelection}
                 onClearSelection={clearAddSelection}

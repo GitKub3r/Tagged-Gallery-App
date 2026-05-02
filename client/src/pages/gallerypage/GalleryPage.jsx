@@ -773,6 +773,79 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             // Ignore storage failures in restricted environments.
         }
     };
+
+    const clearGalleryScrollPosition = () => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(
+                galleryScrollStorageKey,
+                JSON.stringify({
+                    windowScrollTop: 0,
+                    shellScrollTop: 0,
+                }),
+            );
+        } catch {
+            // Ignore storage failures in restricted environments.
+        }
+    };
+
+    const scrollGalleryToTop = () => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        if (galleryScrollSaveRafRef.current !== null) {
+            window.cancelAnimationFrame(galleryScrollSaveRafRef.current);
+            galleryScrollSaveRafRef.current = null;
+        }
+
+        isRestoringGalleryScrollRef.current = false;
+        clearGalleryScrollPosition();
+
+        const shellContent = document.querySelector(".tagged-shell-content");
+        if (shellContent instanceof HTMLElement) {
+            shellContent.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        }
+
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+
+        window.requestAnimationFrame(() => {
+            clearGalleryScrollPosition();
+        });
+    };
+
+    const scrollGalleryToBottom = () => {
+        if (typeof window === "undefined") {
+            return;
+        }
+
+        if (galleryScrollSaveRafRef.current !== null) {
+            window.cancelAnimationFrame(galleryScrollSaveRafRef.current);
+            galleryScrollSaveRafRef.current = null;
+        }
+
+        isRestoringGalleryScrollRef.current = false;
+
+        window.requestAnimationFrame(() => {
+            const shellContent = document.querySelector(".tagged-shell-content");
+
+            if (shellContent instanceof HTMLElement) {
+                shellContent.scrollTo({ top: shellContent.scrollHeight, left: 0, behavior: "auto" });
+            }
+
+            window.scrollTo({
+                top: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
+                left: 0,
+                behavior: "auto",
+            });
+
+            saveGalleryScrollPosition();
+        });
+    };
+
     useLayoutEffect(() => {
         if (typeof window === "undefined") {
             return undefined;
@@ -781,7 +854,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         let isCancelled = false;
         let restoreRafId = null;
         let restoreAttempts = 0;
-        const maxRestoreAttempts = 120;
+        const maxRestoreAttempts = 6;
 
         const rawStoredValue = window.localStorage.getItem(galleryScrollStorageKey) || "";
         let storedWindowScrollTop = 0;
@@ -803,7 +876,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             }
         }
         const restoreScrollPosition = () => {
-            if (isCancelled || loading) {
+            if (isCancelled || loading || !isRestoringGalleryScrollRef.current) {
                 return;
 
             }
@@ -857,9 +930,20 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             });
         };
 
+        const cancelScrollRestore = () => {
+            isRestoringGalleryScrollRef.current = false;
+
+            if (restoreRafId !== null) {
+                window.cancelAnimationFrame(restoreRafId);
+                restoreRafId = null;
+            }
+        };
+
         const shellContent = document.querySelector(".tagged-shell-content");
 
         window.addEventListener("scroll", handleScroll, { passive: true });
+        window.addEventListener("wheel", cancelScrollRestore, { passive: true });
+        window.addEventListener("touchstart", cancelScrollRestore, { passive: true });
 
         if (shellContent instanceof HTMLElement) {
             shellContent.addEventListener("scroll", handleScroll, { passive: true });
@@ -880,6 +964,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             isRestoringGalleryScrollRef.current = false;
 
             window.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("wheel", cancelScrollRestore);
+            window.removeEventListener("touchstart", cancelScrollRestore);
 
             if (shellContent instanceof HTMLElement) {
                 shellContent.removeEventListener("scroll", handleScroll);
@@ -2619,19 +2705,30 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             setPageSize("all");
             setCurrentPage(1);
             localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
+            scrollGalleryToTop();
         } else {
             const value = Number(raw);
             if (Number.isFinite(value) && value > 0) {
                 setPageSize(value);
                 setCurrentPage(1);
                 localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
+                scrollGalleryToTop();
             }
         }
     };
-    const handlePageChange = (newPage) => {
+    const handlePageChange = (newPage, { scrollTarget = "top" } = {}) => {
         const clamped = Math.max(1, Math.min(totalPages, newPage));
+        if (clamped === currentPage) {
+            return;
+        }
+
         setCurrentPage(clamped);
         localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, String(clamped));
+        if (scrollTarget === "bottom") {
+            scrollGalleryToBottom();
+        } else {
+            scrollGalleryToTop();
+        }
     };
 
     useEffect(() => {
@@ -4021,7 +4118,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             </button>
                             <button
                                 className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
-                                onClick={() => handlePageChange(currentPage - 1)}
+                                onClick={() => handlePageChange(currentPage - 1, { scrollTarget: "bottom" })}
                                 disabled={currentPage <= 1}
                                 aria-label="Previous page"
                                 title="Previous page"
@@ -4059,7 +4156,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             })()}
                             <button
                                 className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
-                                onClick={() => handlePageChange(currentPage + 1)}
+                                onClick={() => handlePageChange(currentPage + 1, { scrollTarget: "bottom" })}
                                 disabled={currentPage >= totalPages}
                                 aria-label="Next page"
                                 title="Next page"

@@ -21,6 +21,13 @@ app.use(
 
 app.use(express.json());
 
+app.use("/api", (req, res, next) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+    next();
+});
+
 // Crear estructura de carpetas para uploads si no existe
 ensureUploadDirs();
 

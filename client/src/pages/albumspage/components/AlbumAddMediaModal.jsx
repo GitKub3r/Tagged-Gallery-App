@@ -1,3 +1,6 @@
+import { useMemo, useState } from "react";
+import { MEDIA_PICKER_PAGE_SIZE, MediaPickerPagination } from "./MediaPickerPagination";
+
 export const AlbumAddMediaModal = ({
     isOpen,
     onClose,
@@ -9,9 +12,7 @@ export const AlbumAddMediaModal = ({
     onMediaViewModeChange,
     availableMediaItems,
     filteredMediaCandidates,
-    visibleMediaCount,
     selectedMediaIds,
-    isAllVisibleMediaSelected,
     onSelectAllVisibleMedia,
     onToggleMediaSelection,
     onClearSelection,
@@ -27,6 +28,90 @@ export const AlbumAddMediaModal = ({
     visibleTagFilterCandidates,
     error,
 }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalCandidates = filteredMediaCandidates.length;
+    const totalPages = Math.max(1, Math.ceil(totalCandidates / MEDIA_PICKER_PAGE_SIZE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const visibleMediaCandidates = useMemo(() => {
+        const startIndex = (safeCurrentPage - 1) * MEDIA_PICKER_PAGE_SIZE;
+        return filteredMediaCandidates.slice(startIndex, startIndex + MEDIA_PICKER_PAGE_SIZE);
+    }, [safeCurrentPage, filteredMediaCandidates]);
+    const pageStart = totalCandidates === 0 ? 0 : (safeCurrentPage - 1) * MEDIA_PICKER_PAGE_SIZE + 1;
+    const pageEnd = Math.min(safeCurrentPage * MEDIA_PICKER_PAGE_SIZE, totalCandidates);
+    const areAllPageMediaSelected =
+        visibleMediaCandidates.length > 0 && visibleMediaCandidates.every((media) => selectedMediaIds.has(media.id));
+
+    const resetMediaPage = () => {
+        setCurrentPage(1);
+    };
+
+    const handleClose = () => {
+        resetMediaPage();
+        onClose();
+    };
+
+    const handleSubmit = (event) => {
+        resetMediaPage();
+        onSubmit(event);
+    };
+
+    const handleSearchChange = (value) => {
+        resetMediaPage();
+        onSearchChange(value);
+    };
+
+    const handleMediaViewModeChange = (nextMode) => {
+        resetMediaPage();
+        onMediaViewModeChange(nextMode);
+    };
+
+    const handleSelectAllVisibleMedia = () => {
+        onSelectAllVisibleMedia(visibleMediaCandidates, areAllPageMediaSelected);
+    };
+
+    const handleTagFilterSearchChange = (value) => {
+        resetMediaPage();
+        onTagFilterSearchChange(value);
+    };
+
+    const handleToggleIncludeFilterTag = (tagName) => {
+        resetMediaPage();
+        onToggleIncludeFilterTag(tagName);
+    };
+
+    const handleToggleExcludeFilterTag = (tagName) => {
+        resetMediaPage();
+        onToggleExcludeFilterTag(tagName);
+    };
+
+    const handleClearFilterTags = () => {
+        resetMediaPage();
+        onClearFilterTags();
+    };
+
+    const goToPreviousPage = () => {
+        setCurrentPage((page) => Math.max(1, Math.min(page, totalPages) - 1));
+    };
+
+    const goToNextPage = () => {
+        setCurrentPage((page) => Math.min(totalPages, Math.min(page, totalPages) + 1));
+    };
+
+    const renderPagination = (modifierClassName = "") => (
+        <MediaPickerPagination
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            totalItems={totalCandidates}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            onPreviousPage={goToPreviousPage}
+            onNextPage={goToNextPage}
+            disabled={isSaving}
+            className={modifierClassName}
+        />
+    );
+
     if (!isOpen) {
         return null;
     }
@@ -39,7 +124,7 @@ export const AlbumAddMediaModal = ({
             role="dialog"
             aria-modal="true"
             aria-labelledby="tagged-album-add-media-modal-title"
-            onClick={onClose}
+            onClick={handleClose}
         >
             <div className="tagged-album-add-media-modal-content" onClick={(event) => event.stopPropagation()}>
                 <header className="tagged-album-add-media-modal-header">
@@ -48,7 +133,7 @@ export const AlbumAddMediaModal = ({
                     <button
                         type="button"
                         className="tagged-album-add-media-modal-close"
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={isSaving}
                         aria-label="Close add media modal"
                     >
@@ -56,7 +141,7 @@ export const AlbumAddMediaModal = ({
                     </button>
                 </header>
 
-                <form className="tagged-album-add-media-modal-form" onSubmit={onSubmit}>
+                <form className="tagged-album-add-media-modal-form" onSubmit={handleSubmit}>
                     <div className="tagged-album-add-media-modal-layout">
                         <div className="tagged-album-add-media-modal-main-column">
                             <label className="tagged-album-add-media-search-field">
@@ -69,7 +154,7 @@ export const AlbumAddMediaModal = ({
                                         <input
                                             type="search"
                                             value={searchValue}
-                                            onChange={(event) => onSearchChange(event.target.value)}
+                                            onChange={(event) => handleSearchChange(event.target.value)}
                                             placeholder="Search media... (tip: a:author n:name)"
                                             aria-label="Search media by name or author. Supports a:author and n:name."
                                             disabled={isSaving}
@@ -80,7 +165,7 @@ export const AlbumAddMediaModal = ({
                                                 type="button"
                                                 className="tagged-album-search-inline-clear"
                                                 onMouseDown={(event) => event.preventDefault()}
-                                                onClick={() => onSearchChange("")}
+                                                onClick={() => handleSearchChange("")}
                                                 aria-label="Clear search"
                                                 title="Clear search"
                                                 disabled={isSaving}
@@ -93,10 +178,10 @@ export const AlbumAddMediaModal = ({
                                     <button
                                         type="button"
                                         className={`tagged-album-add-media-select-all-button${
-                                            isAllVisibleMediaSelected ? " is-active" : ""
+                                            areAllPageMediaSelected ? " is-active" : ""
                                         }`}
-                                        onClick={onSelectAllVisibleMedia}
-                                        disabled={isSaving || visibleMediaCount === 0}
+                                        onClick={handleSelectAllVisibleMedia}
+                                        disabled={isSaving || visibleMediaCandidates.length === 0}
                                         aria-label="Select all visible media"
                                         title="Select all visible media"
                                     >
@@ -108,7 +193,7 @@ export const AlbumAddMediaModal = ({
                                             <button
                                                 type="button"
                                                 className={`tagged-album-view-switch-button${mediaViewMode === "card" ? " is-active" : ""}`}
-                                                onClick={() => onMediaViewModeChange("card")}
+                                                onClick={() => handleMediaViewModeChange("card")}
                                                 aria-pressed={mediaViewMode === "card"}
                                                 aria-label="Card view"
                                                 title="Card view"
@@ -121,7 +206,7 @@ export const AlbumAddMediaModal = ({
                                             <button
                                                 type="button"
                                                 className={`tagged-album-view-switch-button${mediaViewMode === "list" ? " is-active" : ""}`}
-                                                onClick={() => onMediaViewModeChange("list")}
+                                                onClick={() => handleMediaViewModeChange("list")}
                                                 aria-pressed={mediaViewMode === "list"}
                                                 aria-label="List view"
                                                 title="List view"
@@ -131,6 +216,8 @@ export const AlbumAddMediaModal = ({
                                                 <span className="tagged-album-view-switch-label">List</span>
                                             </button>
                                         </div>
+
+                                        {renderPagination("tagged-album-cover-pagination--controls")}
                                     </div>
                                 </div>
                             </label>
@@ -142,13 +229,16 @@ export const AlbumAddMediaModal = ({
                             ) : filteredMediaCandidates.length === 0 ? (
                                 <p className="tagged-album-add-media-picker-empty">No media matches this search.</p>
                             ) : (
-                                <div className="tagged-album-add-media-picker-scroll">
+                                <div className="tagged-album-add-media-picker-shell">
+                                    {renderPagination("tagged-album-cover-pagination--top")}
+
+                                    <div className="tagged-album-add-media-picker-scroll">
                                     <div
                                         className={`tagged-album-add-media-picker${mediaViewMode === "list" ? " tagged-album-add-media-picker--list" : ""}`}
                                         role="listbox"
                                         aria-label="Select media to add"
                                     >
-                                        {filteredMediaCandidates.map((media) => {
+                                        {visibleMediaCandidates.map((media) => {
                                             const previewUrl = getAssetUrl(media.thumbpath || media.filepath);
                                             const isSelected = selectedMediaIds.has(media.id);
                                             const title = media.displayname || media.filename || `Media #${media.id}`;
@@ -178,6 +268,8 @@ export const AlbumAddMediaModal = ({
                                                                     className="tagged-album-add-media-option-preview"
                                                                     src={previewUrl}
                                                                     alt={title}
+                                                                    loading="lazy"
+                                                                    decoding="async"
                                                                 />
                                                                 {isVideo ? (
                                                                     <span className="tagged-album-add-media-option-play-badge" aria-hidden="true">
@@ -218,6 +310,7 @@ export const AlbumAddMediaModal = ({
                                             );
                                         })}
                                     </div>
+                                    </div>
                                 </div>
                             )}
 
@@ -254,7 +347,7 @@ export const AlbumAddMediaModal = ({
                                     <button
                                         type="button"
                                         className="tagged-album-add-media-tag-panel-clear"
-                                        onClick={onClearFilterTags}
+                                        onClick={handleClearFilterTags}
                                     >
                                         Clear ({activeTagFiltersCount})
                                     </button>
@@ -265,7 +358,7 @@ export const AlbumAddMediaModal = ({
                                 type="search"
                                 className="tagged-album-add-media-tag-panel-search"
                                 value={tagFilterSearch}
-                                onChange={(event) => onTagFilterSearchChange(event.target.value)}
+                                onChange={(event) => handleTagFilterSearchChange(event.target.value)}
                                 placeholder="Search tags..."
                                 aria-label="Search tags"
                             />
@@ -288,10 +381,10 @@ export const AlbumAddMediaModal = ({
                                                     className="tagged-sidebar-tag-item-label-wrap"
                                                     role="button"
                                                     tabIndex={0}
-                                                    onClick={() => onToggleIncludeFilterTag(tagName)}
+                                                    onClick={() => handleToggleIncludeFilterTag(tagName)}
                                                     onKeyDown={(event) =>
                                                         event.key === "Enter" || event.key === " "
-                                                            ? onToggleIncludeFilterTag(tagName)
+                                                            ? handleToggleIncludeFilterTag(tagName)
                                                             : undefined
                                                     }
                                                     aria-pressed={isIncluded}
@@ -304,7 +397,7 @@ export const AlbumAddMediaModal = ({
                                                     <button
                                                         type="button"
                                                         className={`tagged-sidebar-tag-item-action tagged-sidebar-tag-item-action--include${isIncluded ? " is-active" : ""}`}
-                                                        onClick={() => onToggleIncludeFilterTag(tagName)}
+                                                        onClick={() => handleToggleIncludeFilterTag(tagName)}
                                                         aria-pressed={isIncluded}
                                                         title={`Include tag ${tagName}`}
                                                     >
@@ -314,7 +407,7 @@ export const AlbumAddMediaModal = ({
                                                     <button
                                                         type="button"
                                                         className={`tagged-sidebar-tag-item-action tagged-sidebar-tag-item-action--exclude${isExcluded ? " is-active" : ""}`}
-                                                        onClick={() => onToggleExcludeFilterTag(tagName)}
+                                                        onClick={() => handleToggleExcludeFilterTag(tagName)}
                                                         aria-pressed={isExcluded}
                                                         title={`Exclude tag ${tagName}`}
                                                     >

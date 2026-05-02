@@ -1547,6 +1547,80 @@
     padding-right: 0.15rem;
 }
 
+.tagged-album-media-picker-shell {
+    display: grid;
+    gap: 0.72rem;
+    min-height: 0;
+}
+
+.tagged-album-cover-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 2.35rem;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--tagged-border-subtle);
+    border-radius: var(--tagged-radius-md);
+    background: var(--tagged-surface);
+}
+
+.tagged-album-cover-pagination--controls {
+    display: none;
+}
+
+.tagged-album-cover-pagination-summary,
+.tagged-album-cover-pagination-page {
+    min-width: 0;
+    color: var(--tagged-text-color-muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.tagged-album-cover-pagination-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.tagged-album-cover-pagination-button {
+    width: 2rem;
+    height: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    border-radius: var(--tagged-radius-full);
+    border: 1px solid var(--tagged-border-mid);
+    background: var(--tagged-surface-raised);
+    color: var(--tagged-text-color);
+    display: grid;
+    place-items: center;
+}
+
+.tagged-album-cover-pagination-button:hover:not(:disabled),
+.tagged-album-cover-pagination-button:focus-visible:not(:disabled),
+.tagged-album-cover-pagination-button:active:not(:disabled) {
+    background: var(--tagged-surface-hover);
+    border-color: var(--tagged-accent-color);
+    transform: none;
+}
+
+.tagged-album-cover-pagination-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.48;
+}
+
+.tagged-album-cover-pagination-button img {
+    width: 0.95rem;
+    height: 0.95rem;
+    display: block;
+}
+
+[data-theme="dark"] .tagged-album-cover-pagination-button img {
+    filter: brightness(0) invert(1);
+}
+
 .tagged-album-media-picker {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2258,7 +2332,10 @@
     }
 
     .tagged-album-create-modal-content .tagged-album-media-view-switch .tagged-album-view-switch-button {
-        min-width: 2.25rem;
+        width: 2.35rem;
+        min-width: 2.35rem;
+        height: 2.35rem;
+        min-height: 2.35rem;
         padding-inline: 0.5rem;
     }
 
@@ -2268,6 +2345,7 @@
 
     .tagged-album-create-modal-content .tagged-album-create-media-controls {
         justify-content: flex-start;
+        gap: 0.45rem;
         min-height: 0;
         padding-top: 0.22rem;
         padding-bottom: 0.22rem;
@@ -2313,6 +2391,46 @@
     .tagged-album-media-picker {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-auto-rows: 11.8rem;
+    }
+
+    .tagged-album-cover-pagination {
+        gap: 0.45rem;
+        padding: 0.38rem 0.44rem;
+    }
+
+    .tagged-album-cover-pagination--top {
+        display: none;
+    }
+
+    .tagged-album-cover-pagination--controls {
+        display: flex;
+        flex: 0 1 auto;
+        min-width: 0;
+        min-height: 2.35rem;
+        padding: 0.18rem 0.34rem;
+    }
+
+    .tagged-album-cover-pagination--controls .tagged-album-cover-pagination-summary {
+        display: none;
+    }
+
+    .tagged-album-cover-pagination--controls .tagged-album-cover-pagination-page {
+        font-size: 0.74rem;
+    }
+
+    .tagged-album-cover-pagination-summary,
+    .tagged-album-cover-pagination-page {
+        font-size: 0.76rem;
+    }
+
+    .tagged-album-cover-pagination-actions {
+        gap: 0.4rem;
+    }
+
+    .tagged-album-cover-pagination-button {
+        width: 1.95rem;
+        height: 1.95rem;
+        min-height: 1.95rem;
     }
 
     .tagged-album-media-picker--list {

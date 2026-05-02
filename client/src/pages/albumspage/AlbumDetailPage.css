@@ -731,6 +731,9 @@
     object-position: center center;
     border-radius: var(--tagged-radius-sm);
     background: #000000;
+    transform: translate3d(var(--tagged-montage-pan-x, 0), var(--tagged-montage-pan-y, 0), 0) scale(1);
+    transform-origin: center center;
+    transition: transform 180ms ease;
 }
 
 video.tagged-album-montage-media {
@@ -752,6 +755,15 @@ video.tagged-album-montage-media {
 
 .tagged-album-montage-frame--current .tagged-album-montage-frame-inner {
     cursor: pointer;
+}
+
+.tagged-album-montage-frame-inner.is-zoomed {
+    cursor: zoom-out;
+}
+
+.tagged-album-montage-frame-inner.is-zoomed .tagged-album-montage-media {
+    transform: translate3d(var(--tagged-montage-pan-x, 0), var(--tagged-montage-pan-y, 0), 0) scale(2);
+    transition-duration: 80ms;
 }
 
 .tagged-album-montage-blur-bg {
@@ -781,6 +793,17 @@ video.tagged-album-montage-media {
     padding: 0;
     background: transparent;
     cursor: pointer;
+}
+
+@media (hover: none), (pointer: coarse) {
+    .tagged-album-montage-media-hitbox {
+        touch-action: pan-x pan-y;
+    }
+
+    .tagged-album-montage-frame-inner.is-zoomed .tagged-album-montage-media-hitbox {
+        touch-action: none;
+        cursor: grab;
+    }
 }
 
 .tagged-album-montage-media-hitbox:hover,
@@ -816,9 +839,18 @@ video.tagged-album-montage-media {
     );
 }
 
-.tagged-album-montage-frame-inner:hover .tagged-album-montage-media-info,
-.tagged-album-montage-frame-inner:focus-within .tagged-album-montage-media-info {
-    opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+    .tagged-album-montage-frame-inner:hover .tagged-album-montage-media-info,
+    .tagged-album-montage-frame-inner:focus-within .tagged-album-montage-media-info {
+        opacity: 1;
+    }
+}
+
+@media (hover: none), (pointer: coarse) {
+    .tagged-album-montage-frame-inner:hover .tagged-album-montage-media-info,
+    .tagged-album-montage-frame-inner:focus-within .tagged-album-montage-media-info {
+        opacity: 0;
+    }
 }
 
 .tagged-album-montage-media-info-top {
@@ -1862,6 +1894,14 @@ video.tagged-album-montage-media {
     padding-right: 0.15rem;
 }
 
+.tagged-album-add-media-picker-shell {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.72rem;
+    height: 100%;
+    min-height: 0;
+}
+
 .tagged-album-add-media-picker {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -2698,11 +2738,12 @@ video.tagged-album-montage-media {
 
     .tagged-album-add-media-view-controls {
         justify-content: flex-start;
+        gap: 0.45rem;
         padding-block: 0.12rem;
     }
 
     .tagged-album-add-media-search-controls {
-        grid-template-columns: minmax(0, 1fr) repeat(3, 2.35rem);
+        grid-template-columns: minmax(0, 1fr) 2.35rem auto;
         align-items: center;
         column-gap: 0.35rem;
         row-gap: 0.2rem;
@@ -2727,6 +2768,26 @@ video.tagged-album-montage-media {
 
     .tagged-album-add-media-modal-content .tagged-album-media-view-switch .tagged-album-view-switch-label {
         display: none;
+    }
+
+    .tagged-album-add-media-modal-content .tagged-album-cover-pagination--top {
+        display: none;
+    }
+
+    .tagged-album-add-media-modal-content .tagged-album-cover-pagination--controls {
+        display: flex;
+        flex: 0 1 auto;
+        min-width: 0;
+        min-height: 2.35rem;
+        padding: 0.18rem 0.34rem;
+    }
+
+    .tagged-album-add-media-modal-content .tagged-album-cover-pagination--controls .tagged-album-cover-pagination-summary {
+        display: none;
+    }
+
+    .tagged-album-add-media-modal-content .tagged-album-cover-pagination--controls .tagged-album-cover-pagination-page {
+        font-size: 0.74rem;
     }
 
     .tagged-album-add-media-tag-panel {

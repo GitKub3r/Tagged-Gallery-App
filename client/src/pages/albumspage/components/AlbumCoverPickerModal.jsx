@@ -1,3 +1,6 @@
+import { useMemo, useState } from "react";
+import { MEDIA_PICKER_PAGE_SIZE, MediaPickerPagination } from "./MediaPickerPagination";
+
 export const AlbumCoverPickerModal = ({
     isOpen,
     onClose,
@@ -27,6 +30,70 @@ export const AlbumCoverPickerModal = ({
     error,
     modalContentClassName = "",
 }) => {
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const totalCandidates = filteredCoverCandidates.length;
+    const totalPages = Math.max(1, Math.ceil(totalCandidates / MEDIA_PICKER_PAGE_SIZE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
+    const visibleCoverCandidates = useMemo(() => {
+        const startIndex = (safeCurrentPage - 1) * MEDIA_PICKER_PAGE_SIZE;
+        return filteredCoverCandidates.slice(startIndex, startIndex + MEDIA_PICKER_PAGE_SIZE);
+    }, [safeCurrentPage, filteredCoverCandidates]);
+    const pageStart = totalCandidates === 0 ? 0 : (safeCurrentPage - 1) * MEDIA_PICKER_PAGE_SIZE + 1;
+    const pageEnd = Math.min(safeCurrentPage * MEDIA_PICKER_PAGE_SIZE, totalCandidates);
+
+    const resetCoverPage = () => {
+        setCurrentPage(1);
+    };
+
+    const handleClose = () => {
+        resetCoverPage();
+        onClose();
+    };
+
+    const handleSubmit = (event) => {
+        resetCoverPage();
+        onSubmit(event);
+    };
+
+    const handleCoverSearchChange = (value) => {
+        resetCoverPage();
+        onCoverSearchChange(value);
+    };
+
+    const handleMediaViewModeChange = (nextMode) => {
+        resetCoverPage();
+        onMediaViewModeChange(nextMode);
+    };
+
+    const handleTagFilterSearchChange = (value) => {
+        resetCoverPage();
+        onTagFilterSearchChange(value);
+    };
+
+    const handleToggleIncludeFilterTag = (tagName) => {
+        resetCoverPage();
+        onToggleIncludeFilterTag(tagName);
+    };
+
+    const handleToggleExcludeFilterTag = (tagName) => {
+        resetCoverPage();
+        onToggleExcludeFilterTag(tagName);
+    };
+
+    const handleClearFilterTags = () => {
+        resetCoverPage();
+        onClearFilterTags();
+    };
+
+    const goToPreviousPage = () => {
+        setCurrentPage((page) => Math.max(1, Math.min(page, totalPages) - 1));
+    };
+
+    const goToNextPage = () => {
+        setCurrentPage((page) => Math.min(totalPages, Math.min(page, totalPages) + 1));
+    };
+
     if (!isOpen) {
         return null;
     }
@@ -36,9 +103,22 @@ export const AlbumCoverPickerModal = ({
     const modalTitle = isEditMode ? "Edit album" : "Create album";
     const submitLabel = isEditMode ? "Save changes" : "Create album";
     const savingLabel = isEditMode ? "Saving..." : "Creating...";
+    const renderPagination = (modifierClassName = "") => (
+        <MediaPickerPagination
+            currentPage={safeCurrentPage}
+            totalPages={totalPages}
+            totalItems={totalCandidates}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            onPreviousPage={goToPreviousPage}
+            onNextPage={goToNextPage}
+            disabled={isSaving}
+            className={modifierClassName}
+        />
+    );
 
     return (
-        <div className="tagged-album-modal" role="dialog" aria-modal="true" aria-labelledby="tagged-album-upsert-modal-title" onClick={onClose}>
+        <div className="tagged-album-modal" role="dialog" aria-modal="true" aria-labelledby="tagged-album-upsert-modal-title" onClick={handleClose}>
             <div
                 className={`tagged-album-modal-content tagged-album-create-modal-content tagged-album-upsert-modal-content ${modalContentClassName}`.trim()}
                 onClick={(event) => event.stopPropagation()}
@@ -51,7 +131,7 @@ export const AlbumCoverPickerModal = ({
                     <button
                         type="button"
                         className="tagged-album-modal-close"
-                        onClick={onClose}
+                        onClick={handleClose}
                         disabled={isSaving}
                         aria-label={`Close ${isEditMode ? "edit" : "create"} album modal`}
                     >
@@ -59,7 +139,7 @@ export const AlbumCoverPickerModal = ({
                     </button>
                 </header>
 
-                <form className="tagged-album-form tagged-album-form--edit" onSubmit={onSubmit}>
+                <form className="tagged-album-form tagged-album-form--edit" onSubmit={handleSubmit}>
                     <div className="tagged-album-edit-layout">
                         <div className="tagged-album-edit-main-column">
                             <div className="tagged-album-create-top-row">
@@ -86,7 +166,7 @@ export const AlbumCoverPickerModal = ({
                                                 <input
                                                     type="text"
                                                     value={coverSearch}
-                                                    onChange={(event) => onCoverSearchChange(event.target.value)}
+                                                    onChange={(event) => handleCoverSearchChange(event.target.value)}
                                                     placeholder="Search cover... (tip: a:author n:name)"
                                                     disabled={isSaving}
                                                 />
@@ -96,7 +176,7 @@ export const AlbumCoverPickerModal = ({
                                                         type="button"
                                                         className="tagged-album-search-inline-clear"
                                                         onMouseDown={(event) => event.preventDefault()}
-                                                        onClick={() => onCoverSearchChange("")}
+                                                        onClick={() => handleCoverSearchChange("")}
                                                         aria-label="Clear search"
                                                         title="Clear search"
                                                         disabled={isSaving}
@@ -114,7 +194,7 @@ export const AlbumCoverPickerModal = ({
                                         <button
                                             type="button"
                                             className={`tagged-album-view-switch-button${mediaViewMode === "card" ? " is-active" : ""}`}
-                                            onClick={() => onMediaViewModeChange("card")}
+                                            onClick={() => handleMediaViewModeChange("card")}
                                             aria-pressed={mediaViewMode === "card"}
                                             aria-label="Card view"
                                             title="Card view"
@@ -127,7 +207,7 @@ export const AlbumCoverPickerModal = ({
                                         <button
                                             type="button"
                                             className={`tagged-album-view-switch-button${mediaViewMode === "list" ? " is-active" : ""}`}
-                                            onClick={() => onMediaViewModeChange("list")}
+                                            onClick={() => handleMediaViewModeChange("list")}
                                             aria-pressed={mediaViewMode === "list"}
                                             aria-label="List view"
                                             title="List view"
@@ -137,6 +217,8 @@ export const AlbumCoverPickerModal = ({
                                             <span className="tagged-album-view-switch-label">List</span>
                                         </button>
                                     </div>
+
+                                    {renderPagination("tagged-album-cover-pagination--controls")}
                                 </div>
                             </div>
 
@@ -152,13 +234,16 @@ export const AlbumCoverPickerModal = ({
                             ) : filteredCoverCandidates.length === 0 ? (
                                 <p className="tagged-album-media-picker-empty">No media matches this search.</p>
                             ) : (
-                                <div className="tagged-album-media-picker-scroll">
+                                <div className="tagged-album-media-picker-shell">
+                                    {renderPagination("tagged-album-cover-pagination--top")}
+
+                                    <div className="tagged-album-media-picker-scroll">
                                     <div
                                         className={`tagged-album-media-picker${mediaViewMode === "list" ? " tagged-album-media-picker--list" : ""}`}
                                         role="listbox"
                                         aria-label="Select album cover"
                                     >
-                                        {filteredCoverCandidates.map((media) => {
+                                        {visibleCoverCandidates.map((media) => {
                                             const previewUrl = getAssetUrl(media.thumbpath || media.filepath);
                                             const isSelected = selectedCoverMediaId === media.id;
                                             const title = media.displayname || media.filename || `Media #${media.id}`;
@@ -184,7 +269,13 @@ export const AlbumCoverPickerModal = ({
                                                     <div className="tagged-album-media-option-preview-wrap">
                                                         {previewUrl ? (
                                                             <>
-                                                                <img className="tagged-album-media-option-preview" src={previewUrl} alt={title} />
+                                                                <img
+                                                                    className="tagged-album-media-option-preview"
+                                                                    src={previewUrl}
+                                                                    alt={title}
+                                                                    loading="lazy"
+                                                                    decoding="async"
+                                                                />
                                                                 {isVideo ? (
                                                                     <span className="tagged-album-media-option-play-badge" aria-hidden="true">
                                                                         <svg viewBox="0 0 24 24" className="tagged-album-media-option-play-icon" aria-hidden="true">
@@ -217,11 +308,12 @@ export const AlbumCoverPickerModal = ({
                                             );
                                         })}
                                     </div>
+                                    </div>
                                 </div>
                             )}
 
                             <div className="tagged-album-create-actions tagged-album-create-actions--inline">
-                                <button type="button" className="tagged-album-form-cancel" onClick={onClose} disabled={isSaving}>
+                                <button type="button" className="tagged-album-form-cancel" onClick={handleClose} disabled={isSaving}>
                                     Cancel
                                 </button>
                                 <button type="submit" className="tagged-album-form-submit" disabled={isSaving}>
@@ -237,7 +329,7 @@ export const AlbumCoverPickerModal = ({
                                 </div>
 
                                 {activeTagFiltersCount > 0 ? (
-                                    <button type="button" className="tagged-album-edit-tag-panel-clear" onClick={onClearFilterTags}>
+                                    <button type="button" className="tagged-album-edit-tag-panel-clear" onClick={handleClearFilterTags}>
                                         Clear ({activeTagFiltersCount})
                                     </button>
                                 ) : null}
@@ -247,7 +339,7 @@ export const AlbumCoverPickerModal = ({
                                 type="search"
                                 className="tagged-album-edit-tag-panel-search"
                                 value={tagFilterSearch}
-                                onChange={(event) => onTagFilterSearchChange(event.target.value)}
+                                onChange={(event) => handleTagFilterSearchChange(event.target.value)}
                                 placeholder="Search tags..."
                                 aria-label="Search tags"
                             />
@@ -268,10 +360,10 @@ export const AlbumCoverPickerModal = ({
                                                     className="tagged-sidebar-tag-item-label-wrap"
                                                     role="button"
                                                     tabIndex={0}
-                                                    onClick={() => onToggleIncludeFilterTag(tagName)}
+                                                    onClick={() => handleToggleIncludeFilterTag(tagName)}
                                                     onKeyDown={(event) =>
                                                         event.key === "Enter" || event.key === " "
-                                                            ? onToggleIncludeFilterTag(tagName)
+                                                            ? handleToggleIncludeFilterTag(tagName)
                                                             : undefined
                                                     }
                                                     aria-pressed={isIncluded}
@@ -284,7 +376,7 @@ export const AlbumCoverPickerModal = ({
                                                     <button
                                                         type="button"
                                                         className={`tagged-sidebar-tag-item-action tagged-sidebar-tag-item-action--include${isIncluded ? " is-active" : ""}`}
-                                                        onClick={() => onToggleIncludeFilterTag(tagName)}
+                                                        onClick={() => handleToggleIncludeFilterTag(tagName)}
                                                         aria-pressed={isIncluded}
                                                         title={`Include tag ${tagName}`}
                                                     >
@@ -294,7 +386,7 @@ export const AlbumCoverPickerModal = ({
                                                     <button
                                                         type="button"
                                                         className={`tagged-sidebar-tag-item-action tagged-sidebar-tag-item-action--exclude${isExcluded ? " is-active" : ""}`}
-                                                        onClick={() => onToggleExcludeFilterTag(tagName)}
+                                                        onClick={() => handleToggleExcludeFilterTag(tagName)}
                                                         aria-pressed={isExcluded}
                                                         title={`Exclude tag ${tagName}`}
                                                     >
@@ -312,7 +404,7 @@ export const AlbumCoverPickerModal = ({
                     {error ? <p className="tagged-album-form-error">{error}</p> : null}
 
                     <div className="tagged-album-create-actions tagged-album-create-actions--mobile">
-                        <button type="button" className="tagged-album-form-cancel" onClick={onClose} disabled={isSaving}>
+                        <button type="button" className="tagged-album-form-cancel" onClick={handleClose} disabled={isSaving}>
                             Cancel
                         </button>
                         <button type="submit" className="tagged-album-form-submit" disabled={isSaving}>

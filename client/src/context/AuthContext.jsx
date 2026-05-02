@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useRef } from "react";
 
 const defaultContextValue = {
     user: null,
@@ -22,6 +22,9 @@ export const AuthProvider = ({ children }) => {
     const [refreshToken, setRefreshToken] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const accessTokenRef = useRef(null);
+    const refreshTokenRef = useRef(null);
+    const refreshPromiseRef = useRef(null);
 
     const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 
@@ -32,6 +35,8 @@ export const AuthProvider = ({ children }) => {
         const storedUser = localStorage.getItem("user");
 
         if (storedAccessToken && storedRefreshToken && storedUser) {
+            accessTokenRef.current = storedAccessToken;
+            refreshTokenRef.current = storedRefreshToken;
             setAccessToken(storedAccessToken);
             setRefreshToken(storedRefreshToken);
             setUser(JSON.parse(storedUser));
@@ -89,6 +94,8 @@ export const AuthProvider = ({ children }) => {
             const { user: userData, accessToken: newAccessToken, refreshToken: newRefreshToken } = data.data;
 
             // Guardar en estado
+            accessTokenRef.current = newAccessToken;
+            refreshTokenRef.current = newRefreshToken;
             setUser(userData);
             setAccessToken(newAccessToken);
             setRefreshToken(newRefreshToken);
@@ -110,52 +117,72 @@ export const AuthProvider = ({ children }) => {
      * Refrescar access token
      */
     const refreshAccessToken = async () => {
-        try {
-            if (!refreshToken) {
-                return false;
-            }
+        if (refreshPromiseRef.current) {
+            return refreshPromiseRef.current;
+        }
 
-            const response = await fetch(`${API_URL}/auth/refresh`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refreshToken }),
-            });
+        const latestRefreshToken = refreshTokenRef.current || localStorage.getItem("refreshToken");
 
-            const data = await response.json();
-
-            if (!data.success) {
-                logout();
-                return false;
-            }
-
-            const newAccessToken = data.data.accessToken;
-
-            setAccessToken(newAccessToken);
-            localStorage.setItem("accessToken", newAccessToken);
-
-            return true;
-        } catch (err) {
-            console.error("Error refreshing token:", err);
-            logout();
+        if (!latestRefreshToken) {
             return false;
         }
+
+        refreshPromiseRef.current = (async () => {
+            try {
+                const response = await fetch(`${API_URL}/auth/refresh`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ refreshToken: latestRefreshToken }),
+                    cache: "no-store",
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success || !data.data?.accessToken) {
+                    await logout();
+                    return false;
+                }
+
+                const newAccessToken = data.data.accessToken;
+
+                accessTokenRef.current = newAccessToken;
+                setAccessToken(newAccessToken);
+                localStorage.setItem("accessToken", newAccessToken);
+
+                return true;
+            } catch (err) {
+                console.error("Error refreshing token:", err);
+                await logout();
+                return false;
+            } finally {
+                refreshPromiseRef.current = null;
+            }
+        })();
+
+        return refreshPromiseRef.current;
     };
 
     /**
      * Logout del usuario
      */
     const logout = async () => {
+        const latestRefreshToken = refreshTokenRef.current || localStorage.getItem("refreshToken");
+
         try {
-            if (refreshToken) {
+            if (latestRefreshToken) {
                 await fetch(`${API_URL}/auth/logout`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ refreshToken }),
+                    body: JSON.stringify({ refreshToken: latestRefreshToken }),
+                    cache: "no-store",
                 });
             }
         } catch (err) {
             console.error("Error during logout:", err);
         } finally {
+            accessTokenRef.current = null;
+            refreshTokenRef.current = null;
+            refreshPromiseRef.current = null;
             setUser(null);
             setAccessToken(null);
             setRefreshToken(null);
@@ -184,20 +211,30 @@ export const AuthProvider = ({ children }) => {
             headers["Content-Type"] = "application/json";
         }
 
-        if (accessToken) {
-            headers.Authorization = `Bearer ${accessToken}`;
+        const latestAccessToken = accessTokenRef.current || localStorage.getItem("accessToken") || accessToken;
+
+        if (latestAccessToken) {
+            headers.Authorization = `Bearer ${latestAccessToken}`;
         }
 
-        let response = await fetch(url, { ...options, headers });
+        const requestOptions = {
+            cache: "no-store",
+            ...options,
+            headers,
+        };
+
+        let response = await fetch(url, requestOptions);
 
         // Si el token expiró, refrescar e intentar de nuevo
-        if (response.status === 401 && refreshToken) {
+        const latestRefreshToken = refreshTokenRef.current || localStorage.getItem("refreshToken") || refreshToken;
+
+        if (response.status === 401 && latestRefreshToken) {
             const refreshed = await refreshAccessToken();
 
             if (refreshed) {
-                const latestAccessToken = localStorage.getItem("accessToken");
-                headers.Authorization = `Bearer ${latestAccessToken || accessToken}`;
-                response = await fetch(url, { ...options, headers });
+                const refreshedAccessToken = accessTokenRef.current || localStorage.getItem("accessToken");
+                headers.Authorization = `Bearer ${refreshedAccessToken}`;
+                response = await fetch(url, { ...requestOptions, headers });
             }
         }
 

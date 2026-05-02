@@ -169,9 +169,16 @@ class AlbumService {
             return { success: false, message: "Forbidden: media does not belong to you" };
         }
 
-        await MediaAlbumModel.addMany(albumId, [mediaId]);
+        const addedCount = await MediaAlbumModel.addMany(albumId, [mediaId]);
+        if (addedCount === 0) {
+            return {
+                success: false,
+                message: "Media is already in this album or could not be linked",
+            };
+        }
+
         const updatedAlbum = await AlbumModel.findById(albumId);
-        return { success: true, data: updatedAlbum };
+        return { success: true, data: updatedAlbum, addedCount, mediaIds: [mediaId] };
     }
 
     static async addManyMedia(albumId, body, requestUser) {
@@ -209,9 +216,16 @@ class AlbumService {
             return { success: false, message: "Forbidden: some media items do not belong to you" };
         }
 
-        await MediaAlbumModel.addMany(albumId, mediaIds);
+        const addedCount = await MediaAlbumModel.addMany(albumId, mediaIds);
+        if (addedCount === 0) {
+            return {
+                success: false,
+                message: "No media was added to this album",
+            };
+        }
+
         const updatedAlbum = await AlbumModel.findById(albumId);
-        return { success: true, data: updatedAlbum };
+        return { success: true, data: updatedAlbum, addedCount, mediaIds };
     }
 
     static async removeMedia(albumId, mediaId, requestUser) {
