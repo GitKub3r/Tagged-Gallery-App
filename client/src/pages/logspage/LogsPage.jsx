@@ -1,5 +1,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { faClockRotateLeft } from "@fortawesome/free-solid-svg-icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import { EmptyState } from "../../components/empty-state/EmptyState";
 import { useAuth } from "../../hooks/useAuth";
 import "./LogsPage.css";
 
@@ -333,6 +335,7 @@ export const LogsPage = () => {
     const [dateTo, setDateTo] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
+    const [reloadKey, setReloadKey] = useState(0);
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     const [loading, setLoading] = useState(true);
@@ -696,7 +699,7 @@ export const LogsPage = () => {
         return () => {
             cancelled = true;
         };
-    }, [fetchWithAuth, user, baseFilters, dateFrom, dateTo, page, pageSize]);
+    }, [fetchWithAuth, user, baseFilters, dateFrom, dateTo, page, pageSize, reloadKey]);
 
     const clearFilters = () => {
         setSearch("");
@@ -1058,7 +1061,19 @@ export const LogsPage = () => {
                         </div>
                     ) : null}
 
-                    {renderMode === "table" ? (
+                    {logs.length === 0 ? (
+                        <EmptyState
+                            title={activeFilterCount > 0 ? "No logs match these filters" : "No logs available"}
+                            icon={faClockRotateLeft}
+                            placement="section"
+                            actionLabel={activeFilterCount > 0 ? "Clear filters" : "Refresh logs"}
+                            onAction={
+                                activeFilterCount > 0
+                                    ? clearFilters
+                                    : () => setReloadKey((currentKey) => currentKey + 1)
+                            }
+                        />
+                    ) : renderMode === "table" ? (
                         <div className="tagged-logs-table-wrap">
                             <table className="tagged-logs-table">
                                 <colgroup>
@@ -1082,14 +1097,7 @@ export const LogsPage = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {logs.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={7} className="tagged-logs-table-empty">
-                                                No logs match the active filters.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        logs.map((entry) => {
+                                    {logs.map((entry) => {
                                             const tone = getStatusTone(entry.status_code);
                                             const hasMetadata = Boolean(entry.metadata);
                                             const isExpanded = expandedRowId === entry.id;
@@ -1156,51 +1164,43 @@ export const LogsPage = () => {
                                                     ) : null}
                                                 </Fragment>
                                             );
-                                        })
-                                    )}
+                                        })}
                                 </tbody>
                             </table>
                         </div>
                     ) : (
                         <div className="tagged-logs-cards-grid" aria-live="polite">
-                            {logs.length === 0 ? (
-                                <p className="tagged-logs-panel-empty">No logs match the active filters.</p>
-                            ) : (
-                                logs.map((entry) => {
-                                    const tone = getStatusTone(entry.status_code);
-                                    const dateParts = formatDateParts(entry.date);
+                            {logs.map((entry) => {
+                                const tone = getStatusTone(entry.status_code);
+                                const dateParts = formatDateParts(entry.date);
 
-                                    return (
-                                        <article
-                                            key={entry.id}
-                                            className={`tagged-logs-event-card tagged-logs-event-card--${tone}`}
-                                        >
-                                            <div className="tagged-logs-event-card-head">
-                                                <strong>
-                                                    {entry.actionname || entry.action_code || "Unknown action"}
-                                                </strong>
-                                                <span className={`tagged-logs-status tagged-logs-status--${tone}`}>
-                                                    {entry.status_code}
-                                                </span>
-                                            </div>
-                                            <p className="tagged-logs-event-card-meta">
-                                                <span className="tagged-logs-event-card-date-user">
-                                                    {dateParts.date} ·{" "}
-                                                    {entry.username || `User #${entry.userid || "-"}`}
-                                                </span>
-                                                <span className="tagged-logs-event-card-time">{dateParts.time}</span>
-                                            </p>
-                                            <p className="tagged-logs-event-card-message">
-                                                {renderMessageWithHighlightedPaths(entry.message, "No message")}
-                                            </p>
-                                            <div className="tagged-logs-event-card-foot">
-                                                <span>{entry.action_code || "-"}</span>
-                                                <span>{entry.request_method || "-"}</span>
-                                            </div>
-                                        </article>
-                                    );
-                                })
-                            )}
+                                return (
+                                    <article
+                                        key={entry.id}
+                                        className={`tagged-logs-event-card tagged-logs-event-card--${tone}`}
+                                    >
+                                        <div className="tagged-logs-event-card-head">
+                                            <strong>{entry.actionname || entry.action_code || "Unknown action"}</strong>
+                                            <span className={`tagged-logs-status tagged-logs-status--${tone}`}>
+                                                {entry.status_code}
+                                            </span>
+                                        </div>
+                                        <p className="tagged-logs-event-card-meta">
+                                            <span className="tagged-logs-event-card-date-user">
+                                                {dateParts.date} · {entry.username || `User #${entry.userid || "-"}`}
+                                            </span>
+                                            <span className="tagged-logs-event-card-time">{dateParts.time}</span>
+                                        </p>
+                                        <p className="tagged-logs-event-card-message">
+                                            {renderMessageWithHighlightedPaths(entry.message, "No message")}
+                                        </p>
+                                        <div className="tagged-logs-event-card-foot">
+                                            <span>{entry.action_code || "-"}</span>
+                                            <span>{entry.request_method || "-"}</span>
+                                        </div>
+                                    </article>
+                                );
+                            })}
                         </div>
                     )}
 

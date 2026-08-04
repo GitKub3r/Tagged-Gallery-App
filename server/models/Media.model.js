@@ -72,6 +72,88 @@ class MediaModel {
         return rows;
     }
 
+    static async findFilteredPaginated({
+        userId = null,
+        page = 1,
+        limit = 20,
+        favouritesOnly = false,
+        mediaType = "all",
+        author = "",
+        tag = "",
+        includeTags = [],
+        excludeTags = [],
+        authorTerms = [],
+        nameTerms = [],
+        freeTerms = [],
+        randomSeed = null,
+    } = {}) {
+        const conditions = [];
+        const values = [];
+
+        if (userId !== null && userId !== undefined) {
+            conditions.push("m.user_id = ?");
+            values.push(userId);
+        }
+        if (favouritesOnly) conditions.push("m.is_favourite = 1");
+        if (mediaType === "image") {
+            conditions.push("LOWER(COALESCE(m.mediatype, '')) NOT LIKE '%video%' AND LOWER(COALESCE(m.mediatype, '')) NOT LIKE '%gif%'");
+        } else if (mediaType === "video") {
+            conditions.push("(LOWER(COALESCE(m.mediatype, '')) LIKE '%video%' OR LOWER(COALESCE(m.mediatype, '')) LIKE '%gif%')");
+        }
+        if (author) {
+            conditions.push("LOWER(COALESCE(m.author, '')) = ?");
+            values.push(String(author).toLowerCase());
+        }
+
+        const addTagExistsCondition = (tagName, negate = false) => {
+            conditions.push(`${negate ? "NOT " : ""}EXISTS (
+                SELECT 1 FROM media_tags mt
+                INNER JOIN tags t ON t.id = mt.tagid
+                WHERE mt.mediaid = m.id AND LOWER(t.tagname) = ?
+            )`);
+            values.push(String(tagName).toLowerCase());
+        };
+
+        if (tag) addTagExistsCondition(tag);
+        includeTags.forEach((tagName) => addTagExistsCondition(tagName));
+        excludeTags.forEach((tagName) => addTagExistsCondition(tagName, true));
+        authorTerms.forEach((term) => {
+            conditions.push("LOWER(COALESCE(m.author, '')) LIKE ?");
+            values.push(`%${String(term).toLowerCase()}%`);
+        });
+        nameTerms.forEach((term) => {
+            conditions.push("LOWER(COALESCE(m.displayname, '')) LIKE ?");
+            values.push(`%${String(term).toLowerCase()}%`);
+        });
+        freeTerms.forEach((term) => {
+            conditions.push("LOWER(CONCAT(COALESCE(m.displayname, ''), ' ', COALESCE(m.author, ''))) LIKE ?");
+            values.push(`%${String(term).toLowerCase()}%`);
+        });
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        const offset = (page - 1) * limit;
+        const hasRandomSeed = randomSeed !== null && randomSeed !== undefined && randomSeed !== "";
+        const safeRandomSeed = hasRandomSeed && Number.isInteger(Number(randomSeed)) ? Number(randomSeed) : null;
+        const orderClause = safeRandomSeed === null ? "ORDER BY m.id DESC" : "ORDER BY RAND(?)";
+        const pageValues = safeRandomSeed === null
+            ? [...values, limit, offset]
+            : [...values, safeRandomSeed, limit, offset];
+
+        const [[countRow], [rows]] = await Promise.all([
+            pool.query(`SELECT COUNT(*) AS total FROM media m ${whereClause}`, values).then(([countRows]) => countRows),
+            pool.query(
+                `SELECT m.id, m.user_id, m.displayname, m.author, m.filename, m.size, m.filepath, m.thumbpath, m.mediatype, m.is_favourite, m.updatedAt
+                 FROM media m
+                 ${whereClause}
+                 ${orderClause}
+                 LIMIT ? OFFSET ?`,
+                pageValues,
+            ),
+        ]);
+
+        return { rows, total: Number(countRow?.total) || 0 };
+    }
+
     static async findDistinctDisplayNames() {
         await this.ensureManagedValuesTables();
 

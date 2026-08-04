@@ -1,13 +1,38 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import JSZip from "jszip";
+import {
+    faArrowLeft,
+    faCheckDouble,
+    faDownload,
+    faEye,
+    faEyeSlash,
+    faFilterCircleXmark,
+    faGear,
+    faGripVertical,
+    faImage,
+    faImages,
+    faList,
+    faMagnifyingGlass,
+    faPen,
+    faPlay,
+    faPlus,
+    faTableCellsLarge,
+    faTrash,
+    faVideo,
+    faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { MediaCard } from "../../components/media-card/MediaCard";
+import { EmptyState } from "../../components/empty-state/EmptyState";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { GalleryListItem } from "../gallerypage/GalleryPage";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
+import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { AlbumAddMediaModal } from "./components/AlbumAddMediaModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
 import "./AlbumPage.css";
@@ -18,8 +43,17 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
 const ALBUM_DETAIL_MEDIA_VIEW_STORAGE_KEY = "tagged_album_detail_media_view_mode";
 const ALBUM_DETAIL_MONTAGE_SETTINGS_STORAGE_KEY = "tagged_album_detail_montage_settings";
+const ALBUM_DETAIL_COVER_VISIBILITY_STORAGE_PREFIX = "tagged:album-detail:show-cover";
 const GENERAL_FILTER_COMMAND_EVENT = "tagged:general-filter-command";
 const GENERAL_FILTER_STATE_EVENT = "tagged:general-filter-state";
+
+const getAlbumCoverVisibilityStorageKey = (albumId) =>
+    `${ALBUM_DETAIL_COVER_VISIBILITY_STORAGE_PREFIX}:${albumId}`;
+
+const getStoredAlbumCoverVisibility = (albumId) => {
+    if (typeof window === "undefined" || !albumId) return true;
+    return window.localStorage.getItem(getAlbumCoverVisibilityStorageKey(albumId)) !== "false";
+};
 
 const isVideoOrGifMedia = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
@@ -72,7 +106,17 @@ const getAssetUrl = (assetPath) => {
     return `${UPLOADS_BASE_URL}${assetPath}`;
 };
 
-const getMontageMediaUrl = (media) => getAssetUrl(media?.filepath || media?.thumbpath || "");
+const isHeicMedia = (media) => {
+    const fileReference = String(media?.filepath || media?.filename || "");
+    return /\.hei[cf](?:$|[?#])/i.test(fileReference);
+};
+
+const getMontageMediaUrl = (media) =>
+    getAssetUrl(
+        isHeicMedia(media)
+            ? media?.thumbpath || media?.filepath || ""
+            : media?.filepath || media?.thumbpath || "",
+    );
 const getMontagePosterUrl = (media) => getAssetUrl(media?.thumbpath || "");
 const getMontageBackgroundUrl = (media) => getAssetUrl(media?.thumbpath || media?.filepath || "");
 
@@ -84,7 +128,6 @@ const MONTAGE_VIDEO_FALLBACK_DURATION_MS = 9000;
 const MONTAGE_TRANSITION_DURATION_MS = 820;
 const MONTAGE_DEFAULT_TAG_LIMIT = 6;
 const MONTAGE_COPYRIGHT_TAG_LIMIT = 3;
-const DEFAULT_NEW_TAG_COLOR = "#643aff";
 
 const normalizeHexColor = (input) => {
     const raw = String(input || "").trim();
@@ -142,21 +185,14 @@ const mixRgbWithWhite = (rgb, amount = 0.5) => {
     return `#${toHexChannel(mix(rgb.r))}${toHexChannel(mix(rgb.g))}${toHexChannel(mix(rgb.b))}`;
 };
 
-const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
-
 const buildMontageTagStyle = (hexColor) => {
     const rgb = isDefaultTagColor(hexColor) ? null : getHexRgb(hexColor);
 
     if (!rgb) {
-        const defaultTone = mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56);
-
-        return {
-            backgroundColor: `${defaultTone}38`,
-            color: defaultTone,
-            "--tagged-album-montage-tag-hover-color": defaultTone,
-            borderColor: `${defaultTone}BB`,
-            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
-        };
+        return buildDefaultTagStyle({
+            darkSurface: true,
+            hoverColorVariable: "--tagged-album-montage-tag-hover-color",
+        });
     }
 
     const luminance = getRelativeLuminance(rgb);
@@ -497,6 +533,7 @@ export const AlbumDetailPage = () => {
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [editError, setEditError] = useState(null);
     const [isHeroCoverBroken, setIsHeroCoverBroken] = useState(false);
+    const [heroCoverVisibilityByAlbum, setHeroCoverVisibilityByAlbum] = useState({});
     const [isMontageSettingsOpen, setIsMontageSettingsOpen] = useState(false);
     const [montageSettings, setMontageSettings] = useState(getInitialMontageSettings);
     const [isMontageOpen, setIsMontageOpen] = useState(false);
@@ -552,7 +589,17 @@ export const AlbumDetailPage = () => {
 
     const albumDisplayName = album?.displayname || album?.albumname || "Untitled album";
     const albumCreatedLabel = formatAlbumDate(album?.created_at);
-    const albumCoverUrl = getAssetUrl(album?.albumcoverpath || album?.albumthumbpath);
+    const albumCoverUrl = getAssetUrl(album?.albumthumbpath || album?.albumcoverpath);
+    const hasCachedHeroCoverVisibility = Object.prototype.hasOwnProperty.call(heroCoverVisibilityByAlbum, albumId);
+    const isHeroCoverVisible = hasCachedHeroCoverVisibility
+        ? heroCoverVisibilityByAlbum[albumId]
+        : getStoredAlbumCoverVisibility(albumId);
+
+    const toggleHeroCoverVisibility = () => {
+        const nextVisibility = !isHeroCoverVisible;
+        setHeroCoverVisibilityByAlbum((previous) => ({ ...previous, [albumId]: nextVisibility }));
+        window.localStorage.setItem(getAlbumCoverVisibilityStorageKey(albumId), String(nextVisibility));
+    };
 
     useEffect(() => {
         setIsHeroCoverBroken(false);
@@ -1092,9 +1139,10 @@ export const AlbumDetailPage = () => {
         ).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
     }, [libraryMediaItems]);
 
-    const { distinctAlbumEditTagNames, albumEditTagColorByName } = useMemo(() => {
+    const { distinctAlbumEditTagNames, albumEditTagColorByName, albumEditTagTypeByName } = useMemo(() => {
         const tagsMap = new Map();
         const colorMap = {};
+        const typeMap = {};
 
         libraryMediaItems.forEach((item) => {
             const candidates = item?.tags || item?.tag_names || item?.mediaTags || item?.relatedTags || [];
@@ -1122,6 +1170,10 @@ export const AlbumDetailPage = () => {
                 if (tagColor && !colorMap[normalized]) {
                     colorMap[normalized] = tagColor;
                 }
+
+                if (typeof tag !== "string" && !typeMap[normalized]) {
+                    typeMap[normalized] = tag?.type === "copyright" ? "copyright" : "default";
+                }
             });
         });
 
@@ -1130,6 +1182,7 @@ export const AlbumDetailPage = () => {
                 a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }),
             ),
             albumEditTagColorByName: colorMap,
+            albumEditTagTypeByName: typeMap,
         };
     }, [libraryMediaItems]);
 
@@ -3214,17 +3267,10 @@ export const AlbumDetailPage = () => {
     if (loading) {
         return (
             <section className="tagged-app-page tagged-album-detail-page" aria-label="Loading album detail">
-                <header className="tagged-album-detail-hero tagged-loading-skeleton-hero" aria-hidden="true">
-                    <div className="tagged-album-detail-hero-overlay" />
-                    <span className="tagged-loading-skeleton-hero-button tagged-loading-skeleton-hero-button--left" />
-                    <span className="tagged-loading-skeleton-hero-button tagged-loading-skeleton-hero-button--right" />
-                    <div className="tagged-album-detail-hero-content">
-                        <div className="tagged-loading-skeleton-hero-copy">
-                            <span className="tagged-loading-skeleton-hero-block tagged-loading-skeleton-hero-title" />
-                            <span className="tagged-loading-skeleton-hero-block tagged-loading-skeleton-hero-subtitle" />
-                        </div>
-                        <span className="tagged-loading-skeleton-hero-block tagged-loading-skeleton-hero-metric" />
-                    </div>
+                <header className="relative min-h-[18rem] animate-pulse overflow-hidden rounded-xl border border-neutral-200 bg-neutral-200 sm:min-h-[22rem] lg:min-h-[26rem] dark:border-neutral-800 dark:bg-neutral-900" aria-hidden="true">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_15%,rgba(255,255,255,0.08),transparent_30%),radial-gradient(circle_at_82%_75%,rgba(255,255,255,0.05),transparent_34%)]" />
+                    <div className="absolute bottom-6 left-6 h-8 w-52 rounded-xl bg-neutral-300 dark:bg-neutral-800" />
+                    <div className="absolute bottom-6 right-6 h-6 w-24 rounded-xl bg-neutral-300 dark:bg-neutral-800" />
                 </header>
 
                 <div className="tagged-album-detail-grid-wrap" aria-live="polite">
@@ -3267,186 +3313,146 @@ export const AlbumDetailPage = () => {
 
     return (
         <section className="tagged-app-page tagged-album-detail-page">
-            <header className="tagged-album-detail-hero" aria-label="Album cover header">
-                {albumCoverUrl && !isHeroCoverBroken ? (
+            <header className="tagged-album-detail-hero-v2" aria-label="Album cover header">
+                {isHeroCoverVisible && albumCoverUrl && !isHeroCoverBroken ? (
                     <img
-                        className="tagged-album-detail-hero-cover"
+                        className="absolute inset-0 h-full w-full object-cover"
                         src={albumCoverUrl}
                         alt={albumDisplayName}
                         onError={() => setIsHeroCoverBroken(true)}
                     />
                 ) : (
-                    <div
-                        className="tagged-album-detail-hero-cover tagged-album-detail-hero-cover--empty"
-                        aria-hidden="true"
-                    >
-                        <img src="/icons/album.svg" alt="" />
+                    <div className="tagged-album-hero-fallback absolute inset-0 overflow-hidden bg-neutral-950" aria-hidden="true">
+                        <div className="absolute -left-[8%] -top-[35%] h-[90%] w-[58%] rounded-full bg-neutral-500/20 blur-[90px]" />
+                        <div className="absolute -bottom-[45%] right-[2%] h-[90%] w-[55%] rounded-full bg-neutral-700/30 blur-[110px]" />
+                        <FontAwesomeIcon icon={faImages} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl text-white/15" />
                     </div>
                 )}
 
-                <div className="tagged-album-detail-hero-overlay" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/25 to-black/10" aria-hidden="true" />
 
-                <button
-                    type="button"
-                    className="tagged-album-detail-back-button"
-                    onClick={() => navigate("/albums")}
-                    aria-label="Back to albums"
-                >
-                    <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
-                </button>
-
-                <button
-                    type="button"
-                    className="tagged-album-detail-change-cover-button"
-                    onClick={openEditAlbumModal}
-                    aria-label="Edit album"
-                >
-                    <img src="/icons/edit.svg" alt="" aria-hidden="true" />
-                    <span>Edit</span>
-                </button>
-
-                {!isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? (
-                    <div className="tagged-album-detail-montage-actions" aria-label="Montage actions">
+                <div className="tagged-album-hero-toolbar absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4 sm:p-5">
+                    <div className="flex flex-wrap items-center gap-2">
                         <button
                             type="button"
-                            className="tagged-album-detail-montage-button"
-                            disabled={isReorderingMedia}
-                            onClick={openMontage}
-                            aria-label="Open montage"
-                            title="Montage"
+                            className="tagged-album-hero-icon-button"
+                            onClick={() => navigate("/albums")}
+                            aria-label="Back to albums"
                         >
-                            <img src="/icons/montage.svg" alt="" aria-hidden="true" />
-                            <span>Montage</span>
+                            <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
                         </button>
 
                         <button
                             type="button"
-                            className="tagged-album-detail-montage-settings-button"
-                            onClick={openMontageSettings}
-                            aria-label="Configure montage"
-                            title="Montage settings"
+                            className="tagged-album-hero-action-button"
+                            onClick={openEditAlbumModal}
+                            aria-label="Edit album"
                         >
-                            <img src="/icons/settings.svg" alt="" aria-hidden="true" />
+                            <FontAwesomeIcon icon={faPen} aria-hidden="true" />
+                            <span>Edit album</span>
                         </button>
-                    </div>
-                ) : null}
 
-                <div className="tagged-album-detail-hero-content">
-                    <div className="tagged-album-detail-hero-text">
-                        <h1 title={albumDisplayName}>{albumDisplayName}</h1>
-                        <p>{albumCreatedLabel ? `Created ${albumCreatedLabel}` : "Creation date unavailable"}</p>
+                        <button
+                            type="button"
+                            className="tagged-album-hero-action-button"
+                            onClick={toggleHeroCoverVisibility}
+                            aria-pressed={!isHeroCoverVisible}
+                            aria-label={isHeroCoverVisible ? "Hide album cover" : "Show album cover"}
+                            title={isHeroCoverVisible ? "Use default background" : "Show album cover"}
+                        >
+                            <FontAwesomeIcon icon={isHeroCoverVisible ? faEyeSlash : faEye} aria-hidden="true" />
+                            <span>{isHeroCoverVisible ? "Hide cover" : "Show cover"}</span>
+                        </button>
+
+                        {!isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? (
+                            <>
+                                <button type="button" className="tagged-album-hero-action-button" disabled={isReorderingMedia} onClick={openMontage} aria-label="Open montage">
+                                    <FontAwesomeIcon icon={faPlay} aria-hidden="true" />
+                                    <span>Montage</span>
+                                </button>
+                                <button type="button" className="tagged-album-hero-icon-button" onClick={openMontageSettings} aria-label="Configure montage" title="Montage settings">
+                                    <FontAwesomeIcon icon={faGear} aria-hidden="true" />
+                                </button>
+                            </>
+                        ) : null}
                     </div>
 
-                    <div className="tagged-album-detail-hero-metrics">
+                    <p className="m-0 hidden items-center gap-2 text-sm font-semibold text-white/85 sm:flex">
                         {mediaTypeSummary.isMixed ? (
-                            <div className="tagged-album-detail-hero-media-types" aria-label="Album media type summary">
-                                <span>
-                                    <img src="/icons/image.svg" alt="" aria-hidden="true" />
-                                    {mediaTypeSummary.imageCount} images
-                                </span>
-                                <span className="tagged-album-detail-hero-media-dot" aria-hidden="true">
-                                    ·
-                                </span>
-                                <span>
-                                    <img src="/icons/video.svg" alt="" aria-hidden="true" />
-                                    {mediaTypeSummary.videoCount} videos
-                                </span>
-                            </div>
+                            <>
+                                <span className="inline-flex items-center gap-1.5"><FontAwesomeIcon icon={faImage} /> {mediaTypeSummary.imageCount}</span>
+                                <span className="text-white/40">·</span>
+                                <span className="inline-flex items-center gap-1.5"><FontAwesomeIcon icon={faVideo} /> {mediaTypeSummary.videoCount}</span>
+                            </>
                         ) : (
-                            <p className="tagged-album-detail-hero-total-media">{mediaTypeSummary.total} media</p>
+                            <span>{mediaTypeSummary.total} media</span>
                         )}
+                    </p>
+                </div>
+
+                <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-4 p-5 sm:p-7">
+                    <div className="min-w-0">
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-white/60">Album</p>
+                        <h1 className="truncate text-3xl font-semibold tracking-tight text-white drop-shadow-md sm:text-4xl" title={albumDisplayName}>{albumDisplayName}</h1>
+                        <p className="mt-1 text-sm text-white/70">{albumCreatedLabel ? `Created ${albumCreatedLabel}` : "Creation date unavailable"}</p>
                     </div>
+                    <p className="m-0 shrink-0 text-sm font-semibold text-white/85 sm:hidden">{mediaTypeSummary.total} media</p>
                 </div>
             </header>
 
-            <div
-                className={`tagged-album-detail-top-controls${albumMediaViewMode === "list" ? " is-list-mode" : ""}`}
-                aria-label="Album media controls"
-            >
+            <div className="tagged-album-detail-controls-v2" aria-label="Album media controls">
                 {albumMediaItems.length > 0 ? (
-                    <div className="tagged-album-detail-top-search" aria-label="Search album media">
-                        <div className="tagged-album-search-wrap tagged-album-search-field">
-                            <div className="tagged-album-search-input-wrap">
-                                <input
-                                    type="text"
-                                    inputMode="search"
-                                    enterKeyHint="search"
-                                    className="tagged-album-search-input"
-                                    value={albumMediaSearch}
-                                    onChange={(event) => setAlbumMediaSearch(event.target.value)}
-                                    placeholder="Search media... (tip: a:author n:name)"
-                                    aria-label="Search media by name or author. Supports a:author and n:name."
-                                />
-
-                                {hasActiveAlbumMediaSearch ? (
-                                    <button
-                                        type="button"
-                                        className="tagged-album-search-inline-clear"
-                                        onMouseDown={(event) => event.preventDefault()}
-                                        onClick={() => setAlbumMediaSearch("")}
-                                        aria-label="Clear search"
-                                        title="Clear search"
-                                    >
-                                        <span className="tagged-album-search-inline-clear-icon" aria-hidden="true" />
-                                    </button>
-                                ) : null}
-                            </div>
-                        </div>
-                    </div>
+                    <label className="relative min-w-0 flex-1" aria-label="Search album media">
+                        <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600" aria-hidden="true" />
+                        <input type="search" inputMode="search" enterKeyHint="search" className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-11 pr-11 text-sm text-neutral-950 outline-none placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600" value={albumMediaSearch} onChange={(event) => setAlbumMediaSearch(event.target.value)} placeholder="Search by media, a:author or n:name" aria-label="Search media by name or author. Supports a:author and n:name." />
+                        {hasActiveAlbumMediaSearch ? (
+                            <button type="button" className="absolute! right-1.5! top-1/2! grid! h-9! w-9! -translate-y-1/2! place-items-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-500! shadow-none! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!" onClick={() => setAlbumMediaSearch("")} aria-label="Clear search">
+                                <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
+                            </button>
+                        ) : null}
+                    </label>
                 ) : (
-                    <div className="tagged-album-reorder-controls-spacer" aria-hidden="true" />
+                    <div className="flex-1" aria-hidden="true" />
                 )}
 
-                <div
-                    className={`tagged-album-detail-view-switch${
-                        !isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? " has-reorder" : ""
-                    }`}
-                    aria-label="Album media view mode"
-                >
+                <div className="flex shrink-0 items-center gap-2" aria-label="Album media view mode">
                     {!isAlbumSelectionMode && activeAlbumMediaItems.length > 0 ? (
                         <button
                             type="button"
-                            className={`tagged-album-view-switch-button${isReorderMode ? " is-active" : ""}`}
+                            className={`tagged-album-control-button ${isReorderMode ? "is-active" : ""}`}
                             disabled={!canReorderAlbumMedia || isReorderingMedia}
                             onClick={toggleReorderMode}
                             aria-pressed={isReorderMode}
                             aria-label="Reorder media"
                             title={isReorderMode ? "Done reordering" : "Reorder media"}
                         >
-                            <img
-                                src="/icons/reorder.svg"
-                                alt=""
-                                aria-hidden="true"
-                                className="tagged-album-view-switch-icon-image"
-                            />
-                            <span className="tagged-album-view-switch-label">
-                                {isReorderMode ? "Done reordering" : "Reorder media"}
-                            </span>
+                            <FontAwesomeIcon icon={faGripVertical} aria-hidden="true" />
+                            <span className="hidden sm:inline">{isReorderMode ? "Done" : "Reorder"}</span>
                         </button>
                     ) : null}
 
                     <button
                         type="button"
-                        className={`tagged-album-view-switch-button${albumMediaViewMode === "card" ? " is-active" : ""}`}
+                        className={`tagged-album-control-button ${albumMediaViewMode === "card" ? "is-active" : ""}`}
                         onClick={() => setAlbumMediaViewMode("card")}
                         aria-pressed={albumMediaViewMode === "card"}
                         aria-label="Card view"
                         title="Card view"
                     >
-                        <span className="tagged-album-view-switch-icon tagged-album-view-switch-icon--card" />
-                        <span className="tagged-album-view-switch-label">Card</span>
+                        <FontAwesomeIcon icon={faTableCellsLarge} aria-hidden="true" />
+                        <span className="hidden sm:inline">Cards</span>
                     </button>
 
                     <button
                         type="button"
-                        className={`tagged-album-view-switch-button${albumMediaViewMode === "list" ? " is-active" : ""}`}
+                        className={`tagged-album-control-button ${albumMediaViewMode === "list" ? "is-active" : ""}`}
                         onClick={() => setAlbumMediaViewMode("list")}
                         aria-pressed={albumMediaViewMode === "list"}
                         aria-label="List view"
                         title="List view"
                     >
-                        <span className="tagged-album-view-switch-icon tagged-album-view-switch-icon--list" />
-                        <span className="tagged-album-view-switch-label">List</span>
+                        <FontAwesomeIcon icon={faList} aria-hidden="true" />
+                        <span className="hidden sm:inline">List</span>
                     </button>
                 </div>
             </div>
@@ -3460,10 +3466,12 @@ export const AlbumDetailPage = () => {
             ) : null}
 
             {isAlbumSelectionMode ? (
-                <aside className="tagged-album-selection-toolbar" aria-label="Album selection actions toolbar">
+                <aside className="tagged-gallery-selection-toolbar" aria-label="Album selection actions toolbar">
+                    <span className="tagged-gallery-selection-count" aria-live="polite">{selectedAlbumMediaIds.size}</span>
+                    <span className="tagged-gallery-selection-divider" aria-hidden="true" />
                     <button
                         type="button"
-                        className={`tagged-album-selection-icon-button tagged-album-selection-icon-button--select-all${areAllVisibleAlbumMediaSelected ? " is-active" : ""}`}
+                        className={`tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--select-all${areAllVisibleAlbumMediaSelected ? " is-active" : ""}`}
                         disabled={!hasVisibleAlbumMediaItems}
                         onClick={selectAllVisibleAlbumMedia}
                         aria-label="Select all visible media"
@@ -3474,12 +3482,12 @@ export const AlbumDetailPage = () => {
                                 : "Select all visible media"
                         }
                     >
-                        <img src="/icons/select-all.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faCheckDouble} aria-hidden="true" />
                     </button>
 
                     <button
                         type="button"
-                        className={`tagged-album-selection-icon-button tagged-album-selection-icon-button--clear-filter${
+                        className={`tagged-gallery-selection-icon-button${
                             activeAlbumTagFilter ? " is-active" : ""
                         }`}
                         disabled={!activeAlbumTagFilter}
@@ -3487,12 +3495,12 @@ export const AlbumDetailPage = () => {
                         aria-label="Clear active tag filter"
                         title="Clear active tag filter"
                     >
-                        <img src="/icons/clear_filters.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faFilterCircleXmark} aria-hidden="true" />
                     </button>
 
                     <button
                         type="button"
-                        className="tagged-album-selection-icon-button tagged-album-selection-icon-button--download"
+                        className="tagged-gallery-selection-icon-button"
                         disabled={selectedAlbumMediaIds.size === 0 || isDownloadingSelected}
                         onClick={handleDownloadSelectedMedia}
                         aria-label={`Download ${selectedAlbumMediaIds.size} selected element${selectedAlbumMediaIds.size === 1 ? "" : "s"}`}
@@ -3502,39 +3510,39 @@ export const AlbumDetailPage = () => {
                                 : "Download selected media"
                         }
                     >
-                        <img src="/icons/download.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faDownload} aria-hidden="true" />
                     </button>
 
                     <button
                         type="button"
-                        className="tagged-album-selection-icon-button tagged-album-selection-icon-button--edit"
+                        className="tagged-gallery-selection-icon-button"
                         disabled={selectedAlbumMediaIds.size === 0 || isSavingSelectedEdit}
                         onClick={openEditSelectedModal}
                         aria-label={`Edit ${selectedAlbumMediaIds.size} selected element${selectedAlbumMediaIds.size === 1 ? "" : "s"}`}
                         title="Edit selected media"
                     >
-                        <img src="/icons/edit.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                     </button>
 
                     <button
                         type="button"
-                        className="tagged-album-selection-icon-button tagged-album-selection-icon-button--delete"
+                        className="tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--delete"
                         disabled={selectedAlbumMediaIds.size === 0 || isRemovingSelected}
                         onClick={openRemoveSelectedConfirm}
                         aria-label={`Remove ${selectedAlbumMediaIds.size} selected element${selectedAlbumMediaIds.size === 1 ? "" : "s"} from album`}
                         title="Remove selected media from album"
                     >
-                        <img src="/icons/delete.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
                     </button>
 
                     <button
                         type="button"
-                        className="tagged-album-selection-icon-button tagged-album-selection-icon-button--close"
+                        className="tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--close"
                         onClick={clearAlbumSelectionMode}
                         aria-label="Close selection mode"
                         title="Close selection mode"
                     >
-                        <img src="/icons/close.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                     </button>
                 </aside>
             ) : null}
@@ -3949,6 +3957,7 @@ export const AlbumDetailPage = () => {
                 distinctAuthors={distinctAlbumEditAuthors}
                 distinctTagNames={distinctAlbumEditTagNames}
                 tagColorByName={albumEditTagColorByName}
+                tagTypeByName={albumEditTagTypeByName}
                 selectedMediaItems={albumMediaItems.filter((media) => selectedAlbumMediaIds.has(media.id))}
                 getAssetUrl={getAssetUrl}
                 isSaving={isSavingSelectedEdit}
@@ -3958,18 +3967,25 @@ export const AlbumDetailPage = () => {
             />
 
             <div className="tagged-album-detail-grid-wrap" aria-label="Album media grid">
-                {albumMediaViewMode === "list" ? (
+                {albumMediaItems.length === 0 ? (
+                    <div className="min-h-[18rem]">
+                        <EmptyState
+                            title="No media in this album"
+                            icon={faImages}
+                            placement="section"
+                            actionLabel="Add media"
+                            onAction={openAddMediaModal}
+                        />
+                    </div>
+                ) : albumMediaViewMode === "list" ? (
                     <div className="tagged-album-detail-list">
                         <button
                             type="button"
-                            className="tagged-album-list-create-tile"
+                            className="tagged-album-detail-add-list-v2"
                             onClick={openAddMediaModal}
                             aria-label="Add new media to album"
                         >
-                            <span
-                                className="tagged-album-create-icon tagged-album-create-icon--list"
-                                aria-hidden="true"
-                            />
+                            <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
                             <span>Add new media</span>
                         </button>
 
@@ -3999,14 +4015,11 @@ export const AlbumDetailPage = () => {
                     >
                         <button
                             type="button"
-                            className="tagged-album-card tagged-album-create-tile tagged-album-detail-add-tile"
+                            className="tagged-album-detail-add-card-v2"
                             onClick={openAddMediaModal}
                             aria-label="Add new media to album"
                         >
-                            <span
-                                className="tagged-album-create-icon tagged-album-create-icon--card"
-                                aria-hidden="true"
-                            />
+                            <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
                             <span>Add new media</span>
                         </button>
 
@@ -4014,8 +4027,12 @@ export const AlbumDetailPage = () => {
                             <div
                                 key={media.id}
                                 className={`tagged-album-draggable-item${
+                                    isReorderMode ? " is-reorder-mode" : ""
+                                }${
                                     draggingMediaId === media.id ? " is-dragging" : ""
-                                }${dragOverMediaId === media.id || mobileReorderSourceId === media.id ? " is-drag-over" : ""}`}
+                                }${dragOverMediaId === media.id ? " is-drag-over" : ""}${
+                                    mobileReorderSourceId === media.id ? " is-mobile-reorder-source" : ""
+                                }`}
                                 draggable={canUseDragReorder && !isReorderingMedia}
                                 onDragStart={(event) => handleDragStart(media.id, event)}
                                 onDragOver={(event) => handleDragOver(media.id, event)}
@@ -4035,6 +4052,12 @@ export const AlbumDetailPage = () => {
                                     onActivateSelectionMode={activateAlbumSelectionMode}
                                     disableLongPressSelection={isReorderMode}
                                 />
+                                {isReorderMode ? (
+                                    <span className="tagged-album-reorder-indicator" aria-hidden="true">
+                                        <FontAwesomeIcon icon={faGripVertical} />
+                                        <span>{mobileReorderSourceId === media.id ? "Selected" : "Move"}</span>
+                                    </span>
+                                ) : null}
                             </div>
                         ))}
                     </div>
@@ -4051,44 +4074,15 @@ export const AlbumDetailPage = () => {
                 </article>
             ) : null}
 
-            {isRemoveConfirmOpen ? (
-                <div
-                    className="tagged-album-confirm-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-album-confirm-title"
-                    aria-describedby="tagged-album-confirm-description"
-                    onClick={closeRemoveSelectedConfirm}
-                >
-                    <div className="tagged-album-confirm-modal-content" onClick={(event) => event.stopPropagation()}>
-                        <h2 id="tagged-album-confirm-title">
-                            Remove <span className="tagged-album-confirm-count">{selectedAlbumMediaIds.size}</span>{" "}
-                            media
-                        </h2>
-                        <p id="tagged-album-confirm-description">
-                            This only removes media from this album. Files remain in your gallery.
-                        </p>
-                        <div className="tagged-album-confirm-actions">
-                            <button
-                                type="button"
-                                className="tagged-album-confirm-continue"
-                                onClick={handleRemoveSelectedMedia}
-                                disabled={isRemovingSelected}
-                            >
-                                Continue
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-album-confirm-cancel"
-                                onClick={closeRemoveSelectedConfirm}
-                                disabled={isRemovingSelected}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={isRemoveConfirmOpen}
+                title={`Remove ${selectedAlbumMediaIds.size} media from this album?`}
+                description="The files will remain safely in your gallery. Only their association with this album will be removed."
+                confirmLabel="Remove from album"
+                isDeleting={isRemovingSelected}
+                onConfirm={handleRemoveSelectedMedia}
+                onClose={closeRemoveSelectedConfirm}
+            />
 
             <AlbumAddMediaModal
                 isOpen={isAddMediaModalOpen}

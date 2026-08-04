@@ -5,7 +5,10 @@ const GRID_VIEW_MODE_KEY = "tagged:grid-view-mode";
 
 const getDefaultColumns = () => {
     if (typeof window === "undefined") return 5;
-    return window.matchMedia("(max-width: 720px)").matches ? 2 : 5;
+    if (window.matchMedia("(max-width: 640px)").matches) return 2;
+    if (window.matchMedia("(max-width: 1024px)").matches) return 3;
+    if (window.matchMedia("(max-width: 1440px)").matches) return 4;
+    return 5;
 };
 
 const GridViewContext = createContext(null);
@@ -13,7 +16,10 @@ const GridViewContext = createContext(null);
 export const GridViewProvider = ({ children }) => {
     const [gridColumns, setGridColumnsState] = useState(() => {
         const stored = Number(localStorage.getItem(GRID_COLUMNS_KEY));
-        return Number.isFinite(stored) && stored >= 1 && stored <= 5 ? stored : getDefaultColumns();
+        const responsiveMaximum = getDefaultColumns();
+        return Number.isFinite(stored) && stored >= 1 && stored <= 5
+            ? Math.min(stored, responsiveMaximum)
+            : responsiveMaximum;
     });
 
     const [gridViewMode, setGridViewModeState] = useState(() => {
@@ -32,14 +38,21 @@ export const GridViewProvider = ({ children }) => {
         localStorage.setItem(GRID_VIEW_MODE_KEY, mode);
     };
 
-    // Sync default columns when viewport changes (e.g. orientation change)
+    // Keep cards readable when the viewport or device orientation changes.
     useEffect(() => {
-        const mq = window.matchMedia("(max-width: 720px)");
-        const stored = localStorage.getItem(GRID_COLUMNS_KEY);
-        if (stored) return; // user explicitly set it — don't override
-        const handler = (e) => setGridColumnsState(e.matches ? 2 : 5);
-        mq.addEventListener("change", handler);
-        return () => mq.removeEventListener("change", handler);
+        const mediaQueries = [640, 1024, 1440].map((width) => window.matchMedia(`(max-width: ${width}px)`));
+        const handleViewportChange = () => {
+            const stored = Number(localStorage.getItem(GRID_COLUMNS_KEY));
+            const responsiveMaximum = getDefaultColumns();
+            setGridColumnsState(
+                Number.isFinite(stored) && stored >= 1 && stored <= 5
+                    ? Math.min(stored, responsiveMaximum)
+                    : responsiveMaximum,
+            );
+        };
+
+        mediaQueries.forEach((query) => query.addEventListener("change", handleViewportChange));
+        return () => mediaQueries.forEach((query) => query.removeEventListener("change", handleViewportChange));
     }, []);
 
     return (
@@ -49,6 +62,8 @@ export const GridViewProvider = ({ children }) => {
     );
 };
 
+// Context hooks intentionally live beside their provider.
+// eslint-disable-next-line react-refresh/only-export-components
 export const useGridView = () => {
     const ctx = useContext(GridViewContext);
     if (!ctx) throw new Error("useGridView must be used inside GridViewProvider");

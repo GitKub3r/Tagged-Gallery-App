@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { faImage, faTags, faUsers } from "@fortawesome/free-solid-svg-icons";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useAuth } from "../../hooks/useAuth";
+import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./TagsPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -58,7 +62,6 @@ const MANAGER_CONFIG = {
         deleteEntityLabel: "author",
     },
 };
-
 const parseApiResponse = async (response, fallbackMessage) => {
     const clonedResponse = response.clone();
 
@@ -139,42 +142,36 @@ const truncateLabel = (value, maxChars = 15) => {
 const EMPTY_STATE_CONFIG = {
     tags: {
         title: "Thats not very 'Tagged' of you...",
-        subtitle: "Create your first tag to organize your gallery faster.",
-        actionLabel: "create a tag",
-        iconSrc: "/icons/tags.svg",
+        actionLabel: "Create tag",
+        icon: faTags,
     },
     displaynames: {
         title: "You don't have a name?",
-        subtitle: "Save a media name preset to keep naming consistent.",
-        actionLabel: "create a media name",
-        iconSrc: "/icons/image.svg",
+        actionLabel: "Create media name",
+        icon: faImage,
     },
     authors: {
         title: "Keep those names rolling",
-        subtitle: "Create your first author to keep your library clean.",
-        actionLabel: "create an author",
-        iconSrc: "/icons/users.svg",
+        actionLabel: "Create author",
+        icon: faUsers,
     },
 };
 
 const NO_RESULTS_STATE_CONFIG = {
     tags: {
         title: "No matching tags",
-        subtitle: "Try another term or",
-        actionLabel: "clear search",
-        iconSrc: "/icons/tags.svg",
+        actionLabel: "Clear search",
+        icon: faTags,
     },
     displaynames: {
         title: "No matching media names",
-        subtitle: "Try another term or",
-        actionLabel: "clear search",
-        iconSrc: "/icons/image.svg",
+        actionLabel: "Clear search",
+        icon: faImage,
     },
     authors: {
         title: "No matching authors",
-        subtitle: "Try another term or",
-        actionLabel: "clear search",
-        iconSrc: "/icons/users.svg",
+        actionLabel: "Clear search",
+        icon: faUsers,
     },
 };
 
@@ -595,9 +592,7 @@ export const MetadataPage = () => {
     };
 
     return (
-        <section
-            className={`tagged-app-page tagged-tags-page${!loading && !error && !hasAnyManagedItems ? " tagged-tags-page--global-empty" : ""}`}
-        >
+        <section className="tagged-app-page tagged-tags-page">
             {!loading && !error && hasAnyManagedItems ? (
                 <header className="tagged-tags-page-header tagged-tags-page-header--actions-only">
                     <button type="button" className="tagged-tags-create-button" onClick={openCreateModal}>
@@ -618,39 +613,37 @@ export const MetadataPage = () => {
                 </label>
             ) : null}
 
-            <div
-                className={`tagged-tags-manager-switch${!loading && !error && !hasAnyManagedItems ? " tagged-tags-manager-switch--floating" : ""}`}
-                role="tablist"
-                aria-label="Tag managers"
-            >
-                <button
-                    type="button"
-                    role="tab"
-                    className={managerType === "tags" ? "is-active" : ""}
-                    onClick={() => setManagerType("tags")}
-                    aria-selected={managerType === "tags"}
-                >
-                    Tags
-                </button>
-                <button
-                    type="button"
-                    role="tab"
-                    className={managerType === "displaynames" ? "is-active" : ""}
-                    onClick={() => setManagerType("displaynames")}
-                    aria-selected={managerType === "displaynames"}
-                >
-                    Media Names
-                </button>
-                <button
-                    type="button"
-                    role="tab"
-                    className={managerType === "authors" ? "is-active" : ""}
-                    onClick={() => setManagerType("authors")}
-                    aria-selected={managerType === "authors"}
-                >
-                    Authors
-                </button>
-            </div>
+            {!loading && !error && hasAnyManagedItems ? (
+                <div className="tagged-tags-manager-switch" role="tablist" aria-label="Tag managers">
+                    <button
+                        type="button"
+                        role="tab"
+                        className={managerType === "tags" ? "is-active" : ""}
+                        onClick={() => setManagerType("tags")}
+                        aria-selected={managerType === "tags"}
+                    >
+                        Tags
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        className={managerType === "displaynames" ? "is-active" : ""}
+                        onClick={() => setManagerType("displaynames")}
+                        aria-selected={managerType === "displaynames"}
+                    >
+                        Media Names
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        className={managerType === "authors" ? "is-active" : ""}
+                        onClick={() => setManagerType("authors")}
+                        aria-selected={managerType === "authors"}
+                    >
+                        Authors
+                    </button>
+                </div>
+            ) : null}
 
             {loading ? (
                 <article className="tagged-app-page-card tagged-tags-status-card" aria-live="polite">
@@ -670,46 +663,23 @@ export const MetadataPage = () => {
             ) : null}
 
             {!loading && !error && currentItems.length === 0 ? (
-                <article
-                    className="tagged-app-page-card tagged-tags-empty-card tagged-tags-empty-card--no-items"
-                    aria-live="polite"
-                >
-                    <h2>{emptyStateConfig.title}</h2>
-                    <p>
-                        {emptyStateConfig.subtitle} Let&apos;s{" "}
-                        <button type="button" className="tagged-tags-empty-action" onClick={openCreateModal}>
-                            {emptyStateConfig.actionLabel}
-                        </button>
-                        .
-                    </p>
-                    <img className="tagged-tags-empty-icon" src={emptyStateConfig.iconSrc} alt="" aria-hidden="true" />
-                </article>
+                <EmptyState
+                    title={emptyStateConfig.title}
+                    icon={emptyStateConfig.icon}
+                    placement={hasAnyManagedItems ? "section" : "page"}
+                    actionLabel={emptyStateConfig.actionLabel}
+                    onAction={openCreateModal}
+                />
             ) : null}
 
             {!loading && !error && currentItems.length > 0 && filteredItems.length === 0 ? (
-                <article
-                    className="tagged-app-page-card tagged-tags-empty-card tagged-tags-empty-card--no-results"
-                    aria-live="polite"
-                >
-                    <h2>{noResultsStateConfig.title}</h2>
-                    <p>
-                        {noResultsStateConfig.subtitle}{" "}
-                        <button
-                            type="button"
-                            className="tagged-tags-empty-action"
-                            onClick={() => setQuickSearchInput("")}
-                        >
-                            {noResultsStateConfig.actionLabel}
-                        </button>
-                        .
-                    </p>
-                    <img
-                        className="tagged-tags-empty-icon"
-                        src={noResultsStateConfig.iconSrc}
-                        alt=""
-                        aria-hidden="true"
-                    />
-                </article>
+                <EmptyState
+                    title={noResultsStateConfig.title}
+                    icon={noResultsStateConfig.icon}
+                    placement="section"
+                    actionLabel={noResultsStateConfig.actionLabel}
+                    onAction={() => setQuickSearchInput("")}
+                />
             ) : null}
 
             {!loading && !error && filteredItems.length > 0 ? (
@@ -762,9 +732,11 @@ export const MetadataPage = () => {
                                                     {isTagManager ? (
                                                         <span
                                                             className="tagged-tags-item-color"
-                                                            style={{
-                                                                backgroundColor: normalizeHexColor(item.tagcolor_hex),
-                                                            }}
+                                                            style={
+                                                                isDefaultTagColor(item.tagcolor_hex)
+                                                                    ? buildDefaultTagStyle()
+                                                                    : { backgroundColor: normalizeHexColor(item.tagcolor_hex) }
+                                                            }
                                                             aria-hidden="true"
                                                         />
                                                     ) : null}
@@ -886,42 +858,15 @@ export const MetadataPage = () => {
                 </div>
             ) : null}
 
-            {isDeleteConfirmOpen ? (
-                <div
-                    className="tagged-gallery-confirm-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-tags-delete-title"
-                    aria-describedby="tagged-tags-delete-description"
-                    onClick={closeDeleteConfirm}
-                >
-                    <div className="tagged-gallery-confirm-modal-content" onClick={(event) => event.stopPropagation()}>
-                        <h2 id="tagged-tags-delete-title">
-                            Are you sure you want delete <span className="tagged-gallery-confirm-count">1</span>{" "}
-                            {activeConfig.deleteEntityLabel}?
-                        </h2>
-                        <p id="tagged-tags-delete-description">This action can not be undone</p>
-                        <div className="tagged-gallery-confirm-actions">
-                            <button
-                                type="button"
-                                className="tagged-gallery-confirm-continue"
-                                onClick={handleDeleteItem}
-                                disabled={isDeletingItem}
-                            >
-                                Continue
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-gallery-confirm-cancel"
-                                onClick={closeDeleteConfirm}
-                                disabled={isDeletingItem}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                title={"Delete this " + activeConfig.deleteEntityLabel + "?"}
+                description="This item will be permanently removed. This action cannot be undone."
+                confirmLabel={"Delete " + activeConfig.deleteEntityLabel}
+                isDeleting={isDeletingItem}
+                onConfirm={handleDeleteItem}
+                onClose={closeDeleteConfirm}
+            />
         </section>
     );
 };

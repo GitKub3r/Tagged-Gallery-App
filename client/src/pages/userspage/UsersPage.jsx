@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { faUsers } from "@fortawesome/free-solid-svg-icons";
+import { useLocation, useNavigate } from "react-router-dom";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useAuth } from "../../hooks/useAuth";
 import "./UsersPage.css";
 
@@ -25,7 +28,6 @@ const parseApiResponse = async (response, fallbackMessage) => {
         };
     }
 };
-
 const formatDate = (value) => {
     if (!value) {
         return "-";
@@ -73,6 +75,7 @@ const getRoleBadgeData = (type) => {
 export const UsersPage = () => {
     const { user, fetchWithAuth } = useAuth();
     const location = useLocation();
+    const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
@@ -368,16 +371,24 @@ export const UsersPage = () => {
             ) : null}
 
             {sortedUsers.length === 0 ? (
-                <article className="tagged-app-page-card tagged-users-empty-card" aria-live="polite">
-                    <h2>No users available</h2>
-                    <p>There are no user accounts to display yet.</p>
-                    <img className="tagged-users-empty-icon" src="/icons/users.svg" alt="" aria-hidden="true" />
-                </article>
+                <EmptyState
+                    title="No users available"
+                    icon={faUsers}
+                    placement="section"
+                    actionLabel="Reload users"
+                    onAction={() => window.location.reload()}
+                />
             ) : filteredUsers.length === 0 ? (
-                <article className="tagged-app-page-card tagged-users-status-card" aria-live="polite">
-                    <h2>No users found</h2>
-                    <p>Try another username or clear the active role filter.</p>
-                </article>
+                <EmptyState
+                    title="No users found"
+                    icon={faUsers}
+                    placement="section"
+                    actionLabel="Clear filters"
+                    onAction={() => {
+                        setSearchQuery("");
+                        navigate("/users");
+                    }}
+                />
             ) : (
                 <section className="tagged-users-grid" aria-label="Admin users list">
                     {filteredUsers.map((listedUser) => {
@@ -540,47 +551,17 @@ export const UsersPage = () => {
                 </section>
             ) : null}
 
-            {deleteConfirmUser ? (
-                <section
-                    className="tagged-users-confirm-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-users-confirm-title"
-                    aria-describedby="tagged-users-confirm-description"
-                    onClick={closeDeleteUserConfirm}
-                >
-                    <article
-                        className="tagged-users-confirm-modal-content"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <h2 id="tagged-users-confirm-title">Delete user?</h2>
-                        <p id="tagged-users-confirm-description">
-                            This action will permanently remove{" "}
-                            <strong>{deleteConfirmUser.username || "this user"}</strong>.
-                        </p>
-
-                        <div className="tagged-users-confirm-modal-actions">
-                            <button
-                                type="button"
-                                className="tagged-user-action-button tagged-user-action-button--ghost"
-                                onClick={closeDeleteUserConfirm}
-                                disabled={Boolean(deletingUserId)}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-user-action-button tagged-user-action-button--danger"
-                                onClick={() => handleDeleteUser(deleteConfirmUser.id)}
-                                disabled={Boolean(deletingUserId)}
-                            >
-                                <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                                <span>{deletingUserId ? "Deleting..." : "Delete user"}</span>
-                            </button>
-                        </div>
-                    </article>
-                </section>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={Boolean(deleteConfirmUser)}
+                title="Delete this user?"
+                description={deleteConfirmUser
+                    ? "The account " + (deleteConfirmUser.username || "selected") + " will be permanently removed."
+                    : ""}
+                confirmLabel="Delete user"
+                isDeleting={Boolean(deletingUserId)}
+                onConfirm={() => deleteConfirmUser && handleDeleteUser(deleteConfirmUser.id)}
+                onClose={closeDeleteUserConfirm}
+            />
         </section>
     );
 };

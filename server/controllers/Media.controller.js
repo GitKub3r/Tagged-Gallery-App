@@ -5,7 +5,7 @@ class MediaController {
     static async getAll(req, res) {
         try {
             const { page = 1, limit = 20 } = req.query;
-            const result = await MediaService.getAll(req.user, page, limit);
+            const result = await MediaService.getAll(req.user, page, limit, req.query);
             return res.json(result);
         } catch (error) {
             console.error("Error in MediaController.getAll:", error);

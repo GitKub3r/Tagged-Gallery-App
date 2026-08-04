@@ -11,6 +11,13 @@
     --tagged-accent-color: #643aff;
     --tagged-accent-rgb: 100, 58, 255;
 
+    --tagged-default-tag-background: rgba(23, 23, 23, 0.08);
+    --tagged-default-tag-text: #262626;
+    --tagged-default-tag-border: rgba(23, 23, 23, 0.28);
+    --tagged-default-tag-dark-background: rgba(255, 255, 255, 0.1);
+    --tagged-default-tag-dark-text: #d4d4d4;
+    --tagged-default-tag-dark-border: rgba(255, 255, 255, 0.28);
+
     --tagged-text-color: #2e2e2e;
     --tagged-text-color-alt: #ececec;
     --tagged-text-color-muted: #94a3b8;
@@ -120,6 +127,10 @@
 
     --tagged-accent-color: #805dff;
     --tagged-accent-rgb: 128, 93, 255;
+
+    --tagged-default-tag-background: rgba(255, 255, 255, 0.1);
+    --tagged-default-tag-text: #d4d4d4;
+    --tagged-default-tag-border: rgba(255, 255, 255, 0.28);
 
     --tagged-text-color: #d0d0e0;
     --tagged-text-color-alt: #16161e;

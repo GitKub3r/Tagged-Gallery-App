@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { faListCheck, faMagnifyingGlass } from "@fortawesome/free-solid-svg-icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useAuth } from "../../hooks/useAuth";
 import "./ActionsPage.css";
 
@@ -465,16 +468,21 @@ export const ActionsPage = () => {
             ) : null}
 
             {actions.length === 0 ? (
-                <article className="tagged-app-page-card tagged-actions-empty-card" aria-live="polite">
-                    <h2>No actions available</h2>
-                    <p>Create your first action to start organizing audit events.</p>
-                    <img className="tagged-actions-empty-icon" src="/icons/logs.svg" alt="" aria-hidden="true" />
-                </article>
+                <EmptyState
+                    title="No actions available"
+                    icon={faListCheck}
+                    placement="section"
+                    actionLabel="Create action"
+                    onAction={openCreateEditor}
+                />
             ) : filteredActions.length === 0 ? (
-                <article className="tagged-app-page-card tagged-actions-status-card" aria-live="polite">
-                    <h2>No matching actions</h2>
-                    <p>Try another search term.</p>
-                </article>
+                <EmptyState
+                    title="No matching actions"
+                    icon={faMagnifyingGlass}
+                    placement="section"
+                    actionLabel="Clear search"
+                    onAction={() => setSearchQuery("")}
+                />
             ) : renderMode === "table" ? (
                 <section className="tagged-actions-table-wrap" aria-label="Actions table">
                     <table className="tagged-actions-table">
@@ -669,44 +677,17 @@ export const ActionsPage = () => {
                 </section>
             ) : null}
 
-            {deleteConfirmAction ? (
-                <section
-                    className="tagged-actions-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-actions-delete-title"
-                    onClick={closeDeleteConfirm}
-                >
-                    <article
-                        className="tagged-actions-delete-modal-content"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <h2 id="tagged-actions-delete-title">Delete action?</h2>
-                        <p>
-                            This will delete <strong>{deleteConfirmAction.actionname || "this action"}</strong> if it is
-                            not used by history logs.
-                        </p>
-                        <div className="tagged-actions-form-actions">
-                            <button
-                                type="button"
-                                className="tagged-actions-secondary"
-                                onClick={closeDeleteConfirm}
-                                disabled={Boolean(deletingActionId)}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-actions-danger"
-                                onClick={() => handleDeleteAction(deleteConfirmAction.id)}
-                                disabled={Boolean(deletingActionId)}
-                            >
-                                {deletingActionId ? "Deleting..." : "Delete action"}
-                            </button>
-                        </div>
-                    </article>
-                </section>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={Boolean(deleteConfirmAction)}
+                title="Delete this action?"
+                description={deleteConfirmAction
+                    ? (deleteConfirmAction.actionname || "This action") + " will be removed if it is not referenced by history logs."
+                    : ""}
+                confirmLabel="Delete action"
+                isDeleting={Boolean(deletingActionId)}
+                onConfirm={() => deleteConfirmAction && handleDeleteAction(deleteConfirmAction.id)}
+                onClose={closeDeleteConfirm}
+            />
         </section>
     );
 };
