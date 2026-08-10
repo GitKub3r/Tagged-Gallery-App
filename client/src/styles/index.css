@@ -31,62 +31,6 @@ body {
     }
 }
 
-@keyframes tagged-wip-cube-roll {
-    0% {
-        transform: rotate(0deg);
-    }
-    18%,
-    25% {
-        transform: rotate(90deg);
-    }
-    43%,
-    50% {
-        transform: rotate(180deg);
-    }
-    68%,
-    75% {
-        transform: rotate(270deg);
-    }
-    93%,
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes tagged-wip-dust-puff-left {
-    0%,
-    66% {
-        opacity: 0;
-        transform: translate(0, 0) scale(0.35);
-    }
-    72% {
-        opacity: 0.75;
-        transform: translate(-0.15rem, -0.1rem) scale(0.7);
-    }
-    84%,
-    100% {
-        opacity: 0;
-        transform: translate(-1.1rem, -0.45rem) scale(1.15);
-    }
-}
-
-@keyframes tagged-wip-dust-puff-right {
-    0%,
-    66% {
-        opacity: 0;
-        transform: translate(0, 0) scale(0.35);
-    }
-    72% {
-        opacity: 0.75;
-        transform: translate(0.15rem, -0.1rem) scale(0.7);
-    }
-    84%,
-    100% {
-        opacity: 0;
-        transform: translate(1.1rem, -0.45rem) scale(1.15);
-    }
-}
-
 .tagged-login-orb {
     animation: tagged-login-drift 11s ease-in-out infinite;
 }
@@ -155,40 +99,11 @@ body {
     background: rgba(82, 82, 82, 0.44);
 }
 
-.tagged-wip-cube {
-    animation: tagged-wip-cube-roll 4s linear infinite;
-    transform-origin: center;
-    will-change: transform;
-}
-
-.tagged-wip-dust {
-    animation-duration: 1s;
-    animation-iteration-count: infinite;
-    animation-timing-function: ease-out;
-    will-change: opacity, transform;
-}
-
-.tagged-wip-dust--left {
-    animation-name: tagged-wip-dust-puff-left;
-    box-shadow:
-        0.55rem 0.15rem rgba(163, 163, 163, 0.55),
-        0.25rem -0.4rem rgba(163, 163, 163, 0.42);
-}
-
-.tagged-wip-dust--right {
-    animation-name: tagged-wip-dust-puff-right;
-    box-shadow:
-        -0.55rem 0.15rem rgba(163, 163, 163, 0.55),
-        -0.25rem -0.4rem rgba(163, 163, 163, 0.42);
-}
-
 @media (prefers-reduced-motion: reduce) {
     .tagged-login-orb,
     .tagged-login-orb--reverse,
     .tagged-shell-content::before,
-    .tagged-shell-content::after,
-    .tagged-wip-cube,
-    .tagged-wip-dust {
+    .tagged-shell-content::after {
         animation: none;
     }
 }
