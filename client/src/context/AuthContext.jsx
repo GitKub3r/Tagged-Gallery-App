@@ -10,6 +10,7 @@ const defaultContextValue = {
     register: async () => {},
     login: async () => {},
     logout: async () => {},
+    updateCurrentUser: () => {},
     refreshAccessToken: async () => false,
     fetchWithAuth: async () => {},
     isAuthenticated: false,
@@ -170,6 +171,11 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const updateCurrentUser = (nextUser) => {
+        setUser(nextUser);
+        localStorage.setItem("user", JSON.stringify(nextUser));
+    };
+
     /**
      * Petición HTTP autenticada
      */
@@ -227,6 +233,7 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
+        updateCurrentUser,
         refreshAccessToken,
         fetchWithAuth,
         isAuthenticated: !!user,

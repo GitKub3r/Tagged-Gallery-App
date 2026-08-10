@@ -12,6 +12,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../../../components/icon-button/IconButton";
+import { ErrorToast } from "../../../components/toast/ErrorToast";
 
 const PAGE_BUTTON_CLASSES =
     "flex! h-9! w-9! items-center! justify-center! rounded-xl! border! border-neutral-300! bg-white! p-0! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-950! dark:text-neutral-300! dark:hover:bg-neutral-800!";
@@ -257,7 +258,7 @@ export const AddToAlbumModal = ({
                     </aside>
                 </form>
 
-                {error ? <p className="shrink-0 px-4 pb-2 text-sm font-semibold text-red-500 sm:px-5" role="alert">{error}</p> : null}
+                <ErrorToast message={error} />
 
                 <footer className="flex h-16 shrink-0 items-center justify-between gap-3 border-t border-neutral-200 px-4 dark:border-neutral-800 sm:px-6">
                     <button type="button" className="h-9! w-auto! border-0! bg-transparent! px-1! text-xs! font-semibold! text-neutral-500! shadow-none! hover:text-neutral-950! disabled:opacity-40! dark:text-neutral-400! dark:hover:text-white!" onClick={onClearAlbumSelection} disabled={isSaving || selectedAlbumIds.size === 0}>

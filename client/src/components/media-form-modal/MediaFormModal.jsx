@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/IconButton";
+import { ErrorToast } from "../toast/ErrorToast";
 
 export const mediaFormInputClasses =
     "h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600 dark:focus:border-neutral-500";
@@ -131,6 +132,6 @@ export const MediaMetadataFields = ({
             {selectedTags.length === 0 ? <span className="text-xs text-neutral-400 dark:text-neutral-600">No tags selected</span> : null}
         </div>
 
-        {error ? <p className="line-clamp-2 text-xs font-semibold text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
+        <ErrorToast message={error} />
     </div>
 );

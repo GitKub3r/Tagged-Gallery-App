@@ -1,7 +1,19 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { faClockRotateLeft } from "@fortawesome/free-solid-svg-icons";
+import {
+    faCalendarDay,
+    faCircleCheck,
+    faClockRotateLeft,
+    faCode,
+    faDatabase,
+    faMessage,
+    faRoute,
+    faUser,
+    faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
+import { UserAvatar } from "../../components/user-avatar/UserAvatar";
 import { useAuth } from "../../hooks/useAuth";
 import "./LogsPage.css";
 
@@ -341,13 +353,24 @@ export const LogsPage = () => {
     const [loading, setLoading] = useState(true);
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
     const [error, setError] = useState(null);
-    const [expandedRowId, setExpandedRowId] = useState(null);
     const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+    const [selectedLogEntry, setSelectedLogEntry] = useState(null);
     const [backupMode, setBackupMode] = useState("structure_only");
     const [isBackupDownloading, setIsBackupDownloading] = useState(false);
     const [downloadToast, setDownloadToast] = useState(null);
     const downloadToastTimeoutRef = useRef(null);
     const backupAbortControllerRef = useRef(null);
+
+    useEffect(() => {
+        if (!selectedLogEntry) return undefined;
+
+        const handleKeyDown = (event) => {
+            if (event.key === "Escape") setSelectedLogEntry(null);
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectedLogEntry]);
 
     const renderMode = useMemo(() => {
         const params = new URLSearchParams(location.search);
@@ -1099,22 +1122,21 @@ export const LogsPage = () => {
                                 <tbody>
                                     {logs.map((entry) => {
                                             const tone = getStatusTone(entry.status_code);
-                                            const hasMetadata = Boolean(entry.metadata);
-                                            const isExpanded = expandedRowId === entry.id;
                                             const dateParts = formatDateParts(entry.date);
 
                                             return (
-                                                <Fragment key={entry.id}>
                                                     <tr
-                                                        className={`tagged-logs-row tagged-logs-row--${tone}${isExpanded ? " is-expanded" : ""}`}
-                                                        onClick={() => {
-                                                            if (!hasMetadata) {
-                                                                return;
+                                                        key={entry.id}
+                                                        className={`tagged-logs-row tagged-logs-row--${tone} cursor-pointer transition-colors hover:bg-neutral-100 focus-visible:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-neutral-500 dark:hover:bg-neutral-800/70 dark:focus-visible:bg-neutral-800/70`}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        aria-label={`Open details for ${entry.actionname || entry.action_code || "log event"}`}
+                                                        onClick={() => setSelectedLogEntry(entry)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === "Enter" || event.key === " ") {
+                                                                event.preventDefault();
+                                                                setSelectedLogEntry(entry);
                                                             }
-
-                                                            setExpandedRowId((current) =>
-                                                                current === entry.id ? null : entry.id,
-                                                            );
                                                         }}
                                                     >
                                                         <td className="tagged-logs-date-cell">
@@ -1131,7 +1153,7 @@ export const LogsPage = () => {
                                                                 <span>{entry.action_code || "-"}</span>
                                                             </div>
                                                         </td>
-                                                        <td>{entry.username || `User #${entry.userid || "-"}`}</td>
+                                                        <td><UserAvatar username={entry.username || `User #${entry.userid || "-"}`} avatarPath={entry.avatar_path} size="sm" /></td>
                                                         <td>
                                                             <span
                                                                 className={`tagged-logs-status tagged-logs-status--${tone}`}
@@ -1154,15 +1176,6 @@ export const LogsPage = () => {
                                                             {renderMessageWithHighlightedPaths(entry.message, "-")}
                                                         </td>
                                                     </tr>
-
-                                                    {hasMetadata && isExpanded ? (
-                                                        <tr className="tagged-logs-metadata-row">
-                                                            <td colSpan={7}>
-                                                                <pre>{JSON.stringify(entry.metadata, null, 2)}</pre>
-                                                            </td>
-                                                        </tr>
-                                                    ) : null}
-                                                </Fragment>
                                             );
                                         })}
                                 </tbody>
@@ -1177,7 +1190,17 @@ export const LogsPage = () => {
                                 return (
                                     <article
                                         key={entry.id}
-                                        className={`tagged-logs-event-card tagged-logs-event-card--${tone}`}
+                                        className={`tagged-logs-event-card tagged-logs-event-card--${tone} cursor-pointer transition-[transform,background-color,border-color] duration-200 ease-out hover:-translate-y-0.5 hover:scale-101 hover:bg-white hover:shadow-lg focus-visible:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 motion-reduce:transform-none motion-reduce:transition-none dark:hover:bg-neutral-800`}
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`Open details for ${entry.actionname || entry.action_code || "log event"}`}
+                                        onClick={() => setSelectedLogEntry(entry)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter" || event.key === " ") {
+                                                event.preventDefault();
+                                                setSelectedLogEntry(entry);
+                                            }
+                                        }}
                                     >
                                         <div className="tagged-logs-event-card-head">
                                             <strong>{entry.actionname || entry.action_code || "Unknown action"}</strong>
@@ -1187,7 +1210,7 @@ export const LogsPage = () => {
                                         </div>
                                         <p className="tagged-logs-event-card-meta">
                                             <span className="tagged-logs-event-card-date-user">
-                                                {dateParts.date} · {entry.username || `User #${entry.userid || "-"}`}
+                                                <span>{dateParts.date}</span><UserAvatar username={entry.username || `User #${entry.userid || "-"}`} avatarPath={entry.avatar_path} size="sm" />
                                             </span>
                                             <span className="tagged-logs-event-card-time">{dateParts.time}</span>
                                         </p>
@@ -1427,6 +1450,61 @@ export const LogsPage = () => {
                         </>
                     ) : null}
                 </aside>
+            ) : null}
+
+            {selectedLogEntry ? (
+                <div
+                    className="fixed inset-0 z-[1300] grid place-items-center bg-black/75 p-4 backdrop-blur-sm"
+                    role="presentation"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) setSelectedLogEntry(null);
+                    }}
+                >
+                    <article className="grid max-h-[calc(100dvh-2rem)] w-full max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100" role="dialog" aria-modal="true" aria-labelledby="tagged-log-detail-title">
+                        <header className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4 dark:border-neutral-800">
+                            <div className="min-w-0">
+                                <p className="m-0 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Log event</p>
+                                <h2 id="tagged-log-detail-title" className="mt-1 truncate text-xl font-bold tracking-tight">{selectedLogEntry.actionname || selectedLogEntry.action_code || "Unknown action"}</h2>
+                            </div>
+                            <button type="button" className="grid! h-10! w-10! shrink-0! place-items-center! rounded-xl! border! border-neutral-300! bg-transparent! p-0! text-neutral-600! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!" onClick={() => setSelectedLogEntry(null)} aria-label="Close log details" autoFocus>
+                                <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
+                            </button>
+                        </header>
+
+                        <div className="min-h-0 overflow-y-auto p-5">
+                            <dl className="m-0 divide-y divide-neutral-200 dark:divide-neutral-800">
+                                {[
+                                    ["Date", `${formatDateParts(selectedLogEntry.date).date} · ${formatDateParts(selectedLogEntry.date).time}`, faCalendarDay, false],
+                                    ["User", selectedLogEntry.username || `User #${selectedLogEntry.userid || "-"}`, faUser, false],
+                                    ["Status", selectedLogEntry.status_code || "-", faCircleCheck, false],
+                                    ["Method", selectedLogEntry.request_method || "-", faCode, false],
+                                    ["Path", selectedLogEntry.request_path || "-", faRoute, true],
+                                    ["Message", selectedLogEntry.message || "No message", faMessage, false],
+                                ].map(([label, value, icon, breakAll]) => (
+                                    <div key={label} className="flex flex-col gap-1 py-3 first:pt-0 sm:flex-row sm:items-start sm:gap-6">
+                                        <dt className="flex w-28 shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+                                            <FontAwesomeIcon icon={icon} className="w-4" aria-hidden="true" />
+                                            <span>{label}</span>
+                                        </dt>
+                                        <dd className={`m-0 min-w-0 flex-1 text-sm leading-5 ${breakAll ? "break-all font-bold" : "break-words font-semibold"}`}>
+                                            {label === "Status" ? (
+                                                <span className={`tagged-logs-status tagged-logs-status--${getStatusTone(selectedLogEntry.status_code)}`}>{value}</span>
+                                            ) : label === "Method" ? (
+                                                <span className="tagged-logs-method">{value}</span>
+                                            ) : label === "User" ? (
+                                                <span className="inline-flex items-center gap-2"><UserAvatar username={value} avatarPath={selectedLogEntry.avatar_path} size="sm" />{value}</span>
+                                            ) : value}
+                                        </dd>
+                                    </div>
+                                ))}
+                            </dl>
+                            <section className="mt-5" aria-label="Event metadata">
+                                <h3 className="mb-2 flex items-center gap-2 text-sm font-bold"><FontAwesomeIcon icon={faDatabase} className="text-neutral-500 dark:text-neutral-400" aria-hidden="true" />Metadata</h3>
+                                {selectedLogEntry.metadata ? <pre className="m-0 overflow-x-auto rounded-xl bg-neutral-950 p-4 text-xs leading-5 text-neutral-200">{JSON.stringify(selectedLogEntry.metadata, null, 2)}</pre> : <p className="m-0 rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">No metadata available for this event.</p>}
+                            </section>
+                        </div>
+                    </article>
+                </div>
             ) : null}
 
             {isBackupModalOpen ? (

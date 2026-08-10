@@ -42,7 +42,7 @@ const LoginField = ({ icon, label, name, type, value, onChange, autoComplete, ac
 
 export const HomePage = () => {
     const navigate = useNavigate();
-    const { login, error: authError, isAuthenticated, user } = useAuth();
+    const { login, isAuthenticated, user } = useAuth();
     const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute("data-theme") !== "light");
     const [showPassword, setShowPassword] = useState(false);
     const [rememberedEmail] = useState(() => localStorage.getItem(REMEMBERED_LOGIN_EMAIL_STORAGE_KEY) || "");
@@ -161,12 +161,6 @@ export const HomePage = () => {
                                     Remember me
                                 </label>
                             </div>
-
-                            {authError ? (
-                                <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300" role="alert">
-                                    {authError}
-                                </p>
-                            ) : null}
 
                             <button
                                 className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-neutral-950 bg-neutral-950 px-5 text-sm font-bold text-white hover:scale-100 hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-wait disabled:opacity-60 dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-white"

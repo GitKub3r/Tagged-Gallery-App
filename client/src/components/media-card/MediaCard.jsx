@@ -213,7 +213,7 @@ export const MediaCard = ({
 
     return (
         <article
-            className="group relative w-full cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-500"
+            className="group relative w-full cursor-pointer transition-transform duration-200 ease-out hover:scale-105 motion-reduce:transition-none motion-reduce:hover:scale-100 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-neutral-500"
             aria-label={`Media ${mediaTitle}`}
             role="button"
             tabIndex={0}

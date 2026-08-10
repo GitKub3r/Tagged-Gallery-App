@@ -180,6 +180,7 @@ class HistoryModel {
                 a.actionname,
                 h.userid,
                 u.username,
+                u.avatar_path,
                 h.status_code,
                 h.message,
                 h.request_method,

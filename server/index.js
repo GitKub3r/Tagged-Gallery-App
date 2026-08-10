@@ -8,6 +8,7 @@ const { connectDB } = require("./config/database");
 const routes = require("./routes");
 const { ensureUploadDirs } = require("./middlewares/upload.middleware");
 const AuditService = require("./services/Audit.service");
+const UserModel = require("./models/User.model");
 
 const app = express();
 
@@ -57,6 +58,7 @@ const startServer = async () => {
     try {
         // Conectar a la base de datos primero
         await connectDB();
+        await UserModel.ensureAvatarColumn();
 
         // Si la conexión fue exitosa, iniciar el servidor
         const port = process.env.PORT || 4000;

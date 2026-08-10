@@ -508,7 +508,7 @@ export const DashboardPage = () => {
                                     dataKey="monthLabel"
                                     tickLine={false}
                                     axisLine={false}
-                                    tick={{ fill: "#555555", fontSize: 11 }}
+                                    tick={{ fill: "#a3a3a3", fontSize: 11 }}
                                     interval={0}
                                     minTickGap={0}
                                     tickMargin={8}
@@ -516,12 +516,12 @@ export const DashboardPage = () => {
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
-                                    tick={{ fill: "#555555", fontSize: 11 }}
+                                    tick={{ fill: "#a3a3a3", fontSize: 11 }}
                                     width={32}
                                     allowDecimals={false}
                                 />
-                                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(100, 58, 255, 0.04)" }} />
-                                <Bar dataKey="uploads" radius={[10, 10, 0, 0]} fill="#643aff" maxBarSize={42} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(115, 115, 115, 0.08)" }} />
+                                <Bar dataKey="uploads" radius={[10, 10, 0, 0]} fill="#a3a3a3" maxBarSize={42} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>

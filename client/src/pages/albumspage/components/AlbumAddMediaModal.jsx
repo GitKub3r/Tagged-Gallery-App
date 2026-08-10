@@ -15,6 +15,7 @@ import {
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { ErrorToast } from "../../../components/toast/ErrorToast";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../../../components/icon-button/IconButton";
@@ -189,7 +190,7 @@ export const AlbumAddMediaModal = ({
                     </aside>
                 </form>
 
-                {error ? <p className="shrink-0 px-4 pb-2 text-sm font-semibold text-red-500 sm:px-5" role="alert">{error}</p> : null}
+                <ErrorToast message={error} />
                 <footer className="flex h-16 shrink-0 items-center justify-between gap-3 border-t border-neutral-200 px-4 dark:border-neutral-800 sm:px-6">
                     <button type="button" className="h-9! w-auto! border-0! bg-transparent! px-1! text-xs! font-semibold! text-neutral-500! shadow-none! hover:text-neutral-950! disabled:opacity-40! dark:text-neutral-400! dark:hover:text-white!" onClick={onClearSelection} disabled={isSaving || selectedMediaIds.size === 0}>Clear selection</button>
                     <div className="flex items-center gap-2">

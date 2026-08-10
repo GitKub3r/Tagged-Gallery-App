@@ -16,6 +16,7 @@ CREATE TABLE users (
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL, -- hash
     type ENUM('admin', 'basic') NOT NULL DEFAULT 'basic',
+    avatar_path VARCHAR(500) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -207,6 +208,10 @@ VALUES
     ('Upload media', 'MEDIA_UPLOAD_SINGLE', 'Upload one media file', TRUE),
     ('Upload multiple media', 'MEDIA_UPLOAD_MANY', 'Upload multiple media files', TRUE),
     ('Edit media', 'MEDIA_UPDATE', 'Update media metadata', TRUE),
+    ('Update profile details', 'PROFILE_UPDATE', 'Update own username or email', TRUE),
+    ('Update profile image', 'PROFILE_AVATAR_UPDATE', 'Replace own profile image', TRUE),
+    ('Remove profile image', 'PROFILE_AVATAR_RESET', 'Remove own profile image', TRUE),
+    ('Change account password', 'PROFILE_PASSWORD_UPDATE', 'Change own account password', TRUE),
     ('Delete media', 'MEDIA_DELETE', 'Delete one media item', TRUE),
     ('Delete multiple media', 'MEDIA_DELETE_MANY', 'Delete multiple media items', TRUE),
     ('Create album', 'ALBUM_CREATE', 'Create a new album', TRUE),

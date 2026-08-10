@@ -30,4 +30,11 @@ export const authApi = {
     async logout(refreshToken) {
         await apiClient.post("/auth/logout", { refreshToken });
     },
+
+    async logoutAll(accessToken) {
+        const { data } = await apiClient.post("/auth/logout-all", {}, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        return data;
+    },
 };

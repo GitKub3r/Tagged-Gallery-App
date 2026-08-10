@@ -7,10 +7,8 @@ import {
     faBars,
     faChartColumn,
     faCloudArrowUp,
-    faFilm,
     faFolderOpen,
     faHeart,
-    faImage,
     faImages,
     faListCheck,
     faMinus,
@@ -20,20 +18,17 @@ import {
     faScroll,
     faSearch,
     faSun,
-    faTableCellsLarge,
     faTags,
     faUser,
     faUsers,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { NavLink, useLocation, useMatch, useNavigate } from "react-router-dom";
+import { NavLink, useMatch, useNavigate } from "react-router-dom";
 import { sidebarApi } from "../../api/sidebarApi";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 
 const OPEN_UPLOAD_EVENT = "tagged:open-upload";
-const GENERAL_FILTER_COMMAND_EVENT = "tagged:general-filter-command";
-const GENERAL_FILTER_STATE_EVENT = "tagged:general-filter-state";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "tagged:sidebar-collapsed";
 
 const navItems = [
@@ -70,22 +65,16 @@ export const Sidebar = () => {
     );
     const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute("data-theme") !== "light");
     const [tagPanelSearch, setTagPanelSearch] = useState("");
-    const [generalMediaTypeFilter, setGeneralMediaTypeFilter] = useState("all");
     const navigate = useNavigate();
-    const location = useLocation();
     const isMediaDetailView = Boolean(useMatch("/gallery/:mediaId"));
     const isMetadataView = Boolean(useMatch("/metadata"));
     const isDashboardView = Boolean(useMatch("/dashboard"));
     const isLegacyTagsView = Boolean(useMatch("/tags"));
     const isAlbumsView = Boolean(useMatch("/albums"));
     const isAlbumDetailView = Boolean(useMatch("/albums/:albumId"));
-    const isGalleryView = location.pathname.startsWith("/gallery");
-    const isFavouritesView = location.pathname.startsWith("/favourites");
-    const isUsersView = location.pathname.startsWith("/users");
     const isTagsView = isMetadataView || isLegacyTagsView;
     const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView || isAlbumDetailView || isDashboardView;
     const shouldShowTagPanel = !isMetadataView && !isLegacyTagsView && !isDashboardView;
-    const shouldShowGeneralFilters = !isMediaDetailView && (isGalleryView || isFavouritesView || isAlbumDetailView);
     const { user, logout, accessToken } = useAuth();
     const {
         selectedIncludeFilterTags,
@@ -108,20 +97,6 @@ export const Sidebar = () => {
         const query = tagPanelSearch.trim().toLowerCase();
         return query ? allTagNames.filter((name) => name.toLowerCase().includes(query)) : allTagNames;
     }, [allTagNames, tagPanelSearch]);
-
-    const adminRoleFilter = useMemo(() => {
-        if (!isUsersView) return "all";
-        const role = String(new URLSearchParams(location.search).get("role") || "").toLowerCase();
-        return role === "admin" || role === "basic" ? role : "all";
-    }, [isUsersView, location.search]);
-
-    useEffect(() => {
-        const handleGeneralFilterState = (event) => {
-            setGeneralMediaTypeFilter(event?.detail?.mediaTypeFilter || "all");
-        };
-        window.addEventListener(GENERAL_FILTER_STATE_EVENT, handleGeneralFilterState);
-        return () => window.removeEventListener(GENERAL_FILTER_STATE_EVENT, handleGeneralFilterState);
-    }, []);
 
     useEffect(() => {
         if (!isOpen) return undefined;
@@ -151,23 +126,6 @@ export const Sidebar = () => {
 
     const handleOpenUploadModal = () => {
         window.dispatchEvent(new Event(OPEN_UPLOAD_EVENT));
-        closeMobileSidebar();
-    };
-
-    const handleToggleGeneralMediaType = (type) => {
-        window.dispatchEvent(
-            new CustomEvent(GENERAL_FILTER_COMMAND_EVENT, {
-                detail: { type: "toggle-media-type", mediaType: type },
-            }),
-        );
-    };
-
-    const handleAdminRoleFilter = (role) => {
-        const nextRole = adminRoleFilter === role ? "all" : role;
-        const params = new URLSearchParams(location.search);
-        if (nextRole === "all") params.delete("role");
-        else params.set("role", nextRole);
-        navigate({ pathname: "/users", search: params.toString() ? `?${params.toString()}` : "" });
         closeMobileSidebar();
     };
 
@@ -310,44 +268,6 @@ export const Sidebar = () => {
                                     );
                                 })}
                             </ul>
-                        </section>
-                    ) : null}
-
-                    {user?.type !== "admin" && shouldShowGeneralFilters ? (
-                        <section className={`border-t border-neutral-200 pt-4 dark:border-neutral-800 ${compactOnlyClass}`} aria-label="General media filters">
-                            <p className="mb-3 text-xs font-black uppercase tracking-widest text-neutral-500">Media type</p>
-                            <div className="grid grid-cols-3 gap-2">
-                                {[
-                                    { type: "all", label: "All media", icon: faTableCellsLarge },
-                                    { type: "image", label: "Images", icon: faImage },
-                                    { type: "video", label: "Videos and GIFs", icon: faFilm },
-                                ].map((filter) => (
-                                    <button
-                                        key={filter.type}
-                                        type="button"
-                                        className={`flex h-10 items-center justify-center rounded-xl border p-0 ${generalMediaTypeFilter === filter.type ? "border-neutral-500 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-950" : "border-neutral-300 bg-transparent text-neutral-500 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"}`}
-                                        onClick={() => handleToggleGeneralMediaType(filter.type)}
-                                        aria-pressed={generalMediaTypeFilter === filter.type}
-                                        aria-label={filter.label}
-                                        title={filter.label}
-                                    >
-                                        <FontAwesomeIcon icon={filter.icon} aria-hidden="true" />
-                                    </button>
-                                ))}
-                            </div>
-                        </section>
-                    ) : null}
-
-                    {user?.type === "admin" && isUsersView ? (
-                        <section className={`border-t border-neutral-200 pt-4 dark:border-neutral-800 ${compactOnlyClass}`} aria-label="User role filters">
-                            <p className="mb-3 text-xs font-black uppercase tracking-widest text-neutral-500">User role</p>
-                            <div className="grid grid-cols-2 gap-2">
-                                {["basic", "admin"].map((role) => (
-                                    <button key={role} type="button" className={`h-10 rounded-xl border px-3 text-sm capitalize ${adminRoleFilter === role ? "border-neutral-500 bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-950" : "border-neutral-300 bg-transparent text-neutral-600 dark:border-neutral-700 dark:text-neutral-300"}`} onClick={() => handleAdminRoleFilter(role)} aria-pressed={adminRoleFilter === role}>
-                                        {role}
-                                    </button>
-                                ))}
-                            </div>
                         </section>
                     ) : null}
 

@@ -1,872 +1,194 @@
-import { useEffect, useMemo, useState } from "react";
-import { faImage, faTags, faUsers } from "@fortawesome/free-solid-svg-icons";
-import { EmptyState } from "../../components/empty-state/EmptyState";
+import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+    faCopyright,
+    faImage,
+    faMagnifyingGlass,
+    faPen,
+    faPlus,
+    faTag,
+    faTrash,
+    faUser,
+    faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { metadataApi, metadataQueryKeys } from "../../api/metadataApi";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { ErrorToast } from "../../components/toast/ErrorToast";
+import { IconButton } from "../../components/icon-button/IconButton";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
-import "./TagsPage.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const DEFAULT_TAG_COLOR = "#643aff";
 
-const MANAGER_CONFIG = {
-    tags: {
-        title: "Tags",
-        subtitle: "Manage your tag collection.",
-        createLabel: "Create tag",
-        emptyTitle: "Thats not very 'Tagged' of you...",
-        emptySubtitle: "Create your first tag to start organizing media.",
-        loadingTitle: "Loading tags",
-        loadingSubtitle: "Fetching your tag collection.",
-        errorTitle: "Could not load tags",
-        editorCreateTitle: "Create Tag",
-        editorEditTitle: "Edit Tag",
-        editorCreateSubmit: "Create Tag",
-        editorEditSubmit: "Save Changes",
-        sectionAria: "Tags grouped from A to Z",
-        itemLabel: "tag(s)",
-        deleteEntityLabel: "tag",
-    },
-    displaynames: {
-        title: "Media Names",
-        subtitle: "Manage display names used in your media.",
-        createLabel: "Create media name",
-        emptyTitle: "You don't have a name?",
-        emptySubtitle: "Create your first media name to keep naming consistent.",
-        loadingTitle: "Loading media names",
-        loadingSubtitle: "Fetching your media names.",
-        errorTitle: "Could not load media names",
-        editorCreateTitle: "Create Media Name",
-        editorEditTitle: "Edit Media Name",
-        editorCreateSubmit: "Create Media Name",
-        editorEditSubmit: "Save Changes",
-        sectionAria: "Media names grouped from A to Z",
-        itemLabel: "name(s)",
-        deleteEntityLabel: "media name",
-    },
-    authors: {
-        title: "Authors",
-        subtitle: "Manage author names used in your media.",
-        createLabel: "Create author",
-        emptyTitle: "Keep those names rolling",
-        emptySubtitle: "Create your first author to keep your library clean.",
-        loadingTitle: "Loading authors",
-        loadingSubtitle: "Fetching your authors.",
-        errorTitle: "Could not load authors",
-        editorCreateTitle: "Create Author",
-        editorEditTitle: "Edit Author",
-        editorCreateSubmit: "Create Author",
-        editorEditSubmit: "Save Changes",
-        sectionAria: "Authors grouped from A to Z",
-        itemLabel: "author(s)",
-        deleteEntityLabel: "author",
-    },
-};
-const parseApiResponse = async (response, fallbackMessage) => {
-    const clonedResponse = response.clone();
-
-    try {
-        return await response.json();
-    } catch {
-        let bodyText = "";
-
-        try {
-            bodyText = (await clonedResponse.text()).trim();
-        } catch {
-            bodyText = "";
-        }
-
-        return {
-            success: false,
-            message: bodyText || fallbackMessage,
-        };
-    }
+const MANAGERS = {
+    tags: { label: "Tags", singular: "tag", icon: faTag, field: "tagname", create: "Create tag" },
+    displaynames: { label: "Media names", singular: "media name", icon: faImage, field: "value", create: "Create media name" },
+    authors: { label: "Authors", singular: "author", icon: faUser, field: "value", create: "Create author" },
 };
 
-const normalizeHexColor = (rawColor) => {
-    const color = String(rawColor || "").trim();
-
-    if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
-        return DEFAULT_TAG_COLOR;
-    }
-
-    return color.toLowerCase();
-};
-
-const normalizeValuesList = (list, fieldName) => {
-    if (!Array.isArray(list)) {
-        return [];
-    }
-
-    const deduped = new Set();
-
-    return list
-        .map((entry) => {
-            if (typeof entry === "string") {
-                return entry;
-            }
-
-            return String(entry?.[fieldName] || "");
-        })
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0)
-        .filter((value) => {
-            const key = value.toLowerCase();
-            if (deduped.has(key)) {
-                return false;
-            }
-            deduped.add(key);
-            return true;
-        })
-        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }));
-};
-
-const sortTags = (tagList) =>
-    [...tagList].sort((a, b) =>
-        String(a.tagname || "").localeCompare(String(b.tagname || ""), undefined, {
-            sensitivity: "base",
-            numeric: true,
-        }),
+const normalizeValues = (items, field) => {
+    const values = (Array.isArray(items) ? items : []).map((item) =>
+        typeof item === "string" ? item : String(item?.[field] || ""),
     );
-
-const truncateLabel = (value, maxChars = 15) => {
-    const text = String(value || "").trim();
-
-    if (text.length <= maxChars) {
-        return text;
-    }
-
-    return `${text.slice(0, maxChars)}...`;
+    return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }))
+        .map((value) => ({ id: value.toLowerCase(), value }));
 };
 
-const EMPTY_STATE_CONFIG = {
-    tags: {
-        title: "Thats not very 'Tagged' of you...",
-        actionLabel: "Create tag",
-        icon: faTags,
-    },
-    displaynames: {
-        title: "You don't have a name?",
-        actionLabel: "Create media name",
-        icon: faImage,
-    },
-    authors: {
-        title: "Keep those names rolling",
-        actionLabel: "Create author",
-        icon: faUsers,
-    },
-};
+const normalizeColor = (color) => (/^#[\da-f]{6}$/i.test(String(color)) ? String(color).toLowerCase() : DEFAULT_TAG_COLOR);
 
-const NO_RESULTS_STATE_CONFIG = {
-    tags: {
-        title: "No matching tags",
-        actionLabel: "Clear search",
-        icon: faTags,
-    },
-    displaynames: {
-        title: "No matching media names",
-        actionLabel: "Clear search",
-        icon: faImage,
-    },
-    authors: {
-        title: "No matching authors",
-        actionLabel: "Clear search",
-        icon: faUsers,
-    },
-};
+const inputClasses =
+    "h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600";
 
-const groupByFirstLetter = (items, getLabel) => {
-    const grouped = new Map();
+const MetadataEditor = ({ managerType, item, isSaving, error, onClose, onSave }) => {
+    const config = MANAGERS[managerType];
+    const [name, setName] = useState(managerType === "tags" ? String(item?.tagname || "") : String(item?.value || ""));
+    const [color, setColor] = useState(normalizeColor(item?.tagcolor_hex));
+    const [type, setType] = useState(item?.type === "copyright" ? "copyright" : "default");
 
-    for (const item of items) {
-        const firstChar = String(getLabel(item) || "")
-            .trim()
-            .charAt(0)
-            .toUpperCase();
-
-        const groupKey = /^[A-Z]$/.test(firstChar) ? firstChar : "#";
-
-        if (!grouped.has(groupKey)) {
-            grouped.set(groupKey, []);
-        }
-
-        grouped.get(groupKey).push(item);
-    }
-
-    return [...grouped.entries()].sort((a, b) => {
-        if (a[0] === "#") {
-            return 1;
-        }
-
-        if (b[0] === "#") {
-            return -1;
-        }
-
-        return a[0].localeCompare(b[0]);
-    });
+    return createPortal(
+        <div className="fixed inset-0 z-[1400] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="metadata-editor-title" onMouseDown={(event) => event.target === event.currentTarget && !isSaving && onClose()}>
+            <section className="w-full max-w-lg overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+                <header className="flex items-start justify-between gap-4 border-b border-neutral-200 px-5 py-4 dark:border-neutral-800">
+                    <div>
+                        <h2 id="metadata-editor-title" className="text-xl font-bold tracking-tight">{item ? `Edit ${config.singular}` : config.create}</h2>
+                        <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Keep library metadata clean and reusable.</p>
+                    </div>
+                    <IconButton onClick={onClose} disabled={isSaving} aria-label="Close editor"><FontAwesomeIcon icon={faXmark} /></IconButton>
+                </header>
+                <form className="space-y-4 p-5" onSubmit={(event) => { event.preventDefault(); onSave({ name: name.trim(), color: normalizeColor(color), type }); }}>
+                    <label className="block">
+                        <span className="mb-1.5 block text-sm font-semibold">{config.label.slice(0, -1)} name</span>
+                        <input className={inputClasses} value={name} onChange={(event) => setName(event.target.value)} placeholder={`Enter ${config.singular}`} required autoFocus />
+                    </label>
+                    {managerType === "tags" ? (
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <label className="block">
+                                <span className="mb-1.5 block text-sm font-semibold">Color</span>
+                                <div className="flex h-11 items-center gap-3 rounded-xl border border-neutral-300 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-950">
+                                    <input type="color" className="h-7 w-9 cursor-pointer rounded-xl border-0 bg-transparent p-0" value={color} onChange={(event) => setColor(event.target.value)} />
+                                    <span className="text-sm font-semibold uppercase text-neutral-500 dark:text-neutral-400">{color}</span>
+                                </div>
+                            </label>
+                            <label className="block">
+                                <span className="mb-1.5 block text-sm font-semibold">Type</span>
+                                <select className={inputClasses} value={type} onChange={(event) => setType(event.target.value)}>
+                                    <option value="default">Default</option><option value="copyright">Copyright</option>
+                                </select>
+                            </label>
+                        </div>
+                    ) : null}
+                    <ErrorToast message={error} />
+                    <footer className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+                        <button type="button" className="h-10! w-full! rounded-xl! border! border-neutral-300! bg-transparent! px-4! py-2! text-sm! font-semibold! text-neutral-600! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800! sm:w-auto!" onClick={onClose} disabled={isSaving}>Cancel</button>
+                        <button type="submit" className="h-10! w-full! rounded-xl! border-0! bg-neutral-950! px-4! py-2! text-sm! font-semibold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-50! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" disabled={isSaving || !name.trim()}>{isSaving ? "Saving..." : item ? "Save changes" : config.create}</button>
+                    </footer>
+                </form>
+            </section>
+        </div>, document.body,
+    );
 };
 
 export const MetadataPage = () => {
-    const { fetchWithAuth } = useAuth();
+    const { accessToken } = useAuth();
+    const queryClient = useQueryClient();
     const [managerType, setManagerType] = useState("tags");
-    const [tags, setTags] = useState([]);
-    const [displayNames, setDisplayNames] = useState([]);
-    const [authors, setAuthors] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [isEditorModalOpen, setIsEditorModalOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState(null);
-    const [isSavingItem, setIsSavingItem] = useState(false);
-    const [editorError, setEditorError] = useState(null);
-    const [tagNameInput, setTagNameInput] = useState("");
-    const [tagColorInput, setTagColorInput] = useState(DEFAULT_TAG_COLOR);
-    const [tagTypeInput, setTagTypeInput] = useState("default");
-    const [valueInput, setValueInput] = useState("");
-    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-    const [itemPendingDelete, setItemPendingDelete] = useState(null);
-    const [isDeletingItem, setIsDeletingItem] = useState(false);
-    const [expandedSections, setExpandedSections] = useState({});
-    const [quickSearchInput, setQuickSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+    const [editingItem, setEditingItem] = useState(undefined);
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [pendingDelete, setPendingDelete] = useState(null);
+    const config = MANAGERS[managerType];
 
-    const activeConfig = MANAGER_CONFIG[managerType];
-    const emptyStateConfig = EMPTY_STATE_CONFIG[managerType];
-    const noResultsStateConfig = NO_RESULTS_STATE_CONFIG[managerType];
-    const hasAnyManagedItems = tags.length > 0 || displayNames.length > 0 || authors.length > 0;
+    const metadataQuery = useQuery({
+        queryKey: metadataQueryKeys.all,
+        queryFn: () => metadataApi.getAll(accessToken),
+        enabled: Boolean(accessToken),
+    });
 
-    const currentItems = useMemo(() => {
-        if (managerType === "tags") {
-            return sortTags(tags);
-        }
+    const saveMutation = useMutation({
+        mutationFn: (values) => metadataApi.save({ managerType, item: editingItem, values, accessToken }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
+            setIsEditorOpen(false);
+            setEditingItem(undefined);
+        },
+    });
 
-        if (managerType === "displaynames") {
-            return displayNames.map((value) => ({ id: value, value }));
-        }
+    const deleteMutation = useMutation({
+        mutationFn: () => metadataApi.remove({ managerType, item: pendingDelete, accessToken }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
+            setPendingDelete(null);
+        },
+    });
 
-        return authors.map((value) => ({ id: value, value }));
-    }, [managerType, tags, displayNames, authors]);
-
-    const filteredItems = useMemo(() => {
-        const normalizedQuery = quickSearchInput.trim().toLowerCase();
-
-        if (!normalizedQuery) {
-            return currentItems;
-        }
-
-        return currentItems.filter((item) => {
-            const label = managerType === "tags" ? item.tagname : item.value;
-            return String(label || "")
-                .toLowerCase()
-                .includes(normalizedQuery);
-        });
-    }, [currentItems, quickSearchInput, managerType]);
-
-    const groupedItems = useMemo(() => {
-        return groupByFirstLetter(filteredItems, (item) => (managerType === "tags" ? item.tagname : item.value));
-    }, [filteredItems, managerType]);
-
-    const fetchTags = async () => {
-        const response = await fetchWithAuth(`${API_URL}/tags`, { method: "GET" });
-        const data = await parseApiResponse(response, "Could not load tags");
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not load tags");
-        }
-
-        return Array.isArray(data.data) ? sortTags(data.data) : [];
+    const counts = {
+        tags: metadataQuery.data?.tags?.length || 0,
+        displaynames: metadataQuery.data?.displayNames?.length || 0,
+        authors: metadataQuery.data?.authors?.length || 0,
     };
 
-    const fetchDisplayNames = async () => {
-        const response = await fetchWithAuth(`${API_URL}/media/displaynames`, { method: "GET" });
-        const data = await parseApiResponse(response, "Could not load media names");
+    const items = useMemo(() => {
+        if (!metadataQuery.data) return [];
+        const source = managerType === "tags"
+            ? [...(metadataQuery.data.tags || [])].sort((a, b) => String(a.tagname || "").localeCompare(String(b.tagname || ""), undefined, { sensitivity: "base", numeric: true }))
+            : normalizeValues(managerType === "displaynames" ? metadataQuery.data.displayNames : metadataQuery.data.authors, managerType === "displaynames" ? "displayname" : "author");
+        const query = search.trim().toLowerCase();
+        return query ? source.filter((item) => String(item[config.field] || "").toLowerCase().includes(query)) : source;
+    }, [config.field, managerType, metadataQuery.data, search]);
 
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not load media names");
-        }
-
-        return normalizeValuesList(data.data, "displayname");
-    };
-
-    const fetchAuthors = async () => {
-        const response = await fetchWithAuth(`${API_URL}/media/authors`, { method: "GET" });
-        const data = await parseApiResponse(response, "Could not load authors");
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not load authors");
-        }
-
-        return normalizeValuesList(data.data, "author");
-    };
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const loadAll = async () => {
-            try {
-                setLoading(true);
-                setError(null);
-
-                const [loadedTags, loadedDisplayNames, loadedAuthors] = await Promise.all([
-                    fetchTags(),
-                    fetchDisplayNames(),
-                    fetchAuthors(),
-                ]);
-
-                if (!cancelled) {
-                    setTags(loadedTags);
-                    setDisplayNames(loadedDisplayNames);
-                    setAuthors(loadedAuthors);
-                }
-            } catch (requestError) {
-                if (!cancelled) {
-                    setError(requestError.message || "Could not load data");
-                    setTags([]);
-                    setDisplayNames([]);
-                    setAuthors([]);
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        };
-
-        loadAll();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [fetchWithAuth]);
-
-    useEffect(() => {
-        setExpandedSections({});
-    }, [managerType]);
-
-    const closeEditorModal = () => {
-        if (isSavingItem) {
-            return;
-        }
-
-        setIsEditorModalOpen(false);
-        setEditingItem(null);
-        setEditorError(null);
-    };
-
-    const openCreateModal = () => {
-        setEditingItem(null);
-        setTagNameInput("");
-        setTagColorInput(DEFAULT_TAG_COLOR);
-        setTagTypeInput("default");
-        setValueInput("");
-        setEditorError(null);
-        setIsEditorModalOpen(true);
-    };
-
-    const openEditModal = (item) => {
-        if (!item) {
-            return;
-        }
-
-        setEditingItem(item);
-
-        if (managerType === "tags") {
-            setTagNameInput(String(item.tagname || ""));
-            setTagColorInput(normalizeHexColor(item.tagcolor_hex));
-            setTagTypeInput(item.type === "copyright" ? "copyright" : "default");
-        } else {
-            setValueInput(String(item.value || ""));
-        }
-
-        setEditorError(null);
-        setIsEditorModalOpen(true);
-    };
-
-    const openDeleteConfirm = (item) => {
-        if (!item) {
-            return;
-        }
-
-        setItemPendingDelete(item);
-        setIsDeleteConfirmOpen(true);
-    };
-
-    const closeDeleteConfirm = () => {
-        if (isDeletingItem) {
-            return;
-        }
-
-        setIsDeleteConfirmOpen(false);
-        setItemPendingDelete(null);
-    };
-
-    const handleTagSave = async () => {
-        const trimmedTagName = tagNameInput.trim();
-
-        if (!trimmedTagName) {
-            setEditorError("Tag name is required");
-            return false;
-        }
-
-        const normalizedColor = normalizeHexColor(tagColorInput);
-        const payload = {
-            tagname: trimmedTagName,
-            tagcolor_hex: normalizedColor,
-            type: tagTypeInput === "copyright" ? "copyright" : "default",
-        };
-
-        const isEditMode = Boolean(editingItem?.id);
-        const response = await fetchWithAuth(isEditMode ? `${API_URL}/tags/${editingItem.id}` : `${API_URL}/tags`, {
-            method: isEditMode ? "PUT" : "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        const data = await parseApiResponse(response, "Could not save tag");
-
-        if (!response.ok || !data.success || !data.data) {
-            throw new Error(data.message || "Could not save tag");
-        }
-
-        setTags((previous) => {
-            if (isEditMode) {
-                return sortTags(previous.map((tag) => (String(tag.id) === String(editingItem.id) ? data.data : tag)));
-            }
-
-            return sortTags([...previous, data.data]);
-        });
-
-        return true;
-    };
-
-    const handleValueSave = async () => {
-        const trimmedValue = valueInput.trim();
-
-        if (!trimmedValue) {
-            setEditorError("Value is required");
-            return false;
-        }
-
-        const isDisplayNameManager = managerType === "displaynames";
-        const isEditMode = Boolean(editingItem?.value);
-        const endpoint = isDisplayNameManager ? `${API_URL}/media/displaynames` : `${API_URL}/media/authors`;
-
-        const payload = isEditMode
-            ? {
-                  previousValue: editingItem.value,
-                  nextValue: trimmedValue,
-              }
-            : isDisplayNameManager
-              ? { displayname: trimmedValue }
-              : { author: trimmedValue };
-
-        const response = await fetchWithAuth(endpoint, {
-            method: isEditMode ? "PUT" : "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        const data = await parseApiResponse(response, "Could not save value");
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not save value");
-        }
-
-        if (isDisplayNameManager) {
-            setDisplayNames((previous) => {
-                const nextSet = new Set(previous.map((entry) => entry.trim()));
-
-                if (isEditMode) {
-                    nextSet.delete(editingItem.value.trim());
-                }
-
-                nextSet.add(trimmedValue);
-
-                return [...nextSet].sort((a, b) =>
-                    a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }),
-                );
-            });
-        } else {
-            setAuthors((previous) => {
-                const nextSet = new Set(previous.map((entry) => entry.trim()));
-
-                if (isEditMode) {
-                    nextSet.delete(editingItem.value.trim());
-                }
-
-                nextSet.add(trimmedValue);
-
-                return [...nextSet].sort((a, b) =>
-                    a.localeCompare(b, undefined, { sensitivity: "base", numeric: true }),
-                );
-            });
-        }
-
-        return true;
-    };
-
-    const handleItemSave = async (event) => {
-        event.preventDefault();
-
-        if (isSavingItem) {
-            return;
-        }
-
-        try {
-            setIsSavingItem(true);
-            setEditorError(null);
-
-            const didSave = managerType === "tags" ? await handleTagSave() : await handleValueSave();
-
-            if (didSave) {
-                closeEditorModal();
-            }
-        } catch (requestError) {
-            setEditorError(requestError.message || "Could not save value");
-        } finally {
-            setIsSavingItem(false);
-        }
-    };
-
-    const handleDeleteItem = async () => {
-        if (!itemPendingDelete || isDeletingItem) {
-            return;
-        }
-
-        try {
-            setIsDeletingItem(true);
-
-            if (managerType === "tags") {
-                const response = await fetchWithAuth(`${API_URL}/tags/${itemPendingDelete.id}`, {
-                    method: "DELETE",
-                });
-                const data = await parseApiResponse(response, "Could not delete tag");
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || "Could not delete tag");
-                }
-
-                setTags((previous) => previous.filter((tag) => String(tag.id) !== String(itemPendingDelete.id)));
-            } else {
-                const isDisplayNameManager = managerType === "displaynames";
-                const endpoint = isDisplayNameManager ? `${API_URL}/media/displaynames` : `${API_URL}/media/authors`;
-                const response = await fetchWithAuth(endpoint, {
-                    method: "DELETE",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ value: itemPendingDelete.value }),
-                });
-                const data = await parseApiResponse(response, "Could not delete value");
-
-                if (!response.ok || !data.success) {
-                    throw new Error(data.message || "Could not delete value");
-                }
-
-                if (isDisplayNameManager) {
-                    setDisplayNames((previous) =>
-                        previous.filter((value) => value.toLowerCase() !== itemPendingDelete.value.toLowerCase()),
-                    );
-                } else {
-                    setAuthors((previous) =>
-                        previous.filter((value) => value.toLowerCase() !== itemPendingDelete.value.toLowerCase()),
-                    );
-                }
-            }
-
-            closeDeleteConfirm();
-        } catch (requestError) {
-            setError(requestError.message || "Could not delete value");
-        } finally {
-            setIsDeletingItem(false);
-        }
-    };
-
-    const toggleSectionExpansion = (sectionKey) => {
-        setExpandedSections((previous) => ({
-            ...previous,
-            [sectionKey]: !previous[sectionKey],
-        }));
-    };
+    const openEditor = (item) => { saveMutation.reset(); setEditingItem(item); setIsEditorOpen(true); };
 
     return (
-        <section className="tagged-app-page tagged-tags-page">
-            {!loading && !error && hasAnyManagedItems ? (
-                <header className="tagged-tags-page-header tagged-tags-page-header--actions-only">
-                    <button type="button" className="tagged-tags-create-button" onClick={openCreateModal}>
-                        <img src="/icons/add.svg" alt="" aria-hidden="true" />
-                        <span>{activeConfig.createLabel}</span>
-                    </button>
-                </header>
-            ) : null}
-
-            {!loading && !error && hasAnyManagedItems ? (
-                <label className="tagged-tags-quick-search" aria-label="Search items">
-                    <input
-                        type="search"
-                        value={quickSearchInput}
-                        onChange={(event) => setQuickSearchInput(event.target.value)}
-                        placeholder="Search tags, media names or authors..."
-                    />
-                </label>
-            ) : null}
-
-            {!loading && !error && hasAnyManagedItems ? (
-                <div className="tagged-tags-manager-switch" role="tablist" aria-label="Tag managers">
-                    <button
-                        type="button"
-                        role="tab"
-                        className={managerType === "tags" ? "is-active" : ""}
-                        onClick={() => setManagerType("tags")}
-                        aria-selected={managerType === "tags"}
-                    >
-                        Tags
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        className={managerType === "displaynames" ? "is-active" : ""}
-                        onClick={() => setManagerType("displaynames")}
-                        aria-selected={managerType === "displaynames"}
-                    >
-                        Media Names
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        className={managerType === "authors" ? "is-active" : ""}
-                        onClick={() => setManagerType("authors")}
-                        aria-selected={managerType === "authors"}
-                    >
-                        Authors
-                    </button>
+        <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">
+            <header className="mb-6 flex flex-col gap-5 border-b border-neutral-200 pb-6 dark:border-neutral-800 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Library settings</p>
+                    <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Metadata</h1>
+                    <p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">Manage the reusable tags, names and authors that keep your gallery organized.</p>
                 </div>
-            ) : null}
+                <button type="button" className="inline-flex! h-11! w-full! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-4! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" onClick={() => openEditor(undefined)}><FontAwesomeIcon icon={faPlus} /><span>{config.create}</span></button>
+            </header>
 
-            {loading ? (
-                <article className="tagged-app-page-card tagged-tags-status-card" aria-live="polite">
-                    <h2>{activeConfig.loadingTitle}</h2>
-                    <p>{activeConfig.loadingSubtitle}</p>
-                </article>
-            ) : null}
+            <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]">
+                <nav className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1" aria-label="Metadata categories">
+                    {Object.entries(MANAGERS).map(([key, manager]) => (
+                        <button key={key} type="button" className={`flex! min-h-16! w-full! items-center! gap-3! rounded-xl! border! px-4! py-3! text-left! shadow-none! transition-colors! ${managerType === key ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-200! bg-white/70! text-neutral-700! hover:bg-white! dark:border-neutral-800! dark:bg-neutral-900/70! dark:text-neutral-300! dark:hover:bg-neutral-900!"}`} onClick={() => { setManagerType(key); setSearch(""); }} aria-current={managerType === key ? "page" : undefined}>
+                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-500/10"><FontAwesomeIcon icon={manager.icon} /></span>
+                            <span className="min-w-0 flex-1"><span className="block text-sm font-bold">{manager.label}</span><span className="block text-xs opacity-60">{counts[key]} items</span></span>
+                        </button>
+                    ))}
+                </nav>
 
-            {!loading && error ? (
-                <article
-                    className="tagged-app-page-card tagged-tags-status-card tagged-tags-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>{activeConfig.errorTitle}</h2>
-                    <p>{error}</p>
-                </article>
-            ) : null}
-
-            {!loading && !error && currentItems.length === 0 ? (
-                <EmptyState
-                    title={emptyStateConfig.title}
-                    icon={emptyStateConfig.icon}
-                    placement={hasAnyManagedItems ? "section" : "page"}
-                    actionLabel={emptyStateConfig.actionLabel}
-                    onAction={openCreateModal}
-                />
-            ) : null}
-
-            {!loading && !error && currentItems.length > 0 && filteredItems.length === 0 ? (
-                <EmptyState
-                    title={noResultsStateConfig.title}
-                    icon={noResultsStateConfig.icon}
-                    placement="section"
-                    actionLabel={noResultsStateConfig.actionLabel}
-                    onAction={() => setQuickSearchInput("")}
-                />
-            ) : null}
-
-            {!loading && !error && filteredItems.length > 0 ? (
-                <div className="tagged-tags-sections" aria-label={activeConfig.sectionAria}>
-                    {groupedItems.map(([letter, sectionItems]) => {
-                        const isExpanded = Boolean(expandedSections[letter]);
-                        const hasOverflow = sectionItems.length > 3;
-                        const visibleItems = isExpanded ? sectionItems : sectionItems.slice(0, 3);
-
-                        return (
-                            <section key={letter} className="tagged-tags-section" aria-label={`Section ${letter}`}>
-                                <header className="tagged-tags-section-header">
-                                    <h2>{letter}</h2>
-                                    <div className="tagged-tags-section-header-actions">
-                                        <span>
-                                            {sectionItems.length} {activeConfig.itemLabel}
-                                        </span>
-                                        {hasOverflow ? (
-                                            <button
-                                                type="button"
-                                                className="tagged-tags-expand-button"
-                                                onClick={() => toggleSectionExpansion(letter)}
-                                                aria-label={
-                                                    isExpanded
-                                                        ? `Collapse section ${letter}`
-                                                        : `Expand section ${letter}`
-                                                }
-                                            >
-                                                <span aria-hidden="true">{isExpanded ? "▲" : "▼"}</span>
-                                            </button>
-                                        ) : null}
-                                    </div>
-                                </header>
-
-                                <ul className={`tagged-tags-list${isExpanded ? " is-expanded" : ""}`}>
-                                    {visibleItems.map((item) => {
-                                        const isTagManager = managerType === "tags";
-                                        const mainLabel = isTagManager ? item.tagname : item.value;
-                                        const compactLabel = truncateLabel(mainLabel, 15);
-
-                                        return (
-                                            <li key={item.id} className="tagged-tags-item">
-                                                <button
-                                                    type="button"
-                                                    className="tagged-tags-item-button"
-                                                    onClick={() => openEditModal(item)}
-                                                    aria-label={`Edit ${mainLabel}`}
-                                                    title={mainLabel}
-                                                >
-                                                    {isTagManager ? (
-                                                        <span
-                                                            className="tagged-tags-item-color"
-                                                            style={
-                                                                isDefaultTagColor(item.tagcolor_hex)
-                                                                    ? buildDefaultTagStyle()
-                                                                    : { backgroundColor: normalizeHexColor(item.tagcolor_hex) }
-                                                            }
-                                                            aria-hidden="true"
-                                                        />
-                                                    ) : null}
-
-                                                    <span className="tagged-tags-item-name">{compactLabel}</span>
-
-                                                    {isTagManager && item.type === "copyright" ? (
-                                                        <span
-                                                            className="tagged-tags-item-kind-indicator tagged-tags-item-kind-indicator--copyright"
-                                                            title="Copyright tag"
-                                                            aria-hidden="true"
-                                                        >
-                                                            <img src="/icons/copyright.svg" alt="" aria-hidden="true" />
-                                                        </span>
-                                                    ) : null}
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    className="tagged-tags-delete-button"
-                                                    onClick={() => openDeleteConfirm(item)}
-                                                    aria-label={`Delete ${mainLabel}`}
-                                                >
-                                                    <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </section>
-                        );
-                    })}
-                </div>
-            ) : null}
-
-            {isEditorModalOpen ? (
-                <div
-                    className="tagged-tags-editor-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={editingItem ? activeConfig.editorEditTitle : activeConfig.editorCreateTitle}
-                    onClick={closeEditorModal}
-                >
-                    <div className="tagged-tags-editor-modal-content" onClick={(event) => event.stopPropagation()}>
-                        <header className="tagged-tags-editor-header">
-                            <h2>{editingItem ? activeConfig.editorEditTitle : activeConfig.editorCreateTitle}</h2>
-                            <button
-                                type="button"
-                                className="tagged-tags-editor-close"
-                                onClick={closeEditorModal}
-                                disabled={isSavingItem}
-                                aria-label="Close editor"
-                            >
-                                ×
-                            </button>
-                        </header>
-
-                        <form className="tagged-tags-editor-form" onSubmit={handleItemSave}>
-                            {managerType === "tags" ? (
-                                <>
-                                    <label className="tagged-tags-editor-field">
-                                        <span>Tag Name</span>
-                                        <input
-                                            type="text"
-                                            value={tagNameInput}
-                                            onChange={(event) => setTagNameInput(event.target.value)}
-                                            placeholder="Write tag name"
-                                            required
-                                        />
-                                    </label>
-
-                                    <label className="tagged-tags-editor-field">
-                                        <span>Tag Color</span>
-                                        <input
-                                            className="tagged-tags-color-picker"
-                                            type="color"
-                                            value={normalizeHexColor(tagColorInput)}
-                                            onChange={(event) => setTagColorInput(event.target.value)}
-                                        />
-                                    </label>
-
-                                    <label className="tagged-tags-editor-field">
-                                        <span>Type</span>
-                                        <select
-                                            value={tagTypeInput}
-                                            onChange={(event) => setTagTypeInput(event.target.value)}
-                                        >
-                                            <option value="default">Default</option>
-                                            <option value="copyright">Copyright</option>
-                                        </select>
-                                    </label>
-                                </>
-                            ) : (
-                                <label className="tagged-tags-editor-field">
-                                    <span>{managerType === "displaynames" ? "Media Name" : "Author"}</span>
-                                    <input
-                                        type="text"
-                                        value={valueInput}
-                                        onChange={(event) => setValueInput(event.target.value)}
-                                        placeholder={
-                                            managerType === "displaynames" ? "Write media name" : "Write author name"
-                                        }
-                                        required
-                                    />
-                                </label>
-                            )}
-
-                            {editorError ? <p className="tagged-tags-editor-error">{editorError}</p> : null}
-
-                            <button type="submit" className="tagged-tags-editor-submit" disabled={isSavingItem}>
-                                {isSavingItem
-                                    ? "Saving..."
-                                    : editingItem
-                                      ? activeConfig.editorEditSubmit
-                                      : activeConfig.editorCreateSubmit}
-                            </button>
-                        </form>
+                <div className="min-w-0">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div><h2 className="text-xl font-bold">{config.label}</h2><p className="text-sm text-neutral-500 dark:text-neutral-400">{counts[managerType]} saved {counts[managerType] === 1 ? config.singular : `${config.singular}s`}</p></div>
+                        <label className="relative block w-full sm:max-w-sm"><span className="sr-only">Search {config.label}</span><FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600" /><input type="search" className={`${inputClasses} pl-9`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${config.label.toLowerCase()}`} /></label>
                     </div>
-                </div>
-            ) : null}
 
-            <DeleteConfirmationModal
-                isOpen={isDeleteConfirmOpen}
-                title={"Delete this " + activeConfig.deleteEntityLabel + "?"}
-                description="This item will be permanently removed. This action cannot be undone."
-                confirmLabel={"Delete " + activeConfig.deleteEntityLabel}
-                isDeleting={isDeletingItem}
-                onConfirm={handleDeleteItem}
-                onClose={closeDeleteConfirm}
-            />
+                    {metadataQuery.isPending ? <div className="grid min-h-64 place-items-center rounded-xl border border-neutral-200 bg-white/60 text-sm font-semibold text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400">Loading metadata...</div> : null}
+                    {metadataQuery.isError ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-600 dark:text-red-400"><h2 className="font-bold">Could not load metadata</h2><p className="mt-1 text-sm">{metadataQuery.error.message}</p></div> : null}
+                    {!metadataQuery.isPending && !metadataQuery.isError && items.length === 0 ? <EmptyState title={search ? `No matching ${config.label.toLowerCase()}` : `No ${config.label.toLowerCase()} yet`} icon={config.icon} placement="section" actionLabel={search ? "Clear search" : config.create} onAction={() => search ? setSearch("") : openEditor(undefined)} /> : null}
+                    {items.length > 0 ? (
+                        <ul className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3" aria-label={config.label}>
+                            {items.map((item) => {
+                                const label = String(item[config.field] || "");
+                                return <li key={item.id ?? label} className="group flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white/70 p-3 transition-colors hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900">
+                                    {managerType === "tags" ? <span className="h-9 w-9 shrink-0 rounded-xl border border-black/10" style={isDefaultTagColor(item.tagcolor_hex) ? buildDefaultTagStyle() : { backgroundColor: normalizeColor(item.tagcolor_hex) }} aria-hidden="true" /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"><FontAwesomeIcon icon={config.icon} /></span>}
+                                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold" title={label}>{label}</p>{managerType === "tags" ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">{item.type === "copyright" ? <><FontAwesomeIcon icon={faCopyright} /> Copyright</> : "Standard tag"}</p> : <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Reusable {config.singular}</p>}</div>
+                                    <div className="flex shrink-0 gap-1"><IconButton className="h-9 w-9 border-transparent bg-transparent" onClick={() => openEditor(item)} aria-label={`Edit ${label}`} title={`Edit ${label}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton className="h-9 w-9 border-transparent bg-transparent hover:text-red-500" onClick={() => setPendingDelete(item)} aria-label={`Delete ${label}`} title={`Delete ${label}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div>
+                                </li>;
+                            })}
+                        </ul>
+                    ) : null}
+                </div>
+            </div>
+
+            {isEditorOpen ? <MetadataEditor key={`${managerType}-${editingItem?.id || editingItem?.value || "new"}`} managerType={managerType} item={editingItem} isSaving={saveMutation.isPending} error={saveMutation.error?.message} onClose={() => !saveMutation.isPending && setIsEditorOpen(false)} onSave={(values) => saveMutation.mutate(values)} /> : null}
+            <DeleteConfirmationModal isOpen={Boolean(pendingDelete)} title={`Delete this ${config.singular}?`} description="This item will be permanently removed. This action cannot be undone." confirmLabel={`Delete ${config.singular}`} isDeleting={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate()} onClose={() => !deleteMutation.isPending && setPendingDelete(null)} />
         </section>
     );
 };

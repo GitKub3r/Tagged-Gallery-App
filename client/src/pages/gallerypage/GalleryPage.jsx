@@ -10,6 +10,7 @@ import {
     faChevronLeft,
     faChevronRight,
     faDownload,
+    faFilm,
     faFolderPlus,
     faHeart,
     faImage,
@@ -2934,7 +2935,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 onChange={handleFileSelectionChange}
             />
 
-            {!loading && !error && mediaItems.length > 0 && !showFavouritesNoResultsState ? (
+            {!loading && !error && !showFavouritesNoResultsState ? (
                 <div className="mx-auto flex w-full max-w-[92rem] flex-col gap-3 lg:flex-row lg:items-end" aria-label="Search media">
                     <label className="min-w-0 flex-1 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                         <span className="mb-2 block">Search media</span>
@@ -3023,6 +3024,25 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     </label>
 
                     <div className="flex flex-wrap items-center gap-2" aria-label="Media view mode">
+                            <div className="flex h-12 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950" aria-label="Filter by media type">
+                                {[
+                                    { type: "all", label: "All", icon: faTableCellsLarge },
+                                    { type: "image", label: "Images", icon: faImage },
+                                    { type: "video", label: "Videos", icon: faFilm },
+                                ].map((filter) => (
+                                    <button
+                                        key={filter.type}
+                                        type="button"
+                                        className={`inline-flex! h-10! w-auto! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! py-0! text-sm! font-bold! shadow-none! ${mediaTypeFilter === filter.type ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                                        onClick={() => setMediaTypeFilter(filter.type)}
+                                        aria-pressed={mediaTypeFilter === filter.type}
+                                        title={filter.label}
+                                    >
+                                        <FontAwesomeIcon icon={filter.icon} aria-hidden="true" />
+                                        <span className="hidden 2xl:inline">{filter.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                             <button
                                 type="button"
                                 className={`${TOOLBAR_BUTTON_CLASSES} ${gridViewMode === "card" ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
@@ -3032,7 +3052,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 title="Card view"
                             >
                                 <FontAwesomeIcon icon={faTableCellsLarge} aria-hidden="true" />
-                                <span>Cards</span>
+                                <span className="hidden lg:inline">Cards</span>
                             </button>
 
                             <button
@@ -3044,7 +3064,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 title="List view"
                             >
                                 <FontAwesomeIcon icon={faList} aria-hidden="true" />
-                                <span>List</span>
+                                <span className="hidden lg:inline">List</span>
                             </button>
 
                             <button
@@ -3056,7 +3076,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 title="Randomize media order"
                             >
                                 <FontAwesomeIcon icon={faShuffle} aria-hidden="true" />
-                                <span>Random</span>
+                                <span className="hidden lg:inline">Random</span>
                             </button>
 
                     {totalFilteredMediaCount > MIN_PAGE_SIZE && (

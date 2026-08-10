@@ -13,10 +13,26 @@ import { AlbumDetailPage } from "./pages/albumspage/AlbumDetailPage";
 import { UsersPage } from "./pages/userspage/UsersPage";
 import { LogsPage } from "./pages/logspage/LogsPage";
 import { ActionsPage } from "./pages/actionspage/ActionsPage";
+import { Toaster } from "sonner";
 
 function App() {
     return (
         <AuthProvider>
+            <Toaster
+                position="top-right"
+                closeButton
+                duration={4500}
+                toastOptions={{
+                    classNames: {
+                        toast: "rounded-xl! border-neutral-300! bg-white! text-neutral-950! shadow-xl! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-100!",
+                        title: "text-sm! font-bold!",
+                        description: "text-neutral-500! dark:text-neutral-400!",
+                        closeButton: "rounded-full! border-neutral-300! bg-white! text-neutral-600! dark:border-neutral-700! dark:bg-neutral-800! dark:text-neutral-300!",
+                        error: "border-red-500/50!",
+                        success: "border-green-500/50!",
+                    },
+                }}
+            />
             <BrowserRouter>
                 <Routes>
                     <Route path="/" element={<HomePage />} />

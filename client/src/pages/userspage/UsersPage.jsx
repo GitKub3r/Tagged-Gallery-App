@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { faUsers } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faList, faPen, faTableCellsLarge, faTrash, faUsers, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
@@ -72,6 +73,29 @@ const getRoleBadgeData = (type) => {
     };
 };
 
+const UserActionButtons = ({ listedUser, isCurrentUser, isBusy, onEdit, onDelete }) => (
+    <div className="flex items-center justify-end gap-2">
+        <button
+            type="button"
+            className="inline-flex! h-9! w-auto! items-center! gap-2! rounded-xl! border! border-neutral-300! bg-transparent! px-3! py-0! text-xs! font-bold! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:opacity-35! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!"
+            onClick={() => onEdit(listedUser)}
+            disabled={isBusy || isCurrentUser}
+        >
+            <FontAwesomeIcon icon={faPen} aria-hidden="true" />
+            <span>Edit</span>
+        </button>
+        <button
+            type="button"
+            className="inline-flex! h-9! w-auto! items-center! gap-2! rounded-xl! border! border-red-500/30! bg-transparent! px-3! py-0! text-xs! font-bold! text-red-600! shadow-none! hover:bg-red-500/10! disabled:opacity-35! dark:text-red-400!"
+            onClick={() => onDelete(listedUser.id)}
+            disabled={isBusy || isCurrentUser}
+        >
+            <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
+            <span>Delete</span>
+        </button>
+    </div>
+);
+
 export const UsersPage = () => {
     const { user, fetchWithAuth } = useAuth();
     const location = useLocation();
@@ -88,6 +112,25 @@ export const UsersPage = () => {
     const [deletingUserId, setDeletingUserId] = useState(null);
 
     const isAdmin = user?.type === "admin";
+
+    const renderMode = useMemo(() => {
+        const params = new URLSearchParams(location.search);
+        return params.get("render") === "table" ? "table" : "card";
+    }, [location.search]);
+
+    const setRenderMode = (mode) => {
+        const params = new URLSearchParams(location.search);
+        if (mode === "table") params.set("render", "table");
+        else params.delete("render");
+        navigate(`?${params.toString()}`);
+    };
+
+    const setRoleFilter = (role) => {
+        const params = new URLSearchParams(location.search);
+        if (role === "all") params.delete("role");
+        else params.set("role", role);
+        navigate(`?${params.toString()}`);
+    };
 
     const roleFilter = useMemo(() => {
         const params = new URLSearchParams(location.search);
@@ -357,7 +400,30 @@ export const UsersPage = () => {
                         placeholder="Search users by username..."
                     />
                 </label>
-                <p>{filteredUsers.length} accounts found</p>
+                <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end">
+                    <p>{filteredUsers.length} accounts found</p>
+                    <div className="flex items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" role="group" aria-label="Filter users by role">
+                        {["all", "basic", "admin"].map((role) => (
+                            <button
+                                key={role}
+                                type="button"
+                                className={`h-8! w-auto! rounded-xl! border-0! px-3! py-0! text-xs! font-bold! capitalize! shadow-none! ${roleFilter === role ? "bg-neutral-950! text-white! dark:bg-neutral-100! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! hover:text-neutral-950! dark:text-neutral-400! dark:hover:bg-neutral-800! dark:hover:text-neutral-100!"}`}
+                                onClick={() => setRoleFilter(role)}
+                                aria-pressed={roleFilter === role}
+                            >
+                                {role}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex items-center gap-2" role="group" aria-label="Users view">
+                        <button type="button" className={`inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border! px-3! py-0! text-sm! font-bold! shadow-none! ${renderMode === "table" ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!"}`} onClick={() => setRenderMode("table")} aria-pressed={renderMode === "table"}>
+                            <FontAwesomeIcon icon={faList} aria-hidden="true" /><span>Table</span>
+                        </button>
+                        <button type="button" className={`inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border! px-3! py-0! text-sm! font-bold! shadow-none! ${renderMode === "card" ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!"}`} onClick={() => setRenderMode("card")} aria-pressed={renderMode === "card"}>
+                            <FontAwesomeIcon icon={faTableCellsLarge} aria-hidden="true" /><span>Card</span>
+                        </button>
+                    </div>
+                </div>
             </header>
 
             {actionError ? (
@@ -389,20 +455,21 @@ export const UsersPage = () => {
                         navigate("/users");
                     }}
                 />
-            ) : (
-                <section className="tagged-users-grid" aria-label="Admin users list">
+            ) : renderMode === "card" ? (
+                <section className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3" aria-label="Admin users cards">
                     {filteredUsers.map((listedUser) => {
                         const isCurrentUserCard = listedUser.id === user?.id;
                         const roleBadge = getRoleBadgeData(listedUser.type);
+                        const isBusy = deletingUserId === listedUser.id || savingUserId === listedUser.id;
 
                         return (
                             <article
                                 key={listedUser.id}
-                                className={`tagged-app-page-card tagged-user-card${isCurrentUserCard ? " is-self" : ""}`}
+                                className={`group rounded-xl border border-neutral-200 bg-white/70 p-4 transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900 ${isCurrentUserCard ? "opacity-70" : ""}`}
                                 aria-disabled={isCurrentUserCard ? "true" : undefined}
                             >
-                                <div className="tagged-user-card-grid">
-                                    <div className="tagged-user-top-row">
+                                <div className="flex h-full flex-col gap-4">
+                                    <div className="flex items-center justify-between gap-3">
                                         <span
                                             className={`tagged-user-role-badge ${roleBadge.toneClass}`}
                                             title={roleBadge.title}
@@ -410,52 +477,50 @@ export const UsersPage = () => {
                                             <span className="tagged-user-role-badge-letter">{roleBadge.label}</span>
                                             <span className="tagged-user-role-badge-text">{roleBadge.title}</span>
                                         </span>
-                                        <span className="tagged-user-created-top">
+                                        <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">
                                             Created {formatDate(listedUser.created_at)}
                                         </span>
                                     </div>
 
-                                    <div className="tagged-user-card-header">
-                                        <div className="tagged-user-avatar" aria-hidden="true">
+                                    <div className="flex min-w-0 items-center gap-3">
+                                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-neutral-200 text-lg font-black text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300" aria-hidden="true">
                                             {getUserInitial(listedUser.username, listedUser.email)}
                                         </div>
-                                        <div className="tagged-user-identity">
-                                            <h2>{listedUser.username || "Unknown user"}</h2>
-                                            <p>{listedUser.email || "No email"}</p>
+                                        <div className="min-w-0">
+                                            <h2 className="truncate text-lg font-bold">{listedUser.username || "Unknown user"}</h2>
+                                            <p className="truncate text-sm text-neutral-500 dark:text-neutral-400" title={listedUser.email || "No email"}>{listedUser.email || "No email"}</p>
                                         </div>
                                     </div>
 
-                                    <div className="tagged-user-card-footer">
-                                        <div className="tagged-user-actions">
-                                            <button
-                                                className="tagged-user-action-button tagged-user-action-button--edit"
-                                                type="button"
-                                                onClick={() => openEditor(listedUser)}
-                                                disabled={
-                                                    deletingUserId === listedUser.id ||
-                                                    isCurrentUserCard ||
-                                                    savingUserId === listedUser.id
-                                                }
-                                            >
-                                                <img src="/icons/edit.svg" alt="" aria-hidden="true" />
-                                                <span>Edit</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="tagged-user-action-button tagged-user-action-button--danger"
-                                                onClick={() => openDeleteUserConfirm(listedUser.id)}
-                                                disabled={deletingUserId === listedUser.id || isCurrentUserCard}
-                                            >
-                                                <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                                                <span>Delete</span>
-                                            </button>
-                                        </div>
+                                    <div className="mt-auto border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                                        <UserActionButtons listedUser={listedUser} isCurrentUser={isCurrentUserCard} isBusy={isBusy} onEdit={openEditor} onDelete={openDeleteUserConfirm} />
                                     </div>
                                 </div>
                             </article>
                         );
                     })}
                 </section>
+            ) : (
+                <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white/70 dark:border-neutral-800 dark:bg-neutral-900/70">
+                    <table className="w-full min-w-[48rem] border-collapse text-left">
+                        <thead className="border-b border-neutral-200 bg-neutral-100/80 text-xs uppercase tracking-wide text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                            <tr><th className="px-4 py-3">User</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Created</th><th className="px-4 py-3 text-right">Actions</th></tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                            {filteredUsers.map((listedUser) => {
+                                const isCurrentUser = listedUser.id === user?.id;
+                                const roleBadge = getRoleBadgeData(listedUser.type);
+                                const isBusy = deletingUserId === listedUser.id || savingUserId === listedUser.id;
+                                return <tr key={listedUser.id} className="transition-colors hover:bg-neutral-100/80 dark:hover:bg-neutral-800/60">
+                                    <td className="px-4 py-3"><div className="flex min-w-0 items-center gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-neutral-200 text-sm font-black text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">{getUserInitial(listedUser.username, listedUser.email)}</span><div className="min-w-0"><strong className="block truncate text-sm">{listedUser.username || "Unknown user"}</strong><span className="block truncate text-xs text-neutral-500 dark:text-neutral-400">{listedUser.email || "No email"}</span></div></div></td>
+                                    <td className="px-4 py-3"><span className={`tagged-user-role-badge ${roleBadge.toneClass}`}><span className="tagged-user-role-badge-letter">{roleBadge.label}</span><span className="tagged-user-role-badge-text">{roleBadge.title}</span></span></td>
+                                    <td className="px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">{formatDate(listedUser.created_at)}</td>
+                                    <td className="px-4 py-3"><UserActionButtons listedUser={listedUser} isCurrentUser={isCurrentUser} isBusy={isBusy} onEdit={openEditor} onDelete={openDeleteUserConfirm} /></td>
+                                </tr>;
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             {editingUser ? (
@@ -471,12 +536,12 @@ export const UsersPage = () => {
                             <h2 id="tagged-users-edit-modal-title">Edit user</h2>
                             <button
                                 type="button"
-                                className="tagged-users-modal-close"
+                                className="grid! h-10! w-10! place-items-center! rounded-xl! border! border-neutral-300! bg-transparent! p-0! text-neutral-600! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!"
                                 onClick={closeEditor}
                                 aria-label="Close edit user modal"
                                 disabled={savingUserId === editingUser.id}
                             >
-                                ×
+                                <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                             </button>
                         </header>
 
@@ -531,15 +596,15 @@ export const UsersPage = () => {
                             <div className="tagged-user-edit-actions">
                                 <button
                                     type="submit"
-                                    className="tagged-user-action-button tagged-user-action-button--save"
+                                    className="inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-4! py-0! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-50! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white!"
                                     disabled={savingUserId === editingUser.id}
                                 >
-                                    <img src="/icons/edit.svg" alt="" aria-hidden="true" />
+                                    <FontAwesomeIcon icon={faCheck} aria-hidden="true" />
                                     <span>{savingUserId === editingUser.id ? "Saving..." : "Save"}</span>
                                 </button>
                                 <button
                                     type="button"
-                                    className="tagged-user-action-button tagged-user-action-button--ghost"
+                                    className="h-10! w-auto! rounded-xl! border! border-neutral-300! bg-transparent! px-4! py-0! text-sm! font-bold! text-neutral-600! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!"
                                     onClick={closeEditor}
                                     disabled={savingUserId === editingUser.id}
                                 >

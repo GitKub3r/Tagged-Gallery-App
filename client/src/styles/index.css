@@ -275,8 +275,13 @@ textarea:focus-visible {
 
     input::placeholder,
     textarea::placeholder {
-        color: var(--tagged-border-color-alt);
+        color: #a3a3a3;
         opacity: 1;
+    }
+
+    [data-theme="dark"] input::placeholder,
+    [data-theme="dark"] textarea::placeholder {
+        color: #525252;
     }
 
     button {
