@@ -112,6 +112,9 @@ Estas reglas se aplican a todo el repositorio. Son obligatorias para cualquier c
 6. Comprobar con una búsqueda global que el flujo migrado no conserve usos de `fetch` ni solicitudes desde `useEffect`.
 7. Ejecutar lint, pruebas y build disponibles antes de dar el trabajo por terminado.
 8. Revisar visualmente la pantalla en modo oscuro en PC, laptop, iPad/tablet y smartphone.
+9. Cerrar cada cambio lógico terminado con un commit propio antes de comenzar el siguiente cambio solicitado.
+10. Usar mensajes de commit breves y descriptivos que permitan identificar, revertir o recuperar el cambio de forma aislada.
+11. No agrupar cambios independientes en un mismo commit ni reescribir commits ya publicados salvo petición expresa.
 
 ## Criterio ante dudas
 
