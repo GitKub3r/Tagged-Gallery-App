@@ -109,6 +109,9 @@
     --tagged-size-xl: 2rem;
     --tagged-size-xxl: 3rem;
 
+    /* MEDIA */
+    --tagged-media-standard-aspect-ratio: 3 / 4;
+
     /* SPECS */
     --tagged-radius-sm: 4px;
     --tagged-radius-md: 8px;

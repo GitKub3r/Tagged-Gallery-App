@@ -163,7 +163,7 @@
 .tagged-media-detail-viewer {
     position: relative;
     width: 100%;
-    aspect-ratio: 3 / 4;
+    aspect-ratio: var(--tagged-media-standard-aspect-ratio);
     border-radius: var(--tagged-radius-lg);
     box-shadow: var(--tagged-shadow-card);
     background: #111;
