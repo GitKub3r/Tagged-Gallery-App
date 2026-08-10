@@ -59,6 +59,7 @@ const startServer = async () => {
         // Conectar a la base de datos primero
         await connectDB();
         await UserModel.ensureAvatarColumn();
+        await UserModel.ensureSessionVersionColumn();
 
         // Si la conexión fue exitosa, iniciar el servidor
         const port = process.env.PORT || 4000;

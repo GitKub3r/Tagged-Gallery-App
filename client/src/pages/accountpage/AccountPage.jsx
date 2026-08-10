@@ -190,7 +190,13 @@ export const AccountPage = () => {
 
   const logoutAllMutation = useMutation({
     mutationFn: () => authApi.logoutAll(accessToken),
-    onSuccess: handleSignOut,
+    onSuccess: () => {
+      localStorage.removeItem("user");
+      localStorage.removeItem("accessToken");
+      localStorage.removeItem("refreshToken");
+      window.dispatchEvent(new Event("tagged:session-invalidated"));
+      navigate("/", { replace: true });
+    },
   });
 
   const avatarMutation = useMutation({

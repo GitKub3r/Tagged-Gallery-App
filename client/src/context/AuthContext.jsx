@@ -47,6 +47,20 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
+    useEffect(() => {
+        const clearInvalidatedSession = () => {
+            accessTokenRef.current = null;
+            refreshTokenRef.current = null;
+            refreshPromiseRef.current = null;
+            setUser(null);
+            setAccessToken(null);
+            setRefreshToken(null);
+            setError(null);
+        };
+        window.addEventListener("tagged:session-invalidated", clearInvalidatedSession);
+        return () => window.removeEventListener("tagged:session-invalidated", clearInvalidatedSession);
+    }, []);
+
     /**
      * Registrar un nuevo usuario
      */

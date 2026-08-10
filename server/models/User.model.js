@@ -5,7 +5,7 @@ class UserModel {
      * Obtener todos los usuarios
      */
     static async findAll() {
-        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, created_at FROM users");
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, session_version, created_at FROM users");
         return rows;
     }
 
@@ -13,12 +13,12 @@ class UserModel {
      * Buscar usuario por ID
      */
     static async findById(id) {
-        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, created_at FROM users WHERE id = ?", [id]);
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, session_version, created_at FROM users WHERE id = ?", [id]);
         return rows[0];
     }
 
     static async findByIdWithPassword(id) {
-        const [rows] = await pool.query("SELECT id, username, email, password, type, avatar_path, created_at FROM users WHERE id = ?", [id]);
+        const [rows] = await pool.query("SELECT id, username, email, password, type, avatar_path, session_version, created_at FROM users WHERE id = ?", [id]);
         return rows[0];
     }
 
@@ -127,6 +127,18 @@ class UserModel {
         if (columns.length === 0) {
             await pool.query("ALTER TABLE users ADD COLUMN avatar_path VARCHAR(500) NULL AFTER type");
         }
+    }
+
+    static async ensureSessionVersionColumn() {
+        const [columns] = await pool.query("SHOW COLUMNS FROM users LIKE 'session_version'");
+        if (columns.length === 0) {
+            await pool.query("ALTER TABLE users ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER avatar_path");
+        }
+    }
+
+    static async incrementSessionVersion(id) {
+        const [result] = await pool.query("UPDATE users SET session_version = session_version + 1 WHERE id = ?", [id]);
+        return result.affectedRows > 0;
     }
 }
 
