@@ -21,6 +21,81 @@ const ensureAdmin = (req, res) => {
 };
 
 class UserController {
+    static async resetAvatar(req, res) {
+        try {
+            const result = await UserService.resetAvatar(req.user.id);
+            const statusCode = result.success ? 200 : 404;
+            await AuditService.logEvent({
+                actionCode: "PROFILE_AVATAR_RESET",
+                req,
+                statusCode,
+                message: result.success ? "Profile image removed successfully" : "Profile image removal failed",
+            });
+            return res.status(statusCode).json(result);
+        } catch (error) {
+            console.error("Error in UserController.resetAvatar:", error);
+            await AuditService.logEvent({ actionCode: "PROFILE_AVATAR_RESET", req, statusCode: 500, message: "Profile image removal failed" });
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
+    static async updateAvatar(req, res) {
+        try {
+            const result = await UserService.updateAvatar(req.user.id, req.file);
+            const statusCode = result.success ? 200 : 400;
+            await AuditService.logEvent({
+                actionCode: "PROFILE_AVATAR_UPDATE",
+                req,
+                statusCode,
+                message: result.success ? "Profile image updated successfully" : "Profile image update failed",
+                metadata: req.file ? { mimeType: req.file.mimetype, size: req.file.size } : null,
+            });
+            return res.status(statusCode).json(result);
+        } catch (error) {
+            console.error("Error in UserController.updateAvatar:", error);
+            await AuditService.logEvent({ actionCode: "PROFILE_AVATAR_UPDATE", req, statusCode: 500, message: "Profile image update failed" });
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
+    static async updateMe(req, res) {
+        try {
+            const result = await UserService.updateOwnProfile(req.user.id, req.body);
+            const statusCode = result.success ? 200 : 400;
+            await AuditService.logEvent({
+                actionCode: "PROFILE_UPDATE",
+                req,
+                statusCode,
+                message: result.success ? "Profile details updated successfully" : "Profile details update failed",
+                metadata: { changedFields: ["username", "email"].filter((field) => req.body[field] !== undefined) },
+            });
+            return res.status(statusCode).json(result);
+        } catch (error) {
+            console.error("Error in UserController.updateMe:", error);
+            await AuditService.logEvent({ actionCode: "PROFILE_UPDATE", req, statusCode: 500, message: "Profile details update failed" });
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
+    static async changeOwnPassword(req, res) {
+        try {
+            const { currentPassword, newPassword } = req.body;
+            const result = await UserService.changeOwnPassword(req.user.id, currentPassword, newPassword);
+            const statusCode = result.success ? 200 : 400;
+            await AuditService.logEvent({
+                actionCode: "PROFILE_PASSWORD_UPDATE",
+                req,
+                statusCode,
+                message: result.success ? "Account password changed successfully" : "Account password change failed",
+            });
+            return res.status(statusCode).json(result);
+        } catch (error) {
+            console.error("Error in UserController.changeOwnPassword:", error);
+            await AuditService.logEvent({ actionCode: "PROFILE_PASSWORD_UPDATE", req, statusCode: 500, message: "Account password change failed" });
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
     /**
      * GET /api/v1/users
      * Obtener todos los usuarios

@@ -1,6 +1,4 @@
-.tagged-shell-content:has(> .tagged-users-page),
 .tagged-users-page {
-    --tagged-users-background: var(--tagged-app-background);
     min-height: 0;
     display: grid;
     align-content: start;
@@ -8,8 +6,54 @@
     background: transparent;
 }
 
-.tagged-shell-content:has(> .tagged-users-page) {
-    background: var(--tagged-users-background);
+[data-theme="dark"] .tagged-users-page {
+    --tagged-accent-color: #e5e5e5;
+    --tagged-accent-rgb: 163, 163, 163;
+    --tagged-surface: #171717;
+    --tagged-surface-hover: #262626;
+    --tagged-surface-raised: #171717;
+    --tagged-surface-overlay: #111111;
+    --tagged-text-color: #f5f5f5;
+    --tagged-border-color-alt: #a3a3a3;
+    --tagged-border-subtle: rgba(255, 255, 255, 0.08);
+    --tagged-border-mid: rgba(255, 255, 255, 0.12);
+    --tagged-border-strong: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="dark"] .tagged-user-card,
+[data-theme="dark"] .tagged-users-status-card {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: #141414;
+    box-shadow: none;
+}
+
+[data-theme="dark"] .tagged-user-avatar {
+    background: #262626;
+    color: #e5e5e5;
+}
+
+[data-theme="dark"] .tagged-user-role-badge--basic,
+[data-theme="dark"] .tagged-user-role-badge--admin {
+    background: #262626;
+    color: #d4d4d4;
+}
+
+[data-theme="dark"] .tagged-users-modal-content,
+[data-theme="dark"] .tagged-users-confirm-modal-content {
+    --tagged-accent-color: #e5e5e5;
+    --tagged-surface: #171717;
+    --tagged-surface-hover: #262626;
+    --tagged-surface-raised: #171717;
+    --tagged-surface-overlay: #111111;
+    --tagged-text-color: #f5f5f5;
+    --tagged-border-color-alt: #a3a3a3;
+    border-color: rgba(255, 255, 255, 0.1);
+    background: #141414;
+    color: #f5f5f5;
+}
+
+[data-theme="dark"] .tagged-users-search-input:focus-visible {
+    outline-color: #737373;
 }
 
 .tagged-users-header {

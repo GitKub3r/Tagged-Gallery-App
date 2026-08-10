@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { faList, faListCheck, faMagnifyingGlass, faPen, faPlus, faTableCellsLarge, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLocation, useNavigate } from "react-router-dom";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useAuth } from "../../hooks/useAuth";
 import "./ActionsPage.css";
 
@@ -40,6 +44,17 @@ const emptyForm = {
     description: "",
     is_active: true,
 };
+
+const ActionButtons = ({ action, onEdit, onDelete }) => (
+    <div className="flex items-center justify-end gap-2">
+        <button type="button" className="inline-flex! h-9! w-auto! items-center! gap-2! rounded-xl! border! border-neutral-300! bg-transparent! px-3! py-0! text-xs! font-bold! text-neutral-600! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!" onClick={() => onEdit(action)}>
+            <FontAwesomeIcon icon={faPen} aria-hidden="true" /><span>Edit</span>
+        </button>
+        <button type="button" className="inline-flex! h-9! w-auto! items-center! gap-2! rounded-xl! border! border-red-500/30! bg-transparent! px-3! py-0! text-xs! font-bold! text-red-600! shadow-none! hover:bg-red-500/10! dark:text-red-400!" onClick={() => onDelete(action.id)}>
+            <FontAwesomeIcon icon={faTrash} aria-hidden="true" /><span>Delete</span>
+        </button>
+    </div>
+);
 
 export const ActionsPage = () => {
     const location = useLocation();
@@ -389,22 +404,14 @@ export const ActionsPage = () => {
                 </label>
 
                 <div className="tagged-actions-header-right">
-                    <button type="button" className="tagged-actions-create-button" onClick={openCreateEditor}>
-                        <svg
-                            className="tagged-actions-create-icon"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                        >
-                            <path d="M12 5v14M5 12h14" />
-                        </svg>
+                    <button type="button" className="inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border! border-neutral-950! bg-neutral-950! px-4! py-0! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white!" onClick={openCreateEditor}>
+                        <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
                         <span>New action</span>
                     </button>
 
                     <button
                         type="button"
-                        className={`tagged-actions-render-button${renderMode === "table" ? " is-active" : ""}`}
+                        className={`inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border! px-3! py-0! text-sm! font-bold! shadow-none! ${renderMode === "table" ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!"}`}
                         onClick={() => {
                             const params = new URLSearchParams(location.search);
                             params.set("render", "table");
@@ -413,22 +420,13 @@ export const ActionsPage = () => {
                         aria-pressed={renderMode === "table"}
                         title="Table view"
                     >
-                        <svg
-                            className="tagged-actions-render-icon"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                        >
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <path d="M3 9h18M9 3v18" />
-                        </svg>
+                        <FontAwesomeIcon icon={faList} aria-hidden="true" />
                         <span>Table</span>
                     </button>
 
                     <button
                         type="button"
-                        className={`tagged-actions-render-button${renderMode === "card" ? " is-active" : ""}`}
+                        className={`inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border! px-3! py-0! text-sm! font-bold! shadow-none! ${renderMode === "card" ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!"}`}
                         onClick={() => {
                             const params = new URLSearchParams(location.search);
                             params.set("render", "card");
@@ -437,18 +435,7 @@ export const ActionsPage = () => {
                         aria-pressed={renderMode === "card"}
                         title="Card view"
                     >
-                        <svg
-                            className="tagged-actions-render-icon"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                        >
-                            <rect x="3" y="3" width="8" height="8" rx="1" />
-                            <rect x="13" y="3" width="8" height="8" rx="1" />
-                            <rect x="3" y="13" width="8" height="8" rx="1" />
-                            <rect x="13" y="13" width="8" height="8" rx="1" />
-                        </svg>
+                        <FontAwesomeIcon icon={faTableCellsLarge} aria-hidden="true" />
                         <span>Card</span>
                     </button>
                 </div>
@@ -465,16 +452,21 @@ export const ActionsPage = () => {
             ) : null}
 
             {actions.length === 0 ? (
-                <article className="tagged-app-page-card tagged-actions-empty-card" aria-live="polite">
-                    <h2>No actions available</h2>
-                    <p>Create your first action to start organizing audit events.</p>
-                    <img className="tagged-actions-empty-icon" src="/icons/logs.svg" alt="" aria-hidden="true" />
-                </article>
+                <EmptyState
+                    title="No actions available"
+                    icon={faListCheck}
+                    placement="section"
+                    actionLabel="Create action"
+                    onAction={openCreateEditor}
+                />
             ) : filteredActions.length === 0 ? (
-                <article className="tagged-app-page-card tagged-actions-status-card" aria-live="polite">
-                    <h2>No matching actions</h2>
-                    <p>Try another search term.</p>
-                </article>
+                <EmptyState
+                    title="No matching actions"
+                    icon={faMagnifyingGlass}
+                    placement="section"
+                    actionLabel="Clear search"
+                    onAction={() => setSearchQuery("")}
+                />
             ) : renderMode === "table" ? (
                 <section className="tagged-actions-table-wrap" aria-label="Actions table">
                     <table className="tagged-actions-table">
@@ -509,20 +501,7 @@ export const ActionsPage = () => {
                                             : "-"}
                                     </td>
                                     <td>
-                                        <div className="tagged-action-card-footer tagged-action-card-footer--table">
-                                            <button type="button" onClick={() => openEditEditor(action)}>
-                                                <img src="/icons/edit.svg" alt="" aria-hidden="true" />
-                                                <span>Edit</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="tagged-action-delete"
-                                                onClick={() => openDeleteConfirm(action.id)}
-                                            >
-                                                <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                                                <span>Delete</span>
-                                            </button>
-                                        </div>
+                                        <ActionButtons action={action} onEdit={openEditEditor} onDelete={openDeleteConfirm} />
                                     </td>
                                 </tr>
                             ))}
@@ -530,11 +509,11 @@ export const ActionsPage = () => {
                     </table>
                 </section>
             ) : (
-                <section className="tagged-actions-grid" aria-label="Actions list">
+                <section className="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3" aria-label="Actions list">
                     {filteredActions.map((action) => (
-                        <article key={action.id} className="tagged-app-page-card tagged-action-card">
-                            <header className="tagged-action-card-header">
-                                <h2>{action.actionname || "Unnamed action"}</h2>
+                        <article key={action.id} className="group flex min-h-48 flex-col gap-3 rounded-xl border border-neutral-200 bg-white/70 p-4 transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:bg-white hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900">
+                            <header className="flex items-start justify-between gap-3">
+                                <h2 className="m-0 text-base font-bold leading-5">{action.actionname || "Unnamed action"}</h2>
                                 <span
                                     className={`tagged-action-status${action.is_active ? " is-active" : " is-inactive"}`}
                                 >
@@ -542,22 +521,11 @@ export const ActionsPage = () => {
                                 </span>
                             </header>
 
-                            <p className="tagged-action-code">{action.actioncode || "-"}</p>
-                            <p className="tagged-action-description">{action.description || "No description"}</p>
+                            <p className="m-0 break-words text-xs font-black uppercase tracking-wider text-neutral-500 dark:text-neutral-400">{action.actioncode || "-"}</p>
+                            <p className="m-0 text-sm leading-5 text-neutral-500 dark:text-neutral-400">{action.description || "No description"}</p>
 
-                            <footer className="tagged-action-card-footer">
-                                <button type="button" onClick={() => openEditEditor(action)}>
-                                    <img src="/icons/edit.svg" alt="" aria-hidden="true" />
-                                    <span>Edit</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="tagged-action-delete"
-                                    onClick={() => openDeleteConfirm(action.id)}
-                                >
-                                    <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                                    <span>Delete</span>
-                                </button>
+                            <footer className="mt-auto border-t border-neutral-200 pt-3 dark:border-neutral-800">
+                                <ActionButtons action={action} onEdit={openEditEditor} onDelete={openDeleteConfirm} />
                             </footer>
                         </article>
                     ))}
@@ -669,45 +637,17 @@ export const ActionsPage = () => {
                 </section>
             ) : null}
 
-            {deleteConfirmAction ? (
-                <section
-                    className="tagged-actions-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-actions-delete-title"
-                    onClick={closeDeleteConfirm}
-                >
-                    <article
-                        className="tagged-actions-delete-modal-content"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <h2 id="tagged-actions-delete-title">Delete action?</h2>
-                        <p>
-                            This will delete <strong>{deleteConfirmAction.actionname || "this action"}</strong> if it is
-                            not used by history logs.
-                        </p>
-                        <div className="tagged-actions-form-actions">
-                            <button
-                                type="button"
-                                className="tagged-actions-secondary"
-                                onClick={closeDeleteConfirm}
-                                disabled={Boolean(deletingActionId)}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-actions-danger"
-                                onClick={() => handleDeleteAction(deleteConfirmAction.id)}
-                                disabled={Boolean(deletingActionId)}
-                            >
-                                {deletingActionId ? "Deleting..." : "Delete action"}
-                            </button>
-                        </div>
-                    </article>
-                </section>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={Boolean(deleteConfirmAction)}
+                title="Delete this action?"
+                description={deleteConfirmAction
+                    ? (deleteConfirmAction.actionname || "This action") + " will be removed if it is not referenced by history logs."
+                    : ""}
+                confirmLabel="Delete action"
+                isDeleting={Boolean(deletingActionId)}
+                onConfirm={() => deleteConfirmAction && handleDeleteAction(deleteConfirmAction.id)}
+                onClose={closeDeleteConfirm}
+            />
         </section>
     );
 };
-

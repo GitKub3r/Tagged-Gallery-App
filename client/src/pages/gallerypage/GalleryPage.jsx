@@ -1,13 +1,43 @@
 ﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import JSZip from "jszip";
+import {
+    faAnglesLeft,
+    faAnglesRight,
+    faCircleCheck,
+    faCheckDouble,
+    faChevronLeft,
+    faChevronRight,
+    faDownload,
+    faFilm,
+    faFolderPlus,
+    faHeart,
+    faImage,
+    faList,
+    faMagnifyingGlass,
+    faPen,
+    faShuffle,
+    faTableCellsLarge,
+    faTag,
+    faTrash,
+    faXmark,
+} from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { UploadMediaModal } from "../../components/upload-media-modal/UploadMediaModal";
+import { uploadMedia } from "../../api/mediaUploadRequest";
+import { galleryApi } from "../../api/galleryApi";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
+import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./GalleryPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -18,13 +48,18 @@ const GENERAL_FILTER_STATE_EVENT = "tagged:general-filter-state";
 const GALLERY_PAGE_SIZE_STORAGE_KEY = "tagged:gallery-page-size";
 const GALLERY_CURRENT_PAGE_STORAGE_KEY = "tagged:gallery-current-page";
 const DEFAULT_PAGE_SIZE = 20;
+const MIN_PAGE_SIZE = 10;
 const GALLERY_SEARCH_STORAGE_KEY = "tagged:gallery-search-query";
 const GALLERY_SCROLL_STORAGE_KEY_PREFIX = "tagged:gallery-scroll-position";
 const MAX_SUGGESTIONS = 8;
-const DEFAULT_NEW_TAG_COLOR = "#643aff";
-
-const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
-
+const PAGINATION_BUTTON_CLASSES =
+    "flex! h-10! w-10! shrink-0! items-center! justify-center! rounded-xl! border! border-neutral-300! bg-white! p-0! text-sm! font-semibold! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:cursor-not-allowed! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!";
+const TOOLBAR_BUTTON_CLASSES =
+    "inline-flex! h-12! w-auto! items-center! gap-2! rounded-xl! border! px-4! py-2! text-sm! font-semibold! shadow-none! transition-colors! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500!";
+const TOOLBAR_BUTTON_ACTIVE_CLASSES =
+    "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!";
+const TOOLBAR_BUTTON_INACTIVE_CLASSES =
+    "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!";
 const mergeDistinctValues = (currentValues, newValues) => {
     const valuesByKey = new Map();
 
@@ -47,17 +82,6 @@ const mergeDistinctValues = (currentValues, newValues) => {
 const isVideoOrGifMedia = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
     return mediaType.includes("video") || mediaType.includes("gif");
-};
-
-const shuffleArray = (array) => {
-    const next = [...array];
-
-    for (let index = next.length - 1; index > 0; index -= 1) {
-        const swapIndex = Math.floor(Math.random() * (index + 1));
-        [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
-    }
-
-    return next;
 };
 
 const parseApiResponse = async (response, fallbackMessage) => {
@@ -258,15 +282,7 @@ const buildTagChipStyle = (hexColor) => {
     const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
-        const defaultTone = darkTheme ? mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56) : DEFAULT_NEW_TAG_COLOR;
-
-        return {
-            backgroundColor: `${defaultTone}${darkTheme ? "38" : "22"}`,
-            color: defaultTone,
-            borderColor: `${defaultTone}${darkTheme ? "BB" : "66"}`,
-            borderWidth: "2px",
-            boxShadow: `inset 0 0 0 1px ${darkTheme ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.22)"}`,
-        };
+        return buildDefaultTagStyle();
     }
 
     const luminance = getRelativeLuminance(rgb);
@@ -332,19 +348,8 @@ const formatDownloadSpeed = (bytesPerSecond) => {
     return `${value.toFixed(decimals)} ${units[unitIndex]}`;
 };
 
-const GalleryListFavouriteIcon = ({ active }) => (
-    <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className={`tagged-gallery-list-favourite-icon${active ? " is-active" : ""}`}
-    >
-        <path d="m12 20.55-1.45-1.32C5.4 14.56 2 11.48 2 7.7 2 4.62 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.09A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.62 22 7.7c0 3.78-3.4 6.86-8.55 11.54L12 20.55Z" />
-    </svg>
-);
-
 export const GalleryListItem = ({
     media,
-    uploadsBaseUrl,
     onOpenMedia,
     onToggleFavourite,
     onRequestDelete,
@@ -459,7 +464,7 @@ export const GalleryListItem = ({
 
     return (
         <article
-            className={`tagged-gallery-list-item${selectionMode ? " is-selection-mode" : ""}${isSelected ? " is-selected" : ""}`}
+            className="group flex min-h-20 w-full cursor-pointer items-center gap-3 border-b border-neutral-200 px-1 py-3 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:border-neutral-800 sm:gap-4"
             role="button"
             tabIndex={0}
             onClick={handleRowClick}
@@ -486,42 +491,45 @@ export const GalleryListItem = ({
             aria-label={`Media ${mediaTitle}`}
         >
             <div
-                className={`tagged-gallery-list-preview${selectionMode ? " is-selection-mode" : ""}${isSelected ? " is-selected" : ""}`}
+                className="relative h-16 w-20 shrink-0 overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-950 sm:h-20 sm:w-28"
                 aria-hidden="true"
             >
                 {previewUrl ? (
-                    <img src={previewUrl} alt="" />
+                    <img className="h-full w-full object-cover" src={previewUrl} alt="" />
                 ) : (
-                    <span className="tagged-gallery-list-preview-empty">No preview</span>
+                    <span className="flex h-full items-center justify-center text-[0.65rem] font-semibold text-neutral-500">No preview</span>
                 )}
 
                 {selectionMode ? (
                     <span
-                        className={`tagged-gallery-list-selection-check${isSelected ? " is-selected" : ""}`}
+                        className={`absolute left-2 top-2 text-lg drop-shadow-md ${isSelected ? "text-white" : "text-white/45"}`}
                         aria-hidden="true"
                     >
-                        <img src="/icons/check.svg" alt="" />
+                        <FontAwesomeIcon icon={faCircleCheck} />
                     </span>
                 ) : null}
             </div>
 
-            <div className="tagged-gallery-list-main">
-                <h3 className="tagged-gallery-list-title" title={mediaTitle}>
+            <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-bold text-neutral-950 dark:text-neutral-100 sm:text-base" title={mediaTitle}>
                     {mediaTitle}
                 </h3>
 
-                <p className="tagged-gallery-list-subtitle" title={`${authorLabel} - ${mediaTagCount} tags`}>
-                    <span>{authorLabel}</span>
-                    <span aria-hidden="true">&bull;</span>
-                    <span>{mediaTagCount === 1 ? "1 tag" : `${mediaTagCount} tags`}</span>
+                <p className="mt-1 flex min-w-0 items-center gap-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400" title={`${authorLabel} - ${mediaTagCount} tags`}>
+                    <span className="truncate">{authorLabel}</span>
+                    <span aria-hidden="true">·</span>
+                    <span className="inline-flex shrink-0 items-center gap-1.5">
+                        <FontAwesomeIcon icon={faTag} aria-hidden="true" />
+                        {mediaTagCount}
+                    </span>
                 </p>
             </div>
 
-            <div className="tagged-gallery-list-actions">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                 {showFavourite ? (
                     <button
                         type="button"
-                        className="tagged-gallery-list-favourite-button"
+                        className={`flex! h-9! w-9! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! shadow-none! hover:bg-transparent! hover:text-neutral-950! dark:hover:bg-transparent! dark:hover:text-neutral-100! ${isFavourite ? "text-neutral-950! dark:text-neutral-100!" : "text-neutral-400! dark:text-neutral-500!"}`}
                         onClick={(event) => {
                             event.stopPropagation();
                             if (selectionMode) {
@@ -533,14 +541,14 @@ export const GalleryListItem = ({
                         aria-pressed={isFavourite}
                         disabled={isTogglingFavourite || selectionMode}
                     >
-                        <GalleryListFavouriteIcon active={isFavourite} />
+                        <FontAwesomeIcon icon={isFavourite ? faHeart : faHeartRegular} aria-hidden="true" />
                     </button>
                 ) : null}
 
                 {showDelete ? (
                     <button
                         type="button"
-                        className="tagged-gallery-list-delete-button"
+                        className="flex! h-9! w-9! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-400! shadow-none! hover:bg-transparent! hover:text-neutral-950! dark:text-neutral-500! dark:hover:bg-transparent! dark:hover:text-neutral-100!"
                         onClick={(event) => {
                             event.stopPropagation();
                             if (selectionMode) {
@@ -552,7 +560,7 @@ export const GalleryListItem = ({
                         title="Delete media"
                         disabled={selectionMode}
                     >
-                        <img src="/icons/delete.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
                     </button>
                 ) : null}
             </div>
@@ -622,10 +630,11 @@ const LazyViewportItem = ({
 };
 
 export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) => {
-    const { user, fetchWithAuth } = useAuth();
+    const { user, fetchWithAuth, accessToken } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [mediaItems, setMediaItems] = useState([]);
+    const [mediaTotal, setMediaTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [togglingIds, setTogglingIds] = useState(new Set());
@@ -635,7 +644,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [isUploadToastMode, setIsUploadToastMode] = useState(false);
     const [pageSize, setPageSize] = useState(() => {
         const stored = localStorage.getItem(GALLERY_PAGE_SIZE_STORAGE_KEY);
-        if (stored === "all") return "all";
         const n = Number(stored);
         return Number.isFinite(n) && n > 0 ? n : DEFAULT_PAGE_SIZE;
     });
@@ -667,8 +675,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         const stored = Number(localStorage.getItem(GALLERY_CURRENT_PAGE_STORAGE_KEY));
         return Number.isFinite(stored) && stored > 0 ? stored : 1;
     });
-    const [isUploadPreviewLightboxOpen, setIsUploadPreviewLightboxOpen] = useState(false);
-    const [uploadPreviewIndex, setUploadPreviewIndex] = useState(0);
     const [uploadPreviewUrls, setUploadPreviewUrls] = useState([]);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [displayNameInput, setDisplayNameInput] = useState("");
@@ -676,6 +682,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [tagInput, setTagInput] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
+    const uploadMediaMutation = useMutation({ mutationFn: uploadMedia });
     const [uploadTotal, setUploadTotal] = useState(0);
     const [uploadRemaining, setUploadRemaining] = useState(0);
     const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
@@ -685,6 +692,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [distinctAuthors, setDistinctAuthors] = useState([]);
     const [distinctTagNames, setDistinctTagNames] = useState([]);
     const [tagColorByName, setTagColorByName] = useState({});
+    const [tagTypeByName, setTagTypeByName] = useState({});
     const [activeSuggestionField, setActiveSuggestionField] = useState(null);
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -725,13 +733,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [gallerySuggestionIndex, setGallerySuggestionIndex] = useState(0);
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
     const [isRandomOrderEnabled, setIsRandomOrderEnabled] = useState(false);
-    const [randomOrderIds, setRandomOrderIds] = useState([]);
+    const [randomOrderSeed, setRandomOrderSeed] = useState(null);
     const { gridViewMode, setGridViewMode, gridColumns } = useGridView();
     const { selectedIncludeFilterTags, selectedExcludeFilterTags, clearFilterTags } = useTagFilter();
     const hiddenFileInputRef = useRef(null);
-    const uploadModalContentRef = useRef(null);
-    const uploadPreviewTouchStartXRef = useRef(0);
-    const uploadPreviewTouchStartYRef = useRef(0);
+    const uploadPreviewUrlsRef = useRef([]);
     const downloadToastTimeoutRef = useRef(null);
     const selectionActionToastTimeoutRef = useRef(null);
     const galleryScrollSaveRafRef = useRef(null);
@@ -972,27 +978,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             }
         };
     }, [galleryScrollStorageKey, loading]);
-    const totalSelectedFiles = selectedFiles.length;
-    const extraSelectedFilesCount = Math.max(0, totalSelectedFiles - 1);
-    const firstSelectedFile = selectedFiles[0] || null;
-    const uploadPreviewUrl = uploadPreviewUrls[0] || "";
-    const uploadPreviewIsVideo = Boolean(
-        firstSelectedFile &&
-        String(firstSelectedFile.type || "")
-            .toLowerCase()
-            .startsWith("video/"),
-    );
-    const normalizedUploadPreviewIndex = Math.min(uploadPreviewIndex, Math.max(totalSelectedFiles - 1, 0));
-    const activeUploadPreviewFile = selectedFiles[normalizedUploadPreviewIndex] || null;
-    const activeUploadPreviewUrl = uploadPreviewUrls[normalizedUploadPreviewIndex] || "";
-    const activeUploadPreviewIsVideo = Boolean(
-        activeUploadPreviewFile &&
-        String(activeUploadPreviewFile.type || "")
-            .toLowerCase()
-            .startsWith("video/"),
-    );
-    const canGoToPreviousUploadPreview = normalizedUploadPreviewIndex > 0;
-    const canGoToNextUploadPreview = normalizedUploadPreviewIndex < totalSelectedFiles - 1;
     const uploadedCount = Math.max(0, uploadTotal - uploadRemaining);
     const normalizedUploadProgress = Number.isFinite(uploadProgressPercent)
         ? Math.max(0, Math.min(100, uploadProgressPercent))
@@ -1007,25 +992,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         return params.get("author")?.trim() || "";
     }, [location.search]);
 
-    const orderedMediaItems = useMemo(() => {
-        if (!isRandomOrderEnabled) {
-            return mediaItems;
-
-        }
-        const itemById = new Map(mediaItems.map((item) => [String(item.id), item]));
-        const ordered = randomOrderIds.map((id) => itemById.get(String(id))).filter(Boolean);
-        const remaining = mediaItems.filter((item) => !randomOrderIds.some((id) => String(id) === String(item.id)));
-
-        return [...ordered, ...remaining];
-    }, [mediaItems, isRandomOrderEnabled, randomOrderIds]);
-
-    useEffect(() => {
-        if (!isRandomOrderEnabled) {
-            return;
-
-        }
-        setRandomOrderIds(shuffleArray(mediaItems.map((item) => item.id)));
-    }, [mediaItems, isRandomOrderEnabled]);
+    const orderedMediaItems = mediaItems;
 
     const filteredMediaItems = useMemo(() => {
         const normalizedFilter = activeTagFilter.toLowerCase();
@@ -1129,18 +1096,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         mediaTypeFilter,
     ]);
 
-    const totalFilteredMediaCount = filteredMediaItems.length;
-    const totalPages = pageSize === "all" ? 1 : Math.max(1, Math.ceil(totalFilteredMediaCount / pageSize));
-
-    const visibleMediaItems = useMemo(() => {
-        if (pageSize === "all") {
-            return filteredMediaItems;
-
-        }
-        const startIndex = (currentPage - 1) * pageSize;
-        const endIndex = startIndex + pageSize;
-        return filteredMediaItems.slice(startIndex, endIndex);
-    }, [filteredMediaItems, pageSize, currentPage]);
+    const totalFilteredMediaCount = mediaTotal;
+    const totalPages = Math.max(1, Math.ceil(totalFilteredMediaCount / pageSize));
+    const visibleMediaItems = filteredMediaItems;
 
     const hasActiveSearch = gallerySearchQuery.trim().length > 0;
     const hasActiveFilterTags = selectedIncludeFilterTags.length > 0 || selectedExcludeFilterTags.length > 0;
@@ -1306,7 +1264,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         isRandomOrderEnabled;
 
     const showFavouritesNoResultsState =
-        onlyFavourites && !loading && !error && mediaItems.length > 0 && visibleMediaItems.length === 0;
+        onlyFavourites && !loading && !error && visibleMediaItems.length === 0;
 
     useEffect(() => {
         window.dispatchEvent(
@@ -1345,7 +1303,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setGallerySuggestionIndex(0);
         setMediaTypeFilter("all");
         setIsRandomOrderEnabled(false);
-        setRandomOrderIds([]);
+        setRandomOrderSeed(null);
         clearFilterTags();
         navigate(basePath);
     };
@@ -1360,50 +1318,16 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     };
 
     useEffect(() => {
-        if (!selectedFiles.length) {
-            setUploadPreviewUrls([]);
-            setUploadPreviewIndex(0);
-            return;
-
-        }
-        const nextUrls = selectedFiles.map((file) => URL.createObjectURL(file));
-        setUploadPreviewUrls(nextUrls);
-        setUploadPreviewIndex((previous) => Math.min(previous, Math.max(nextUrls.length - 1, 0)));
-
         return () => {
-            nextUrls.forEach((url) => URL.revokeObjectURL(url));
+            uploadPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+            uploadPreviewUrlsRef.current = [];
         };
-    }, [selectedFiles]);
-
-    const openUploadPreviewLightbox = (index = 0) => {
-        if (!uploadPreviewUrls.length) {
-            return;
-
-        }
-        const safeIndex = Math.min(Math.max(Number(index) || 0, 0), uploadPreviewUrls.length - 1);
-        setUploadPreviewIndex(safeIndex);
-        setIsUploadPreviewLightboxOpen(true);
-    };
-
-    const goToPreviousUploadPreview = () => {
-        if (!canGoToPreviousUploadPreview) {
-            return;
-
-        }
-        setUploadPreviewIndex((previous) => Math.max(previous - 1, 0));
-    };
-
-    const goToNextUploadPreview = () => {
-        if (!canGoToNextUploadPreview) {
-            return;
-
-        }
-        setUploadPreviewIndex((previous) => Math.min(previous + 1, totalSelectedFiles - 1));
-    };
+    }, []);
 
     const handleRandomizeMediaOrder = () => {
         setIsRandomOrderEnabled(true);
-        setRandomOrderIds(shuffleArray(mediaItems.map((item) => item.id)));
+        setRandomOrderSeed(Math.floor(Math.random() * 2147483647));
+        setCurrentPage(1);
     };
 
     useEffect(() => {
@@ -2250,6 +2174,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             }
             const refreshedMedia = await fetchMediaList();
             setMediaItems(Array.isArray(refreshedMedia.data) ? refreshedMedia.data : []);
+            setMediaTotal(Number(refreshedMedia.total) || 0);
             showSelectionActionToast(
                 {
                     status: "success",
@@ -2355,25 +2280,28 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         if (!user || user.type === "admin") {
             return { data: [], total: 0 };
         }
-        const params = new URLSearchParams({ page: "1", limit: "10000" });
-        const response = await fetchWithAuth(`${API_URL}/media?${params.toString()}`, {
-            method: "GET",
-            headers: {
-                "Content-Type": "application/json",
+        return galleryApi.getMedia(
+            {
+                page: currentPage,
+                limit: pageSize,
+                favourites: onlyFavourites || undefined,
+                mediaType: mediaTypeFilter !== "all" ? mediaTypeFilter : undefined,
+                author: activeAuthorFilter || undefined,
+                tag: activeTagFilter || undefined,
+                includeTag: selectedIncludeFilterTags,
+                excludeTag: selectedExcludeFilterTags,
+                search: gallerySearchQuery.trim() || undefined,
+                randomSeed: isRandomOrderEnabled ? randomOrderSeed : undefined,
             },
-        });
-        const data = await parseApiResponse(response, "Could not load gallery");
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Could not load gallery");
-        }
-        // Espera { data: [...], total: N }
-        return data;
+            accessToken,
+        );
     };
 
     const resetUploadForm = () => {
+        uploadPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        uploadPreviewUrlsRef.current = [];
+        setUploadPreviewUrls([]);
         setSelectedFiles([]);
-        setIsUploadPreviewLightboxOpen(false);
-        setUploadPreviewIndex(0);
         setDisplayNameInput("");
         setAuthorInput("");
         setTagInput("");
@@ -2403,9 +2331,12 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             return;
 
         }
+        const nextPreviewUrls = files.map((file) => URL.createObjectURL(file));
+
+        uploadPreviewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+        uploadPreviewUrlsRef.current = nextPreviewUrls;
+        setUploadPreviewUrls(nextPreviewUrls);
         setSelectedFiles(files);
-        setIsUploadPreviewLightboxOpen(false);
-        setUploadPreviewIndex(0);
         setIsUploadModalOpen(true);
     };
 
@@ -2461,8 +2392,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         }
         const finalDisplayName = displayNameInput.trim();
         const finalAuthor = authorInput.trim();
-        const tagNamesPayload = JSON.stringify(selectedTags);
-
         setUploadError(null);
         setIsUploading(true);
         setUploadTotal(selectedFiles.length);
@@ -2481,60 +2410,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         }
         try {
-            const formData = new FormData();
-            formData.append("displayname", finalDisplayName);
-            formData.append("author", finalAuthor);
-            formData.append("tag_names", tagNamesPayload);
-
-            const isMultipleUpload = selectedFiles.length > 1;
-            const uploadEndpoint = isMultipleUpload ? `${API_URL}/media/upload/multiple` : `${API_URL}/media/upload`;
-
-            if (isMultipleUpload) {
-                selectedFiles.forEach((file) => {
-                    formData.append("files", file);
-                });
-            } else {
-                formData.append("file", selectedFiles[0]);
-
-            }
-            const uploadWithProgress = (onProgress) =>
-                new Promise((resolve, reject) => {
-                    const xhr = new XMLHttpRequest();
-                    const accessToken =
-                        typeof window !== "undefined" ? window.localStorage.getItem("accessToken") : null;
-
-                    xhr.open("POST", uploadEndpoint, true);
-
-                    if (accessToken) {
-                        xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
-
-                    }
-                    xhr.upload.onprogress = (progressEvent) => {
-                        const totalBytes = progressEvent.lengthComputable ? progressEvent.total : null;
-                        const loadedBytes = Number.isFinite(progressEvent.loaded)
-                            ? Math.max(0, progressEvent.loaded)
-                            : 0;
-                        const percent =
-                            totalBytes && totalBytes > 0
-                                ? Math.max(0, Math.min(100, (loadedBytes / totalBytes) * 100))
-                                : null;
-
-                        onProgress?.({ loadedBytes, percent });
-                    };
-
-                    xhr.onload = () => {
-                        resolve({
-                            status: xhr.status,
-                            responseText: typeof xhr.responseText === "string" ? xhr.responseText : "",
-                        });
-                    };
-
-                    xhr.onerror = () => reject(new Error("Network error while uploading files"));
-                    xhr.onabort = () => reject(new Error("Upload was cancelled"));
-
-                    xhr.send(formData);
-                });
-
             const getNowMs = () =>
                 typeof window !== "undefined" && typeof window.performance?.now === "function"
                     ? window.performance.now()
@@ -2564,38 +2439,40 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 return latestSpeed;
             };
 
-            const uploadResult = await uploadWithProgress(({ loadedBytes, percent }) => {
-                const normalizedPercent =
-                    typeof percent === "number" && Number.isFinite(percent)
-                        ? Math.max(0, Math.min(100, percent))
-                        : null;
-                const progressValue = normalizedPercent ?? 0;
-                const estimatedUploadedFiles = Math.round((progressValue / 100) * selectedFiles.length);
+            const data = await uploadMediaMutation.mutateAsync({
+                files: selectedFiles,
+                displayName: finalDisplayName,
+                author: finalAuthor,
+                tags: selectedTags,
+                onUploadProgress: (progressEvent) => {
+                    const totalBytes = progressEvent.total || null;
+                    const loadedBytes = Number.isFinite(progressEvent.loaded)
+                        ? Math.max(0, progressEvent.loaded)
+                        : 0;
+                    const percent =
+                        totalBytes && totalBytes > 0
+                            ? Math.max(0, Math.min(100, (loadedBytes / totalBytes) * 100))
+                            : null;
+                    const progressValue = percent ?? 0;
+                    const estimatedUploadedFiles = Math.round((progressValue / 100) * selectedFiles.length);
 
-                setUploadProgressPercent(progressValue);
-                setUploadRemaining(Math.max(0, selectedFiles.length - estimatedUploadedFiles));
-                setUploadSpeedLabel(sampleUploadSpeed(loadedBytes));
-                // Actualizar toast si el modal esta cerrado
-                if (!isUploadModalOpen) {
-                    showUploadToast({
-                        status: "info",
-                        title: "Subiendo...",
-                        message: "La subida sigue en segundo plano.",
-                        progress: progressValue,
-                        speedLabel: sampleUploadSpeed(loadedBytes),
-                    });
-                }
-            });
-            const syntheticResponse = new Response(uploadResult.responseText, {
-                status: uploadResult.status,
-                headers: {
-                    "Content-Type": "application/json",
+                    setUploadProgressPercent(progressValue);
+                    setUploadRemaining(Math.max(0, selectedFiles.length - estimatedUploadedFiles));
+                    setUploadSpeedLabel(sampleUploadSpeed(loadedBytes));
+
+                    if (!isUploadModalOpen) {
+                        showUploadToast({
+                            status: "info",
+                            title: "Subiendo...",
+                            message: "La subida sigue en segundo plano.",
+                            progress: progressValue,
+                            speedLabel: sampleUploadSpeed(loadedBytes),
+                        });
+                    }
                 },
             });
 
-            const data = await parseApiResponse(syntheticResponse, "Error uploading files");
-
-            if (uploadResult.status < 200 || uploadResult.status >= 300 || !data.success) {
+            if (!data?.success) {
                 throw new Error(data.message || "Error uploading files");
 
             }
@@ -2608,6 +2485,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
             const refreshedMedia = await fetchMediaList();
             setMediaItems(Array.isArray(refreshedMedia.data) ? refreshedMedia.data : []);
+            setMediaTotal(Number(refreshedMedia.total) || 0);
             setIsUploadModalOpen(false);
             setIsUploadToastMode(false);
             resetUploadForm();
@@ -2623,12 +2501,13 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 2200,
             );
         } catch (requestError) {
-            setUploadError(requestError.message || "Error uploading files");
+            const requestMessage = requestError.response?.data?.message || requestError.message || "Error uploading files";
+            setUploadError(requestMessage);
             setIsUploadToastMode(false);
             showUploadToast({
                 status: "error",
                 title: "Upload failed",
-                message: requestError.message || "Error uploading files",
+                message: requestMessage,
                 progress: uploadProgressPercent,
                 speedLabel: null,
             });
@@ -2700,20 +2579,12 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
     }
     const handlePageSizeChange = (e) => {
-        const raw = e.target.value;
-        if (raw === "all") {
-            setPageSize("all");
+        const value = Number(e.target.value);
+        if (Number.isFinite(value) && value > 0) {
+            setPageSize(value);
             setCurrentPage(1);
             localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
             scrollGalleryToTop();
-        } else {
-            const value = Number(raw);
-            if (Number.isFinite(value) && value > 0) {
-                setPageSize(value);
-                setCurrentPage(1);
-                localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
-                scrollGalleryToTop();
-            }
         }
     };
     const handlePageChange = (newPage, { scrollTarget = "top" } = {}) => {
@@ -2738,46 +2609,50 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         }
     }, [currentPage, totalPages]);
 
+    const mediaQuery = useQuery({
+        queryKey: [
+            "gallery-media",
+            user?.id,
+            currentPage,
+            pageSize,
+            onlyFavourites,
+            mediaTypeFilter,
+            activeAuthorFilter,
+            activeTagFilter,
+            selectedIncludeFilterTags,
+            selectedExcludeFilterTags,
+            gallerySearchQuery,
+            isRandomOrderEnabled,
+            randomOrderSeed,
+        ],
+        queryFn: fetchMediaList,
+        enabled: Boolean(user && user.type !== "admin" && accessToken),
+        placeholderData: (previousData) => previousData,
+    });
+
     useEffect(() => {
-        let cancelled = false;
+        if (!user || user.type === "admin") {
+            setMediaItems([]);
+            setMediaTotal(0);
+            setLoading(false);
+            return;
+        }
 
-        const loadMedia = async () => {
-            if (!user) {
-                setMediaItems([]);
-                setLoading(false);
-                return;
-            }
-            if (user.type === "admin") {
-                setMediaItems([]);
-                setLoading(false);
-                return;
-            }
-            try {
-                setLoading(true);
-                setError(null);
+        setLoading(mediaQuery.isLoading || mediaQuery.isFetching);
 
-                const items = await fetchMediaList();
+        if (mediaQuery.error) {
+            setError(mediaQuery.error.message || "Could not load gallery");
+            setMediaItems([]);
+            setMediaTotal(0);
+            return;
+        }
 
-                if (!cancelled) {
-                    setMediaItems(Array.isArray(items.data) ? items.data : []);
-                }
-            } catch (requestError) {
-                if (!cancelled) {
-                    setError(requestError.message || "Could not load gallery");
-                    setMediaItems([]);
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        };
-        loadMedia();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [fetchWithAuth, user]);
+        if (mediaQuery.data) {
+            setError(null);
+            setMediaItems(Array.isArray(mediaQuery.data.data) ? mediaQuery.data.data : []);
+            setMediaTotal(Number(mediaQuery.data.total) || 0);
+        }
+    }, [mediaQuery.data, mediaQuery.error, mediaQuery.isFetching, mediaQuery.isLoading, user]);
 
     useEffect(() => {
         const onOpenUpload = () => {
@@ -2810,84 +2685,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             document.body.style.touchAction = previousBodyTouchAction;
         };
     }, [isUploadModalOpen]);
-
-    useEffect(() => {
-        if (!isUploadModalOpen) {
-            return;
-        }
-        window.requestAnimationFrame(() => {
-            const modalElement = uploadModalContentRef.current;
-
-            if (modalElement) {
-                modalElement.scrollTo({ top: 0, left: 0, behavior: "auto" });
-            }
-        });
-    }, [isUploadModalOpen]);
-    useEffect(() => {
-        if (!isUploadPreviewLightboxOpen) {
-            return;
-        }
-        const handleUploadPreviewLightboxKeyDown = (event) => {
-            if (event.key === "Escape") {
-                event.preventDefault();
-                setIsUploadPreviewLightboxOpen(false);
-                return;
-
-            }
-            if (event.key === "ArrowLeft") {
-                event.preventDefault();
-                goToPreviousUploadPreview();
-                return;
-
-            }
-            if (event.key === "ArrowRight") {
-                event.preventDefault();
-                goToNextUploadPreview();
-            }
-        };
-        window.addEventListener("keydown", handleUploadPreviewLightboxKeyDown);
-
-        return () => {
-            window.removeEventListener("keydown", handleUploadPreviewLightboxKeyDown);
-        };
-    }, [isUploadPreviewLightboxOpen, goToPreviousUploadPreview, goToNextUploadPreview]);
-
-    useEffect(() => {
-        if (isUploadPreviewLightboxOpen && !activeUploadPreviewUrl) {
-            setIsUploadPreviewLightboxOpen(false);
-        }
-    }, [isUploadPreviewLightboxOpen, activeUploadPreviewUrl]);
-    const handleUploadPreviewTouchStart = (event) => {
-        const touch = event.touches?.[0];
-
-        if (!touch) {
-            return;
-        }
-        uploadPreviewTouchStartXRef.current = touch.clientX;
-        uploadPreviewTouchStartYRef.current = touch.clientY;
-    };
-
-    const handleUploadPreviewTouchEnd = (event) => {
-        const touch = event.changedTouches?.[0];
-
-        if (!touch) {
-            return;
-
-        }
-        const deltaX = touch.clientX - uploadPreviewTouchStartXRef.current;
-        const deltaY = touch.clientY - uploadPreviewTouchStartYRef.current;
-
-        if (Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY)) {
-            return;
-
-        }
-        if (deltaX < 0) {
-            goToNextUploadPreview();
-            return;
-
-        }
-        goToPreviousUploadPreview();
-    };
 
     useEffect(() => {
         const handleGlobalKeyDown = (event) => {
@@ -2985,9 +2782,21 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             };
                         }, {}),
                     );
+                    setTagTypeByName(
+                        validTags.reduce((accumulator, item) => {
+                            const normalizedName = String(item.tagname).trim().toLowerCase();
+                            if (!normalizedName) return accumulator;
+
+                            return {
+                                ...accumulator,
+                                [normalizedName]: item.type === "copyright" ? "copyright" : "default",
+                            };
+                        }, {}),
+                    );
                 } else {
                     setDistinctTagNames([]);
                     setTagColorByName({});
+                    setTagTypeByName({});
                 }
             } catch {
                 if (!cancelled) {
@@ -2995,6 +2804,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     setDistinctAuthors([]);
                     setDistinctTagNames([]);
                     setTagColorByName({});
+                    setTagTypeByName({});
                 }
             }
         };
@@ -3125,16 +2935,21 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 onChange={handleFileSelectionChange}
             />
 
-            {!loading && !error && mediaItems.length > 0 && !showFavouritesNoResultsState ? (
-                <div className="tagged-gallery-search" aria-label="Search media">
-                    <div className="tagged-upload-field tagged-gallery-search-wrap tagged-gallery-search-field">
-                        <span className="tagged-upload-field-label">Search media</span>
-                        <div className="tagged-upload-autocomplete tagged-gallery-search-input-wrap">
+            {!loading && !error && !showFavouritesNoResultsState ? (
+                <div className="mx-auto flex w-full max-w-[92rem] flex-col gap-3 lg:flex-row lg:items-end" aria-label="Search media">
+                    <label className="min-w-0 flex-1 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                        <span className="mb-2 block">Search media</span>
+                        <div className="relative">
+                            <FontAwesomeIcon
+                                icon={faMagnifyingGlass}
+                                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600"
+                                aria-hidden="true"
+                            />
                             <input
                                 type="text"
                                 inputMode="search"
                                 enterKeyHint="search"
-                                className="tagged-gallery-search-input"
+                                className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-11 pr-11 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600 dark:focus:border-neutral-500"
                                 value={gallerySearchQuery}
                                 onChange={(event) => {
                                     setGallerySearchQuery(event.target.value);
@@ -3169,30 +2984,30 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                         setGallerySuggestionOpen(false);
                                 }}
                 }
-                                placeholder="Search media... (tip: a:author n:name)"
+                                placeholder="Search by media, a:author or n:name"
                                 aria-label="Search media by name or author. Supports a:author and n:name."
                             />
 
                             {hasActiveSearch ? (
                                 <button
                                     type="button"
-                                    className="tagged-gallery-search-inline-clear"
+                                    className="absolute! right-2! top-1/2! flex! h-8! w-8! -translate-y-1/2! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-400! shadow-none! hover:bg-neutral-100! hover:text-neutral-700! dark:hover:bg-neutral-800! dark:hover:text-neutral-200!"
                                     onMouseDown={(event) => event.preventDefault()}
                                     onClick={() => setGallerySearchQuery("")}
                                     aria-label="Clear search"
                                     title="Clear search"
                                 >
-                                    <span className="tagged-gallery-search-inline-clear-icon" aria-hidden="true" />
+                                    <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                                 </button>
                             ) : null}
 
                             {gallerySuggestionOpen && gallerySearchSuggestions.length > 0 ? (
-                                <ul className="tagged-upload-suggestion-list" role="listbox">
+                                <ul className="absolute inset-x-0 top-[calc(100%+0.4rem)] z-30 grid gap-1 rounded-xl border border-neutral-300 bg-white p-1 shadow-xl dark:border-neutral-700 dark:bg-neutral-900" role="listbox">
                                     {gallerySearchSuggestions.map((value, index) => (
                                         <li key={value}>
                                             <button
                                                 type="button"
-                                                className={`tagged-upload-suggestion-item${index === gallerySuggestionIndex ? " is-active" : ""}`}
+                                                className={`min-h-9! w-full! rounded-xl! border-0! bg-transparent! px-3! py-1.5! text-left! text-sm! font-medium! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:text-neutral-200! dark:hover:bg-neutral-800! ${index === gallerySuggestionIndex ? "bg-neutral-100! dark:bg-neutral-800!" : ""}`}
                                                 onMouseDown={(event) => event.preventDefault()}
                                                 onClick={() => {
                                                     setGallerySearchQuery(value);
@@ -3206,52 +3021,69 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 </ul>
                             ) : null}
                         </div>
+                    </label>
 
-                        <div className="tagged-gallery-view-switch" aria-label="Media view mode">
+                    <div className="flex flex-wrap items-center gap-2" aria-label="Media view mode">
+                            <div className="flex h-12 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950" aria-label="Filter by media type">
+                                {[
+                                    { type: "all", label: "All", icon: faTableCellsLarge },
+                                    { type: "image", label: "Images", icon: faImage },
+                                    { type: "video", label: "Videos", icon: faFilm },
+                                ].map((filter) => (
+                                    <button
+                                        key={filter.type}
+                                        type="button"
+                                        className={`inline-flex! h-10! w-auto! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! py-0! text-sm! font-bold! shadow-none! ${mediaTypeFilter === filter.type ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                                        onClick={() => setMediaTypeFilter(filter.type)}
+                                        aria-pressed={mediaTypeFilter === filter.type}
+                                        title={filter.label}
+                                    >
+                                        <FontAwesomeIcon icon={filter.icon} aria-hidden="true" />
+                                        <span className="hidden 2xl:inline">{filter.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                             <button
                                 type="button"
-                                className={`tagged-gallery-view-switch-button${gridViewMode === "card" ? " is-active" : ""}`}
+                                className={`${TOOLBAR_BUTTON_CLASSES} ${gridViewMode === "card" ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
                                 onClick={() => setGridViewMode("card")}
                                 aria-pressed={gridViewMode === "card"}
                                 aria-label="Card view"
                                 title="Card view"
                             >
-                                <span className="tagged-gallery-view-switch-icon tagged-gallery-view-switch-icon--card" />
-                                <span className="tagged-gallery-view-switch-label">Card</span>
+                                <FontAwesomeIcon icon={faTableCellsLarge} aria-hidden="true" />
+                                <span className="hidden lg:inline">Cards</span>
                             </button>
 
                             <button
                                 type="button"
-                                className={`tagged-gallery-view-switch-button${gridViewMode === "list" ? " is-active" : ""}`}
+                                className={`${TOOLBAR_BUTTON_CLASSES} ${gridViewMode === "list" ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
                                 onClick={() => setGridViewMode("list")}
                                 aria-pressed={gridViewMode === "list"}
                                 aria-label="List view"
                                 title="List view"
                             >
-                                <span className="tagged-gallery-view-switch-icon tagged-gallery-view-switch-icon--list" />
-                                <span className="tagged-gallery-view-switch-label">List</span>
+                                <FontAwesomeIcon icon={faList} aria-hidden="true" />
+                                <span className="hidden lg:inline">List</span>
                             </button>
 
                             <button
                                 type="button"
-                                className={`tagged-gallery-view-switch-button${isRandomOrderEnabled ? " is-active" : ""}`}
+                                className={`${TOOLBAR_BUTTON_CLASSES} ${isRandomOrderEnabled ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
                                 onClick={handleRandomizeMediaOrder}
                                 aria-pressed={isRandomOrderEnabled}
                                 aria-label="Randomize media order"
                                 title="Randomize media order"
                             >
-                                <span className="tagged-gallery-view-switch-icon tagged-gallery-view-switch-icon--random" />
-                                <span className="tagged-gallery-view-switch-label">Random</span>
+                                <FontAwesomeIcon icon={faShuffle} aria-hidden="true" />
+                                <span className="hidden lg:inline">Random</span>
                             </button>
-                        </div>
 
-                    </div>
-
-                    {totalFilteredMediaCount > 0 && (
-                        <label className="tagged-gallery-pagination__size-label tagged-gallery-pagination__size-label--inline">
-                            Per page
+                    {totalFilteredMediaCount > MIN_PAGE_SIZE && (
+                        <label className="ml-auto flex h-12 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 lg:ml-2">
+                            <span className="hidden sm:inline">Per page</span>
                             <select
-                                className="tagged-gallery-pagination__size-select"
+                                className="bg-transparent text-sm font-bold text-neutral-950 outline-none dark:text-neutral-100"
                                 value={pageSize}
                                 onChange={handlePageSizeChange}
                             >
@@ -3260,10 +3092,10 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                         {size}
                                     </option>
                                 ))}
-                                <option value="all">All</option>
                             </select>
                         </label>
                     )}
+                    </div>
                 </div>
             ) : null}
 
@@ -3287,40 +3119,21 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             ) : null}
 
             {!loading && !error && mediaItems.length === 0 ? (
-                <article
-                    className="tagged-app-page-card tagged-gallery-empty-card tagged-gallery-empty-card--no-media"
-                    aria-live="polite"
-                >
-                    <h2>Not a nice view</h2>
-                    <p>
-                        Let&apos;s{" "}
-                        <button
-                            type="button"
-                            className="tagged-gallery-empty-upload-trigger"
-                            onClick={handleOpenUpload}
-                        >
-                            upload
-                        </button>{" "}
-                        some of your amazing pictures
-                    </p>
-                    <img className="tagged-gallery-empty-image-icon" src="/icons/image.svg" alt="" aria-hidden="true" />
-                </article>
+                <EmptyState
+                    title="No media yet"
+                    icon={faImage}
+                    actionLabel="Upload media"
+                    onAction={handleOpenUpload}
+                />
             ) : null}
 
             {showFavouritesNoResultsState ? (
-                <article
-                    className="tagged-app-page-card tagged-gallery-empty-card tagged-gallery-empty-card--no-media"
-                    aria-live="polite"
-                >
-                    <h2>No favourites yet</h2>
-                    <p>Add items to favourites and they will appear here.</p>
-                    <img
-                        className="tagged-gallery-empty-image-icon"
-                        src="/icons/favourites.svg"
-                        alt=""
-                        aria-hidden="true"
-                    />
-                </article>
+                <EmptyState
+                    title="No favourites yet"
+                    icon={faHeart}
+                    actionLabel="Browse gallery"
+                    onAction={() => navigate("/gallery")}
+                />
             ) : null}
 
             {!showFavouritesNoResultsState &&
@@ -3328,61 +3141,34 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             !error &&
             mediaItems.length > 0 &&
             visibleMediaItems.length === 0 ? (
-                <article
-                    className="tagged-app-page-card tagged-gallery-empty-card tagged-gallery-empty-card--no-media"
-                    aria-live="polite"
-                >
-                    <h2>No results</h2>
-                    {hasActiveSearch ? (
-                        <p>
-                            <button
-                                type="button"
-                                className="tagged-gallery-empty-upload-trigger"
-                                onClick={() => setGallerySearchQuery("")}
-                            >
-                                Clear search
-                            </button>
-                        </p>
-                    ) : null}
-                    {hasActiveFilterTags ? (
-                        <p>
-                            <button
-                                type="button"
-                                className="tagged-gallery-empty-upload-trigger"
-                                onClick={clearFilterTags}
-                            >
-                                Clear tag filters
-                            </button>
-                        </p>
-                    ) : null}
-                    {activeTagFilter || activeAuthorFilter ? (
-                        <p>
-                            <button
-                                type="button"
-                                className="tagged-gallery-empty-upload-trigger"
-                                onClick={() => navigate(basePath)}
-                            >
-                                Clear filter
-                            </button>
-                        </p>
-                    ) : null}
-                    {mediaTypeFilter !== "all" || isRandomOrderEnabled ? (
-                        <p>
-                            <button
-                                type="button"
-                                className="tagged-gallery-empty-upload-trigger"
-                                onClick={clearGalleryFilters}
-                            >
-                                Clear media mode
-                            </button>
-                        </p>
-                    ) : null}
-                </article>
+                <EmptyState
+                    title="No results"
+                    icon={faMagnifyingGlass}
+                    placement="section"
+                    actionLabel={
+                        hasActiveSearch
+                            ? "Clear search"
+                            : hasActiveFilterTags
+                              ? "Clear tag filters"
+                              : activeTagFilter || activeAuthorFilter
+                                ? "Clear filter"
+                                : "Clear media mode"
+                    }
+                    onAction={
+                        hasActiveSearch
+                            ? () => setGallerySearchQuery("")
+                            : hasActiveFilterTags
+                              ? clearFilterTags
+                              : activeTagFilter || activeAuthorFilter
+                                ? () => navigate(basePath)
+                                : clearGalleryFilters
+                    }
+                />
             ) : null}
 
             {!loading && !error && visibleMediaItems.length > 0 ? (
                 gridViewMode === "list" ? (
-                    <div className="tagged-gallery-list" aria-label="User media compact list">
+                    <div className="mx-auto grid w-full max-w-[92rem]" aria-label="User media compact list">
                         {visibleMediaItems.map((media) => (
                             <LazyViewportItem
                                 key={media.id}
@@ -3392,7 +3178,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             >
                                 <GalleryListItem
                                     media={media}
-                                    uploadsBaseUrl={UPLOADS_BASE_URL}
                                     onOpenMedia={handleOpenMediaDetail}
                                     onToggleFavourite={handleToggleFavourite}
                                     onRequestDelete={requestDeleteSingleMedia}
@@ -3434,6 +3219,10 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
             {isSelectionMode ? (
                 <aside className="tagged-gallery-selection-toolbar" aria-label="Selection actions toolbar">
+                    <span className="tagged-gallery-selection-count" aria-live="polite">
+                        {selectedMediaCount}
+                    </span>
+                    <span className="tagged-gallery-selection-divider" aria-hidden="true" />
                     <button
                         type="button"
                         className={`tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--select-all${areAllVisibleMediaSelected ? " is-active" : ""}`}
@@ -3447,7 +3236,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 : "Select all visible media"
                 }
                     >
-                        <img src="/icons/select-all.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faCheckDouble} aria-hidden="true" />
                     </button>
 
                     <button
@@ -3458,7 +3247,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         aria-label="Add selected media to album"
                         title="Add selected media to album"
                     >
-                        <img src="/icons/album.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faFolderPlus} aria-hidden="true" />
                     </button>
 
                     <button
@@ -3469,7 +3258,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         aria-label={`Download ${selectedMediaCount} selected element${selectedMediaCount === 1 ? "" : "s"}`}
                         title={selectedMediaCount > 1 ? "Download selected media as ZIP" : "Download selected media"}
                     >
-                        <img src="/icons/download.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faDownload} aria-hidden="true" />
                     </button>
 
                     <button
@@ -3480,7 +3269,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         aria-label={`Edit ${selectedMediaCount} selected element${selectedMediaCount === 1 ? "" : "s"}`}
                         title="Edit selected media"
                     >
-                        <img src="/icons/edit.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                     </button>
 
                     <button
@@ -3491,7 +3280,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         aria-label={`Delete ${selectedMediaCount} selected element${selectedMediaCount === 1 ? "" : "s"}`}
                         title="Delete selected media"
                     >
-                        <img src="/icons/delete.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
                     </button>
 
                     <button
@@ -3501,7 +3290,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         aria-label="Close selection mode"
                         title="Close selection mode"
                     >
-                        <img src="/icons/close.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                     </button>
                 </aside>
             ) : null}
@@ -3649,42 +3438,17 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 </aside>
             ) : null}
 
-            {isDeleteConfirmOpen ? (
-                <div
-                    className="tagged-gallery-confirm-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-gallery-confirm-title"
-                    aria-describedby="tagged-gallery-confirm-description"
-                    onClick={closeDeleteSelectedConfirm}
-                >
-                    <div className="tagged-gallery-confirm-modal-content" onClick={(event) => event.stopPropagation()}>
-                        <h2 id="tagged-gallery-confirm-title">
-                            You are about to delete{" "}
-                            <span className="tagged-gallery-confirm-count">{selectedMediaCount}</span> elements
-                        </h2>
-                        <p id="tagged-gallery-confirm-description">This action can not be undone</p>
-                        <div className="tagged-gallery-confirm-actions">
-                            <button
-                                type="button"
-                                className="tagged-gallery-confirm-continue"
-                                onClick={handleDeleteSelectedMedia}
-                                disabled={isDeletingSelected}
-                            >
-                                Continue
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-gallery-confirm-cancel"
-                                onClick={closeDeleteSelectedConfirm}
-                                disabled={isDeletingSelected}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                title={isSingleDeleteFlow ? "Delete this media?" : "Delete selected media?"}
+                description={isSingleDeleteFlow
+                    ? "The file and its metadata will be permanently removed. This action cannot be undone."
+                    : `${selectedMediaCount} file${selectedMediaCount === 1 ? "" : "s"} and ${selectedMediaCount === 1 ? "its" : "their"} metadata will be permanently removed. This action cannot be undone.`}
+                confirmLabel={isSingleDeleteFlow ? "Delete media" : "Delete selected"}
+                isDeleting={isDeletingSelected}
+                onConfirm={handleDeleteSelectedMedia}
+                onClose={closeDeleteSelectedConfirm}
+            />
 
             <AddToAlbumModal
                 isOpen={isAddToAlbumModalOpen}
@@ -3723,6 +3487,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 distinctAuthors={distinctAuthors}
                 distinctTagNames={distinctTagNames}
                 tagColorByName={tagColorByName}
+                tagTypeByName={tagTypeByName}
                 selectedMediaItems={mediaItems.filter((media) => selectedMediaIds.has(media.id))}
                 getAssetUrl={getAssetUrl}
                 isSaving={isSavingSelectedEdit}
@@ -3732,401 +3497,121 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             />
 
             {isUploadModalOpen ? (
-                <div
-                    className="tagged-upload-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Upload media"
-                    onClick={(e) => {
-                        if (e.target.classList.contains("tagged-upload-modal")) {
-                            handleCloseUploadModal();
+                <UploadMediaModal
+                    key={uploadPreviewUrls.join("|")}
+                    files={selectedFiles}
+                    previewUrls={uploadPreviewUrls}
+                    displayNameInput={displayNameInput}
+                    authorInput={authorInput}
+                    tagInput={tagInput}
+                    selectedTags={selectedTags}
+                    tagColorByName={tagColorByName}
+                    tagTypeByName={tagTypeByName}
+                    activeSuggestionField={activeSuggestionField}
+                    activeSuggestionIndex={activeSuggestionIndex}
+                    displayNameSuggestions={visibleDisplayNameSuggestions}
+                    authorSuggestions={visibleAuthorSuggestions}
+                    tagSuggestions={limitedTagSuggestions}
+                    isUploading={isUploading}
+                    uploadedCount={uploadedCount}
+                    uploadTotal={uploadTotal}
+                    uploadProgress={normalizedUploadProgress}
+                    uploadSpeedLabel={uploadSpeedLabel}
+                    uploadError={uploadError}
+                    onClose={handleCloseUploadModal}
+                    onChangeFiles={openSystemFilePicker}
+                    onSubmit={handleUploadSubmit}
+                    onDisplayNameChange={(event) => {
+                        setDisplayNameInput(event.target.value);
+                        openSuggestions("displayname");
                     }}
-                }
-                >
-                    <div
-                        ref={uploadModalContentRef}
-                        className={`tagged-upload-modal-content${isUploading ? " tagged-upload-modal-content--uploading" : ""}`}
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <header className="tagged-upload-modal-header">
-                            {!isUploading ? <h2>Upload Media</h2> : <span aria-hidden="true" />}
-                            <button
-                                type="button"
-                                className="tagged-upload-modal-close"
-                                onClick={handleCloseUploadModal}
-                                aria-label="Close upload modal"
-                            >
-                                <img src="/icons/close.svg" alt="" aria-hidden="true" />
-                            </button>
-                        </header>
+                    onAuthorChange={(event) => {
+                        setAuthorInput(event.target.value);
+                        openSuggestions("author");
+                    }}
+                    onTagInputChange={(event) => {
+                        setTagInput(event.target.value);
+                        openSuggestions("tag");
+                    }}
+                    onOpenSuggestions={openSuggestions}
+                    onCloseSuggestions={closeSuggestions}
+                    onSuggestionKeyDown={(event, field) => {
+                        if (field === "displayname") {
+                            handleSuggestionKeyboard(
+                                event,
+                                field,
+                                visibleDisplayNameSuggestions,
+                                (selectedValue) => {
+                                    setDisplayNameInput(selectedValue || "");
+                                    closeSuggestions();
+                                },
+                            );
+                            return;
+                        }
 
-                        {isUploading ? (
-                            <div className="tagged-upload-progress" aria-live="polite">
-                                <div className="tagged-upload-spinner" aria-hidden="true" />
-                                <p>
-                                    Uploading files: <strong>{uploadedCount}</strong> / <strong>{uploadTotal}</strong>
-                                </p>
-                                <div className="tagged-upload-progress-track" aria-hidden="true">
-                                    <span style={{ width: `${normalizedUploadProgress}%` }} />
-                                </div>
-                                <div className="tagged-upload-progress-meta">
-                                    <small>{`${Math.round(normalizedUploadProgress)}%`}</small>
-                                    <small>{uploadSpeedLabel || ""}</small>
-                                </div>
-                            </div>
-                        ) : (
-                            <form className="tagged-upload-form" onSubmit={handleUploadSubmit}>
-                                <div className="tagged-upload-form-layout">
-                                    <div className="tagged-upload-form-main-column">
-                                        <div className="tagged-upload-selected-files" aria-live="polite">
-                                            <div className="tagged-upload-selected-files-main">
-                                                <p>
-                                                    <strong>{totalSelectedFiles}</strong> file(s) selected
-                                                </p>
-                                            </div>
+                        if (field === "author") {
+                            handleSuggestionKeyboard(
+                                event,
+                                field,
+                                visibleAuthorSuggestions,
+                                (selectedValue) => {
+                                    setAuthorInput(selectedValue || "");
+                                    closeSuggestions();
+                                },
+                            );
+                            return;
+                        }
 
-                                            <div className="tagged-upload-selected-files-actions">
-                                                {uploadPreviewUrl ? (
-                                                    <button
-                                                        type="button"
-                                                        className="tagged-upload-selected-files-preview tagged-upload-selected-files-preview--mobile"
-                                                        aria-label="Open selected media preview"
-                                                        onClick={() => openUploadPreviewLightbox(0)}
-                                                    >
-                                                        {uploadPreviewIsVideo ? (
-                                                            <video
-                                                                src={uploadPreviewUrl}
-                                                                muted
-                                                                playsInline
-                                                                preload="metadata"
-                                                            />
-                                                        ) : (
-                                                            <img src={uploadPreviewUrl} alt="" />
-                                                        )}
-
-                                                        {extraSelectedFilesCount > 0 ? (
-                                                            <span
-                                                                className="tagged-upload-selected-files-preview-count"
-                                                                aria-hidden="true"
-                                                            >
-                                                                +{extraSelectedFilesCount}
-                                                            </span>
-                                                        ) : null}
-                                                    </button>
-                                                ) : null}
-
-                                                <button
-                                                    type="button"
-                                                    className="tagged-upload-change-files"
-                                                    onClick={openSystemFilePicker}
-                                                >
-                                                    Change files
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div className="tagged-upload-row">
-                                            <label className="tagged-upload-field">
-                                                <span>Media Name</span>
-                                                <div className="tagged-upload-autocomplete">
-                                                    <input
-                                                        type="text"
-                                                        value={displayNameInput}
-                                                        onChange={(event) => {
-                                                            setDisplayNameInput(event.target.value);
-                                                            openSuggestions("displayname");
-                                                        }}
-                                                        onFocus={() => openSuggestions("displayname")}
-                                                        onBlur={closeSuggestions}
-                                                        onKeyDown={(event) =>
-                                                            handleSuggestionKeyboard(
-                                                                event,
-                                                                "displayname",
-                                                                visibleDisplayNameSuggestions,
-                                                                (selectedValue) => {
-                                                                    setDisplayNameInput(selectedValue || "");
-                                                                    closeSuggestions();
-                                                                },
-                                                            )
-                                                        }
-                                                        placeholder="Undefined"
-                                                    />
-
-                                                    {activeSuggestionField === "displayname" &&
-                                                    visibleDisplayNameSuggestions.length > 0 ? (
-                                                        <ul className="tagged-upload-suggestion-list" role="listbox">
-                                                            {visibleDisplayNameSuggestions.map((value, index) => (
-                                                                <li key={value}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className={`tagged-upload-suggestion-item${index === activeSuggestionIndex ? " is-active" : ""}`}
-                                                                        onMouseDown={(event) => event.preventDefault()}
-                                                                        onClick={() => {
-                                                                            setDisplayNameInput(value);
-                                                                            closeSuggestions();
-                                                                        }}
-                                                                    >
-                                                                        {value}
-                                                                    </button>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    ) : null}
-                                                </div>
-                                            </label>
-
-                                            <label className="tagged-upload-field">
-                                                <span>Authors</span>
-                                                <div className="tagged-upload-autocomplete">
-                                                    <input
-                                                        type="text"
-                                                        value={authorInput}
-                                                        onChange={(event) => {
-                                                            setAuthorInput(event.target.value);
-                                                            openSuggestions("author");
-                                                        }}
-                                                        onFocus={() => openSuggestions("author")}
-                                                        onBlur={closeSuggestions}
-                                                        onKeyDown={(event) =>
-                                                            handleSuggestionKeyboard(
-                                                                event,
-                                                                "author",
-                                                                visibleAuthorSuggestions,
-                                                                (selectedValue) => {
-                                                                    setAuthorInput(selectedValue || "");
-                                                                    closeSuggestions();
-                                                                },
-                                                            )
-                                                        }
-                                                        placeholder="Optional"
-                                                    />
-
-                                                    {activeSuggestionField === "author" &&
-                                                    visibleAuthorSuggestions.length > 0 ? (
-                                                        <ul className="tagged-upload-suggestion-list" role="listbox">
-                                                            {visibleAuthorSuggestions.map((value, index) => (
-                                                                <li key={value}>
-                                                                    <button
-                                                                        type="button"
-                                                                        className={`tagged-upload-suggestion-item${index === activeSuggestionIndex ? " is-active" : ""}`}
-                                                                        onMouseDown={(event) => event.preventDefault()}
-                                                                        onClick={() => {
-                                                                            setAuthorInput(value);
-                                                                            closeSuggestions();
-                                                                        }}
-                                                                    >
-                                                                        {value}
-                                                                    </button>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    ) : null}
-                                                </div>
-                                            </label>
-                                        </div>
-
-                                        <label className="tagged-upload-field">
-                                            <span>Tags (press Enter to add)</span>
-                                            <div className="tagged-upload-autocomplete">
-                                                <input
-                                                    type="text"
-                                                    value={tagInput}
-                                                    onChange={(event) => {
-                                                        setTagInput(event.target.value);
-                                                        openSuggestions("tag");
-                                                    }}
-                                                    onFocus={() => openSuggestions("tag")}
-                                                    onBlur={closeSuggestions}
-                                                    placeholder="Write tag name and press Enter"
-                                                    onKeyDown={(event) =>
-                                                        handleSuggestionKeyboard(
-                                                            event,
-                                                            "tag",
-                                                            limitedTagSuggestions,
-                                                            (selectedValue) => addTag(selectedValue),
-                                                            () => {
-                                                                if (event.key === "Enter") {
-                                                                    event.preventDefault();
-                                                                    addTag(tagInput);
-                                                                }
-                                                            },
-                                                        )
-                                                    }
-                                                />
-
-                                                {activeSuggestionField === "tag" && limitedTagSuggestions.length > 0 ? (
-                                                    <ul className="tagged-upload-suggestion-list" role="listbox">
-                                                        {limitedTagSuggestions.map((value, index) => (
-                                                            <li key={value}>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`tagged-upload-suggestion-item${index === activeSuggestionIndex ? " is-active" : ""}`}
-                                                                    onMouseDown={(event) => event.preventDefault()}
-                                                                    onClick={() => addTag(value)}
-                                                                >
-                                                                    {value}
-                                                                </button>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : null}
-                                            </div>
-                                        </label>
-
-                                        {selectedTags.length > 0 ? (
-                                            <div className="tagged-upload-tag-preview" aria-label="Selected tags">
-                                                {selectedTags.map((tag) => (
-                                                    <button
-                                                        key={tag}
-                                                        type="button"
-                                                        className="tagged-upload-tag-chip"
-                                                        style={buildTagChipStyle(
-                                                            tagColorByName[String(tag).toLowerCase()],
-                                                        )}
-                                                        onClick={() => removeTag(tag)}
-                                                        aria-label={`Remove tag ${tag}`}
-                                                    >
-                                                        <span>{tag}</span>
-                                                        <span aria-hidden="true">×</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ) : null}
-
-                                        {uploadError ? <p className="tagged-upload-error">{uploadError}</p> : null}
-
-                                        <div className="tagged-upload-actions">
-                                            <button
-                                                type="button"
-                                                className="tagged-upload-cancel"
-                                                onClick={handleCloseUploadModal}
-                                            >
-                                                Cancel
-                                            </button>
-
-                                            <button type="submit" className="tagged-upload-submit">
-                                                Start Upload
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <aside className="tagged-upload-preview-panel" aria-label="Selected media preview">
-                                        {uploadPreviewUrl ? (
-                                            <button
-                                                type="button"
-                                                className="tagged-upload-selected-files-preview tagged-upload-selected-files-preview--panel"
-                                                aria-label="Open selected media preview"
-                                                onClick={() => openUploadPreviewLightbox(0)}
-                                            >
-                                                {uploadPreviewIsVideo ? (
-                                                    <video
-                                                        src={uploadPreviewUrl}
-                                                        muted
-                                                        playsInline
-                                                        preload="metadata"
-                                                    />
-                                                ) : (
-                                                    <img src={uploadPreviewUrl} alt="" />
-                                                )}
-
-                                                {extraSelectedFilesCount > 0 ? (
-                                                    <span
-                                                        className="tagged-upload-selected-files-preview-count"
-                                                    >
-                                                        +{extraSelectedFilesCount}
-                                                    </span>
-                                                ) : null}
-                                            </button>
-                                        ) : (
-                                            <div className="tagged-upload-preview-placeholder" aria-hidden="true">
-                                                <span>No preview</span>
-                                            </div>
-                                        )}
-                                    </aside>
-                                </div>
-                            </form>
-                        )}
-
-                        {isUploadPreviewLightboxOpen && activeUploadPreviewUrl ? (
-                            <div
-                                className="tagged-upload-preview-lightbox"
-                                role="dialog"
-                                aria-modal="true"
-                                aria-label="Selected media preview"
-                                onClick={() => setIsUploadPreviewLightboxOpen(false)}
-                            >
-                                <div
-                                    className="tagged-upload-preview-lightbox-content"
-                                    onTouchStart={handleUploadPreviewTouchStart}
-                                    onTouchEnd={handleUploadPreviewTouchEnd}
-                                >
-                                    <button
-                                        type="button"
-                                        className="tagged-upload-preview-lightbox-close"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            setIsUploadPreviewLightboxOpen(false);
-                                        }}
-                                        aria-label="Close selected media preview"
-                                    >
-                                        <img src="/icons/close.svg" alt="" aria-hidden="true" />
-                                    </button>
-
-                                    {totalSelectedFiles > 1 ? (
-                                        <p className="tagged-upload-preview-lightbox-counter" aria-live="polite">
-                                            <strong>{normalizedUploadPreviewIndex + 1}</strong> / {totalSelectedFiles}
-                                        </p>
-                                    ) : null}
-
-                                    {activeUploadPreviewIsVideo ? (
-                                        <video
-                                            className="tagged-upload-preview-lightbox-media"
-                                            src={activeUploadPreviewUrl}
-                                            controls
-                                            playsInline
-                                            onClick={(event) => event.stopPropagation()}
-                                        />
-                                    ) : (
-                                        <img
-                                            className="tagged-upload-preview-lightbox-media"
-                                            src={activeUploadPreviewUrl}
-                                            alt=""
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
+                        handleSuggestionKeyboard(
+                            event,
+                            field,
+                            limitedTagSuggestions,
+                            (selectedValue) => addTag(selectedValue),
+                            () => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    addTag(tagInput);
+                                }
+                            },
+                        );
+                    }}
+                    onSelectDisplayName={(value) => {
+                        setDisplayNameInput(value);
+                        closeSuggestions();
+                    }}
+                    onSelectAuthor={(value) => {
+                        setAuthorInput(value);
+                        closeSuggestions();
+                    }}
+                    onAddTag={addTag}
+                    onRemoveTag={removeTag}
+                    getTagStyle={buildTagChipStyle}
+                />
             ) : null}
 
             {/* Pagination bar -- below grid */}
-            {totalFilteredMediaCount > 0 && (
-                <div className="tagged-gallery-pagination">
-                    {pageSize !== "all" && (
-                        <div className="tagged-gallery-pagination__nav">
+            {totalPages > 1 && (
+                <nav className="mx-auto flex w-full max-w-[92rem] justify-center pt-2" aria-label="Gallery pagination">
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                             <button
-                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
+                                type="button"
+                                className={PAGINATION_BUTTON_CLASSES}
                                 onClick={() => handlePageChange(1)}
                                 disabled={currentPage <= 1}
                                 aria-label="First page"
                                 title="First page"
                             >
-                                <span className="tagged-gallery-pagination__double-icon tagged-gallery-pagination__double-icon--first" aria-hidden="true">
-                                    <span className="tagged-gallery-pagination__double-icon-arrow tagged-gallery-pagination__double-icon-arrow--back" />
-                                </span>
+                                <FontAwesomeIcon icon={faAnglesLeft} aria-hidden="true" />
                             </button>
                             <button
-                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
+                                type="button"
+                                className={PAGINATION_BUTTON_CLASSES}
                                 onClick={() => handlePageChange(currentPage - 1, { scrollTarget: "bottom" })}
                                 disabled={currentPage <= 1}
                                 aria-label="Previous page"
                                 title="Previous page"
                             >
-                                <span
-                                    className="tagged-gallery-pagination__icon tagged-gallery-pagination__icon--back"
-                                    aria-hidden="true"
-                                />
+                                <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" />
                             </button>
                             {(() => {
                                 const visibleCount = Math.min(3, totalPages);
@@ -4146,7 +3631,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 return pages.map((pageNumber) => (
                                     <button
                                         key={pageNumber}
-                                        className={`tagged-gallery-pagination__btn${pageNumber === currentPage ? " tagged-gallery-pagination__btn--active" : ""}`}
+                                        type="button"
+                                        className={`${PAGINATION_BUTTON_CLASSES} ${pageNumber === currentPage ? "border-neutral-950! bg-neutral-950! text-white! hover:bg-neutral-800! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white!" : ""}`}
                                         onClick={() => handlePageChange(pageNumber)}
                                         aria-current={pageNumber === currentPage ? "page" : undefined}
                                     >
@@ -4155,34 +3641,28 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 ));
                             })()}
                             <button
-                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
+                                type="button"
+                                className={PAGINATION_BUTTON_CLASSES}
                                 onClick={() => handlePageChange(currentPage + 1, { scrollTarget: "bottom" })}
                                 disabled={currentPage >= totalPages}
                                 aria-label="Next page"
                                 title="Next page"
                             >
-                                <span
-                                    className="tagged-gallery-pagination__icon tagged-gallery-pagination__icon--forward"
-                                    aria-hidden="true"
-                                />
+                                <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
                             </button>
                             <button
-                                className="tagged-gallery-pagination__btn tagged-gallery-pagination__btn--icon"
+                                type="button"
+                                className={PAGINATION_BUTTON_CLASSES}
                                 onClick={() => handlePageChange(totalPages)}
                                 disabled={currentPage >= totalPages}
                                 aria-label="Last page"
                                 title="Last page"
                             >
-                                <span className="tagged-gallery-pagination__double-icon tagged-gallery-pagination__double-icon--last" aria-hidden="true">
-                                    <span className="tagged-gallery-pagination__double-icon-arrow tagged-gallery-pagination__double-icon-arrow--forward" />
-                                </span>
+                                <FontAwesomeIcon icon={faAnglesRight} aria-hidden="true" />
                             </button>
-                        </div>
-                    )}
-                </div>
+                    </div>
+                </nav>
             )}
         </section>
     );
 };
-
-

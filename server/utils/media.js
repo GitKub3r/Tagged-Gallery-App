@@ -1,6 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const sharp = require("sharp");
+const heicConvert = require("heic-convert");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
 const { THUMBNAILS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
@@ -9,12 +10,14 @@ if (ffmpegPath) {
     ffmpeg.setFfmpegPath(ffmpegPath);
 }
 
-const detectMediaType = (mimeType = "") => {
+const detectMediaType = (mimeType = "", filename = "") => {
+    const extension = path.extname(String(filename || "")).toLowerCase();
+
     if (mimeType === "image/gif") {
         return "gif";
     }
 
-    if (mimeType.startsWith("image/")) {
+    if (mimeType.startsWith("image/") || extension === ".heic" || extension === ".heif") {
         return "image";
     }
 
@@ -25,8 +28,35 @@ const detectMediaType = (mimeType = "") => {
     throw new Error("Unsupported media type");
 };
 
-const createImageThumbnail = async (inputFilePath, thumbnailFilePath) => {
-    await sharp(inputFilePath, { failOn: "none" })
+const isHeicFile = (uploadedFile) => {
+    const mimeType = String(uploadedFile?.mimetype || "").toLowerCase();
+    const extension = path.extname(String(uploadedFile?.originalname || uploadedFile?.filename || "")).toLowerCase();
+
+    return mimeType === "image/heic" || mimeType === "image/heif" || extension === ".heic" || extension === ".heif";
+};
+
+const createHeicThumbnail = async (inputFilePath, thumbnailFilePath) => {
+    const inputBuffer = await fs.readFile(inputFilePath);
+    const jpegBuffer = await heicConvert({
+        buffer: inputBuffer,
+        format: "JPEG",
+        quality: 0.82,
+    });
+
+    await sharp(jpegBuffer, { failOn: "none" })
+        .rotate()
+        .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 72, mozjpeg: true })
+        .toFile(thumbnailFilePath);
+};
+
+const createImageThumbnail = async (uploadedFile, thumbnailFilePath) => {
+    if (isHeicFile(uploadedFile)) {
+        await createHeicThumbnail(uploadedFile.path, thumbnailFilePath);
+        return;
+    }
+
+    await sharp(uploadedFile.path, { failOn: "none" })
         .rotate()
         .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
         .jpeg({ quality: 72, mozjpeg: true })
@@ -64,7 +94,7 @@ const generateThumbnail = async (uploadedFile, mediaType) => {
     if (mediaType === "video") {
         await createVideoThumbnail(uploadedFile.path, thumbnailFilePath);
     } else {
-        await createImageThumbnail(uploadedFile.path, thumbnailFilePath);
+        await createImageThumbnail(uploadedFile, thumbnailFilePath);
     }
 
     return {

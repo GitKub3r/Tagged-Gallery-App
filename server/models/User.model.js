@@ -5,7 +5,7 @@ class UserModel {
      * Obtener todos los usuarios
      */
     static async findAll() {
-        const [rows] = await pool.query("SELECT id, username, email, type, created_at FROM users");
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, created_at FROM users");
         return rows;
     }
 
@@ -13,7 +13,12 @@ class UserModel {
      * Buscar usuario por ID
      */
     static async findById(id) {
-        const [rows] = await pool.query("SELECT id, username, email, type, created_at FROM users WHERE id = ?", [id]);
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, created_at FROM users WHERE id = ?", [id]);
+        return rows[0];
+    }
+
+    static async findByIdWithPassword(id) {
+        const [rows] = await pool.query("SELECT id, username, email, password, type, avatar_path, created_at FROM users WHERE id = ?", [id]);
         return rows[0];
     }
 
@@ -77,6 +82,10 @@ class UserModel {
             fields.push("type = ?");
             values.push(userData.type);
         }
+        if (userData.avatar_path !== undefined) {
+            fields.push("avatar_path = ?");
+            values.push(userData.avatar_path);
+        }
 
         if (fields.length === 0) {
             return null;
@@ -111,6 +120,13 @@ class UserModel {
     static async usernameExists(username) {
         const [rows] = await pool.query("SELECT id FROM users WHERE username = ?", [username]);
         return rows.length > 0;
+    }
+
+    static async ensureAvatarColumn() {
+        const [columns] = await pool.query("SHOW COLUMNS FROM users LIKE 'avatar_path'");
+        if (columns.length === 0) {
+            await pool.query("ALTER TABLE users ADD COLUMN avatar_path VARCHAR(500) NULL AFTER type");
+        }
     }
 }
 

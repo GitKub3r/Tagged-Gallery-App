@@ -1,16 +1,10 @@
-.tagged-shell-content:has(> .tagged-album-page),
 .tagged-album-page {
     --tagged-album-content-max: calc((17.5rem * 5) + (1rem * 4));
     --tagged-album-search-max: 54rem;
-    --tagged-album-background: var(--tagged-app-background);
     display: grid;
     gap: 1.4rem;
     align-content: start;
     background: transparent;
-}
-
-.tagged-shell-content:has(> .tagged-album-page) {
-    background: var(--tagged-album-background);
 }
 
 .tagged-album-items-count {
@@ -373,6 +367,27 @@
     align-items: stretch;
     overflow-x: visible;
     padding-bottom: 0.35rem;
+}
+
+.tagged-album-grid-v2 {
+    display: grid;
+    grid-template-columns: repeat(var(--tagged-grid-columns, 5), minmax(0, 1fr));
+    gap: 1rem;
+    width: min(100%, var(--tagged-album-content-max));
+    justify-self: center;
+    align-items: stretch;
+    padding-bottom: 0.35rem;
+}
+
+@media (max-width: 760px) {
+    .tagged-album-grid-v2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .tagged-album-create-tile-v2 {
+        min-height: 0;
+    }
 }
 
 .tagged-album-list {

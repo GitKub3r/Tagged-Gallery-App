@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect, useRef } from "react";
+import { authApi } from "../api/authApi";
 
 const defaultContextValue = {
     user: null,
@@ -9,6 +10,7 @@ const defaultContextValue = {
     register: async () => {},
     login: async () => {},
     logout: async () => {},
+    updateCurrentUser: () => {},
     refreshAccessToken: async () => false,
     fetchWithAuth: async () => {},
     isAuthenticated: false,
@@ -51,13 +53,7 @@ export const AuthProvider = ({ children }) => {
     const register = async (username, email, password) => {
         try {
             setError(null);
-            const response = await fetch(`${API_URL}/users`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ username, email, password, type: "basic" }),
-            });
-
-            const data = await response.json();
+            const data = await authApi.register({ username, email, password });
 
             if (!data.success) {
                 setError(data.message);
@@ -78,13 +74,7 @@ export const AuthProvider = ({ children }) => {
     const login = async (email, password) => {
         try {
             setError(null);
-            const response = await fetch(`${API_URL}/users/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password }),
-            });
-
-            const data = await response.json();
+            const data = await authApi.login({ email, password });
 
             if (!data.success) {
                 setError(data.message);
@@ -129,16 +119,9 @@ export const AuthProvider = ({ children }) => {
 
         refreshPromiseRef.current = (async () => {
             try {
-                const response = await fetch(`${API_URL}/auth/refresh`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ refreshToken: latestRefreshToken }),
-                    cache: "no-store",
-                });
+                const data = await authApi.refresh(latestRefreshToken);
 
-                const data = await response.json();
-
-                if (!response.ok || !data.success || !data.data?.accessToken) {
+                if (!data.success || !data.data?.accessToken) {
                     await logout();
                     return false;
                 }
@@ -170,12 +153,7 @@ export const AuthProvider = ({ children }) => {
 
         try {
             if (latestRefreshToken) {
-                await fetch(`${API_URL}/auth/logout`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ refreshToken: latestRefreshToken }),
-                    cache: "no-store",
-                });
+                await authApi.logout(latestRefreshToken);
             }
         } catch (err) {
             console.error("Error during logout:", err);
@@ -191,6 +169,11 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem("refreshToken");
             setError(null);
         }
+    };
+
+    const updateCurrentUser = (nextUser) => {
+        setUser(nextUser);
+        localStorage.setItem("user", JSON.stringify(nextUser));
     };
 
     /**
@@ -250,6 +233,7 @@ export const AuthProvider = ({ children }) => {
         register,
         login,
         logout,
+        updateCurrentUser,
         refreshAccessToken,
         fetchWithAuth,
         isAuthenticated: !!user,

@@ -1,11 +1,11 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
-import "./MediaEditModal.css";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
+import { faArrowLeft, faArrowRight, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { IconButton } from "../icon-button/IconButton";
+import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 
 const MAX_SUGGESTIONS = 8;
-const DEFAULT_NEW_TAG_COLOR = "#643aff";
-
-const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
-
 const isVideoLike = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
     return mediaType.includes("video") || mediaType.includes("gif");
@@ -80,15 +80,7 @@ const buildTagStyle = (hexColor) => {
     const darkTheme = isDarkThemeActive();
 
     if (!rgb) {
-        const defaultTone = darkTheme ? mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56) : DEFAULT_NEW_TAG_COLOR;
-
-        return {
-            backgroundColor: `${defaultTone}${darkTheme ? "38" : "22"}`,
-            color: defaultTone,
-            borderColor: `${defaultTone}${darkTheme ? "BB" : "66"}`,
-            borderWidth: "2px",
-            boxShadow: `inset 0 0 0 1px ${darkTheme ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.22)"}`,
-        };
+        return buildDefaultTagStyle();
     }
 
     const luminance = getRelativeLuminance(rgb);
@@ -129,10 +121,14 @@ export const MediaEditModal = ({
     distinctAuthors = [],
     distinctTagNames = [],
     tagColorByName = {},
+    tagTypeByName = {},
     selectedMediaItems = [],
     getAssetUrl = (assetPath) => String(assetPath || ""),
     isSaving = false,
     error = null,
+    closeOnSave,
+    onCloseOnSaveChange,
+    navigation = null,
     onClose,
     onSubmit,
 }) => {
@@ -146,22 +142,29 @@ export const MediaEditModal = ({
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isPreviewLightboxOpen, setIsPreviewLightboxOpen] = useState(false);
     const previewTouchStartRef = useRef(null);
+    const previewDidSwipeRef = useRef(false);
+    const externalNavigationRef = useRef(navigation);
+    const lastKeyboardNavigationRef = useRef(0);
+    externalNavigationRef.current = navigation;
+    const initialDisplayName = String(initialValues?.displayname || "");
+    const initialAuthor = String(initialValues?.author || "");
+    const initialTagsKey = JSON.stringify(Array.isArray(initialValues?.tags) ? initialValues.tags : []);
 
     useEffect(() => {
         if (!isOpen) {
             return;
         }
 
-        setDisplayNameInput(String(initialValues?.displayname || ""));
-        setAuthorInput(String(initialValues?.author || ""));
+        setDisplayNameInput(initialDisplayName);
+        setAuthorInput(initialAuthor);
         setIsDisplayNameTouched(false);
         setTagInput("");
-        setSelectedTags(Array.isArray(initialValues?.tags) ? initialValues.tags : []);
+        setSelectedTags(JSON.parse(initialTagsKey));
         setActiveSuggestionField(null);
         setActiveSuggestionIndex(0);
         setPreviewIndex(0);
         setIsPreviewLightboxOpen(false);
-    }, [isOpen, initialValues]);
+    }, [isOpen, initialDisplayName, initialAuthor, initialTagsKey]);
 
     const isMultiMode = mode === "multi";
     const normalizeTag = (value) =>
@@ -227,8 +230,8 @@ export const MediaEditModal = ({
             .map((media) => {
                 const thumbPath = String(media?.thumbpath || "").trim();
                 const filePath = String(media?.filepath || "").trim();
-
-                const previewPath = thumbPath || filePath;
+                const mediaIsVideo = isVideoLike(media);
+                const previewPath = mediaIsVideo ? filePath || thumbPath : thumbPath || filePath;
                 if (!previewPath) {
                     return null;
                 }
@@ -242,10 +245,17 @@ export const MediaEditModal = ({
                     return null;
                 }
 
+                const posterUrl = thumbPath
+                    ? thumbPath.startsWith("http://") || thumbPath.startsWith("https://")
+                        ? thumbPath
+                        : getAssetUrl(thumbPath)
+                    : "";
+
                 return {
                     id: media?.id || previewUrl,
                     url: previewUrl,
-                    isVideo: !thumbPath && isVideoLike(media),
+                    posterUrl,
+                    isVideo: mediaIsVideo,
                     label: String(media?.displayname || media?.filename || media?.id || "Media").trim(),
                 };
             })
@@ -254,56 +264,70 @@ export const MediaEditModal = ({
 
     const normalizedPreviewIndex = Math.min(previewIndex, Math.max(previewItems.length - 1, 0));
     const activePreviewItem = previewItems[normalizedPreviewIndex] || null;
-    const canGoPrevPreview = normalizedPreviewIndex > 0;
-    const canGoNextPreview = normalizedPreviewIndex < previewItems.length - 1;
+    const hasExternalNavigation = Boolean(navigation);
+    const canGoPrevPreview = hasExternalNavigation ? Boolean(navigation?.hasPrevious) : normalizedPreviewIndex > 0;
+    const canGoNextPreview = hasExternalNavigation ? Boolean(navigation?.hasNext) : normalizedPreviewIndex < previewItems.length - 1;
+    const navigationCount = hasExternalNavigation ? Number(navigation?.total || 0) : previewItems.length;
+    const navigationPosition = hasExternalNavigation ? Number(navigation?.current || 0) : normalizedPreviewIndex + 1;
 
-    const goToPreviousPreview = () => {
+    const goToPreviousPreview = useCallback(() => {
         if (!canGoPrevPreview) {
             return;
         }
 
-        setPreviewIndex((previous) => Math.max(previous - 1, 0));
-    };
+        if (hasExternalNavigation) {
+            navigation.onPrevious?.();
+            return;
+        }
 
-    const goToNextPreview = () => {
+        setPreviewIndex((previous) => Math.max(previous - 1, 0));
+    }, [canGoPrevPreview, hasExternalNavigation, navigation]);
+
+    const goToNextPreview = useCallback(() => {
         if (!canGoNextPreview) {
             return;
         }
 
+        if (hasExternalNavigation) {
+            navigation.onNext?.();
+            return;
+        }
+
         setPreviewIndex((previous) => Math.min(previous + 1, previewItems.length - 1));
-    };
+    }, [canGoNextPreview, hasExternalNavigation, navigation, previewItems.length]);
 
-    const handlePreviewTouchStart = (event) => {
-        const touch = event.touches?.[0];
-
-        if (!touch) {
+    const handlePreviewPointerDown = (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) {
             return;
         }
 
         previewTouchStartRef.current = {
-            x: touch.clientX,
-            y: touch.clientY,
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY,
             time: Date.now(),
         };
+        previewDidSwipeRef.current = false;
     };
 
-    const handlePreviewTouchEnd = (event) => {
+    const handlePreviewPointerUp = (event) => {
         const start = previewTouchStartRef.current;
-        const touch = event.changedTouches?.[0];
 
         previewTouchStartRef.current = null;
 
-        if (!start || !touch || previewItems.length < 2) {
+        if (!start || start.pointerId !== event.pointerId || navigationCount < 2) {
             return;
         }
 
-        const deltaX = touch.clientX - start.x;
-        const deltaY = touch.clientY - start.y;
+        const deltaX = event.clientX - start.x;
+        const deltaY = event.clientY - start.y;
         const elapsed = Date.now() - start.time;
 
         if (elapsed > 700 || Math.abs(deltaX) < 45 || Math.abs(deltaY) > 80) {
             return;
         }
+
+        previewDidSwipeRef.current = true;
 
         if (deltaX < 0) {
             goToNextPreview();
@@ -515,14 +539,33 @@ export const MediaEditModal = ({
     };
 
     useEffect(() => {
-        if (!isOpen || previewItems.length < 2) {
+        if (!isOpen || navigationCount < 2) {
             return undefined;
         }
 
         const handleWindowKeyDown = (event) => {
-            if (isSaving || activeSuggestionField) {
+            if (isSaving || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) {
                 return;
             }
+
+            if (hasExternalNavigation) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const now = Date.now();
+                if (event.repeat && now - lastKeyboardNavigationRef.current < 90) return;
+                lastKeyboardNavigationRef.current = now;
+
+                const currentNavigation = externalNavigationRef.current;
+                if (event.key === "ArrowLeft" && currentNavigation?.hasPrevious) {
+                    currentNavigation.onPrevious?.();
+                } else if (event.key === "ArrowRight" && currentNavigation?.hasNext) {
+                    currentNavigation.onNext?.();
+                }
+                return;
+            }
+
+            if (activeSuggestionField) return;
 
             const target = event.target;
             const isTypingField =
@@ -545,402 +588,245 @@ export const MediaEditModal = ({
             }
         };
 
-        window.addEventListener("keydown", handleWindowKeyDown);
+        window.addEventListener("keydown", handleWindowKeyDown, true);
 
         return () => {
-            window.removeEventListener("keydown", handleWindowKeyDown);
+            window.removeEventListener("keydown", handleWindowKeyDown, true);
         };
-    }, [isOpen, previewItems.length, isSaving, activeSuggestionField, canGoPrevPreview, canGoNextPreview]);
+    }, [isOpen, hasExternalNavigation, navigationCount, isSaving, activeSuggestionField, canGoPrevPreview, canGoNextPreview, goToPreviousPreview, goToNextPreview]);
 
     if (!isOpen) {
         return null;
     }
 
-    const submitLabel = isSaving ? "Saving..." : isMultiMode ? "Save selected media" : "Save Changes";
+    const submitLabel = isSaving ? "Saving..." : isMultiMode ? "Save selected media" : "Save changes";
+    const subtitle = isMultiMode
+        ? String(selectedCount) + " media selected"
+        : activePreviewItem?.label || "Selected media";
+
+    const handleFieldKeyDown = (event, field) => {
+        if (field === "displayname") {
+            handleSuggestionKeyboard(event, field, visibleDisplayNameSuggestions, (value) => {
+                setIsDisplayNameTouched(true);
+                setDisplayNameInput(value || "");
+                closeSuggestions();
+            });
+            return;
+        }
+
+        if (field === "author") {
+            handleSuggestionKeyboard(event, field, visibleAuthorSuggestions, (value) => {
+                setAuthorInput(value || "");
+                closeSuggestions();
+            });
+            return;
+        }
+
+        handleSuggestionKeyboard(
+            event,
+            field,
+            visibleTagSuggestions,
+            addTag,
+            () => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    addTag(tagInput);
+                }
+            },
+        );
+    };
+
+    const renderActivePreview = ({ lightbox = false } = {}) => {
+        if (!activePreviewItem) {
+            return (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-3 text-neutral-500">
+                    <FontAwesomeIcon icon={faFile} className="text-4xl" aria-hidden="true" />
+                    <span className="text-xs font-semibold">Preview unavailable</span>
+                </div>
+            );
+        }
+
+        const mediaClassName = lightbox
+            ? "max-h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] rounded-xl object-contain"
+            : "h-full w-full object-contain";
+
+        return activePreviewItem.isVideo ? (
+            <video
+                className={mediaClassName}
+                src={activePreviewItem.url}
+                poster={activePreviewItem.posterUrl || undefined}
+                muted={!lightbox}
+                controls={lightbox}
+                playsInline
+                preload="metadata"
+            />
+        ) : (
+            <img className={mediaClassName} src={activePreviewItem.url} alt={activePreviewItem.label} />
+        );
+    };
 
     return (
-        <div
-            className="tagged-media-edit-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Edit selected media"
-            onClick={handleCloseModal}
+        <MediaFormModal
+            titleId="edit-media-title"
+            title="Edit media"
+            subtitle={subtitle}
+            onClose={handleCloseModal}
+            closeDisabled={isSaving}
         >
-            <div className="tagged-media-edit-modal-content" onClick={(event) => event.stopPropagation()}>
-                <header className="tagged-media-edit-modal-header">
-                    <h2>Edit media</h2>
-                    <button
-                        type="button"
-                        className="tagged-media-edit-modal-close"
-                        onClick={handleCloseModal}
-                        disabled={isSaving}
-                        aria-label="Close edit modal"
-                    >
-                        &times;
-                    </button>
-                </header>
+            <form className="flex min-h-0 flex-1 flex-col" id="tagged-media-edit-form" onSubmit={handleSubmit}>
+                <div className="grid min-h-0 flex-1 grid-rows-[minmax(7rem,0.8fr)_minmax(0,1.2fr)] gap-3 p-3 sm:gap-4 sm:p-4 md:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] md:grid-rows-1 md:p-6">
+                    <div className="order-2 min-h-0 md:order-1">
+                        <MediaMetadataFields
+                            displayNameInput={displayNameInput}
+                            authorInput={authorInput}
+                            tagInput={tagInput}
+                            selectedTags={selectedTags}
+                            tagColorByName={tagColorByName}
+                            tagTypeByName={tagTypeByName}
+                            activeSuggestionField={activeSuggestionField}
+                            activeSuggestionIndex={activeSuggestionIndex}
+                            displayNameSuggestions={visibleDisplayNameSuggestions}
+                            authorSuggestions={visibleAuthorSuggestions}
+                            tagSuggestions={visibleTagSuggestions}
+                            displayNamePlaceholder={isMultiMode ? "Keep existing values" : "Undefined"}
+                            authorPlaceholder={isMultiMode ? "Keep existing values" : "Optional"}
+                            error={error}
+                            onDisplayNameChange={(event) => {
+                                setIsDisplayNameTouched(true);
+                                setDisplayNameInput(event.target.value);
+                                openSuggestions("displayname");
+                            }}
+                            onAuthorChange={(event) => {
+                                setAuthorInput(event.target.value);
+                                openSuggestions("author");
+                            }}
+                            onTagInputChange={(event) => {
+                                setTagInput(event.target.value);
+                                openSuggestions("tag");
+                            }}
+                            onOpenSuggestions={openSuggestions}
+                            onCloseSuggestions={closeSuggestions}
+                            onSuggestionKeyDown={handleFieldKeyDown}
+                            onSelectDisplayName={(value) => {
+                                setIsDisplayNameTouched(true);
+                                setDisplayNameInput(value || "");
+                                closeSuggestions();
+                            }}
+                            onSelectAuthor={(value) => {
+                                setAuthorInput(value || "");
+                                closeSuggestions();
+                            }}
+                            onAddTag={addTag}
+                            onRemoveTag={removeTag}
+                            getTagStyle={buildTagStyle}
+                        />
 
-                <form className="tagged-media-edit-form" id="tagged-media-edit-form" onSubmit={handleSubmit}>
-                    <div className="tagged-media-edit-form-layout">
-                        <div className="tagged-media-edit-form-main-column">
-                            {activePreviewItem ? (
-                                <button
-                                    type="button"
-                                    className="tagged-media-edit-preview-inline tagged-media-edit-preview-inline--mobile"
-                                    aria-label="Open selected media preview"
-                                    onClick={() => setIsPreviewLightboxOpen(true)}
-                                    onTouchStart={handlePreviewTouchStart}
-                                    onTouchEnd={handlePreviewTouchEnd}
-                                >
-                                    {activePreviewItem.isVideo ? (
-                                        <video src={activePreviewItem.url} muted playsInline preload="metadata" />
-                                    ) : (
-                                        <img src={activePreviewItem.url} alt="" />
-                                    )}
-                                </button>
-                            ) : null}
-
-                            <div className="tagged-media-edit-row tagged-media-edit-row--two-columns">
-                                <label className="tagged-media-edit-field">
-                                    <span>Media Name</span>
-                                    <div className="tagged-media-edit-autocomplete">
-                                        <input
-                                            type="text"
-                                            value={displayNameInput}
-                                            onChange={(event) => {
-                                                setIsDisplayNameTouched(true);
-                                                setDisplayNameInput(event.target.value);
-                                                openSuggestions("displayname");
-                                            }}
-                                            onFocus={() => openSuggestions("displayname")}
-                                            onBlur={closeSuggestions}
-                                            onKeyDown={(event) =>
-                                                handleSuggestionKeyboard(
-                                                    event,
-                                                    "displayname",
-                                                    visibleDisplayNameSuggestions,
-                                                    (selectedValue) => {
-                                                        setIsDisplayNameTouched(true);
-                                                        setDisplayNameInput(selectedValue || "");
-                                                        closeSuggestions();
-                                                    },
-                                                )
-                                            }
-                                            placeholder={isMultiMode ? "Keep existing values" : "Undefined"}
-                                        />
-
-                                        {activeSuggestionField === "displayname" &&
-                                        visibleDisplayNameSuggestions.length > 0 ? (
-                                            <ul className="tagged-media-edit-suggestion-list" role="listbox">
-                                                {visibleDisplayNameSuggestions.map((value, index) => (
-                                                    <li key={value}>
-                                                        <button
-                                                            type="button"
-                                                            className={`tagged-media-edit-suggestion-item${index === activeSuggestionIndex ? " is-active" : ""}`}
-                                                            onMouseDown={(event) => event.preventDefault()}
-                                                            onClick={() => {
-                                                                setDisplayNameInput(value);
-                                                                closeSuggestions();
-                                                            }}
-                                                        >
-                                                            {value}
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : null}
-                                    </div>
-                                </label>
-
-                                <label className="tagged-media-edit-field">
-                                    <span>Author</span>
-                                    <div className="tagged-media-edit-autocomplete">
-                                        <input
-                                            type="text"
-                                            value={authorInput}
-                                            onChange={(event) => {
-                                                setAuthorInput(event.target.value);
-                                                openSuggestions("author");
-                                            }}
-                                            onFocus={() => openSuggestions("author")}
-                                            onBlur={closeSuggestions}
-                                            onKeyDown={(event) =>
-                                                handleSuggestionKeyboard(
-                                                    event,
-                                                    "author",
-                                                    visibleAuthorSuggestions,
-                                                    (selectedValue) => {
-                                                        setAuthorInput(selectedValue || "");
-                                                        closeSuggestions();
-                                                    },
-                                                )
-                                            }
-                                            placeholder={isMultiMode ? "Keep existing values" : "Optional"}
-                                        />
-
-                                        {activeSuggestionField === "author" && visibleAuthorSuggestions.length > 0 ? (
-                                            <ul className="tagged-media-edit-suggestion-list" role="listbox">
-                                                {visibleAuthorSuggestions.map((value, index) => (
-                                                    <li key={value}>
-                                                        <button
-                                                            type="button"
-                                                            className={`tagged-media-edit-suggestion-item${index === activeSuggestionIndex ? " is-active" : ""}`}
-                                                            onMouseDown={(event) => event.preventDefault()}
-                                                            onClick={() => {
-                                                                setAuthorInput(value);
-                                                                closeSuggestions();
-                                                            }}
-                                                        >
-                                                            {value}
-                                                        </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : null}
-                                    </div>
-                                </label>
+                        {isMultiMode && (tagsToAddPreview.length > 0 || tagsToRemovePreview.length > 0) ? (
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500 dark:text-neutral-400">
+                                {tagsToAddPreview.length > 0 ? <span>Add {tagsToAddPreview.length} tag(s)</span> : null}
+                                {tagsToRemovePreview.length > 0 ? <span>Remove {tagsToRemovePreview.length} tag(s)</span> : null}
                             </div>
-
-                            <label className="tagged-media-edit-field">
-                                <span>Tags (press Enter to add)</span>
-                                <div className="tagged-media-edit-autocomplete">
-                                    <input
-                                        type="text"
-                                        value={tagInput}
-                                        onChange={(event) => {
-                                            setTagInput(event.target.value);
-                                            openSuggestions("tag");
-                                        }}
-                                        onFocus={() => openSuggestions("tag")}
-                                        onBlur={closeSuggestions}
-                                        placeholder="Write tag name and press Enter"
-                                        onKeyDown={(event) =>
-                                            handleSuggestionKeyboard(
-                                                event,
-                                                "tag",
-                                                visibleTagSuggestions,
-                                                (selectedValue) => addTag(selectedValue),
-                                                () => {
-                                                    if (event.key === "Enter") {
-                                                        event.preventDefault();
-                                                        addTag(tagInput);
-                                                    }
-                                                },
-                                            )
-                                        }
-                                    />
-
-                                    {activeSuggestionField === "tag" && visibleTagSuggestions.length > 0 ? (
-                                        <ul className="tagged-media-edit-suggestion-list" role="listbox">
-                                            {visibleTagSuggestions.map((value, index) => (
-                                                <li key={value}>
-                                                    <button
-                                                        type="button"
-                                                        className={`tagged-media-edit-suggestion-item${index === activeSuggestionIndex ? " is-active" : ""}`}
-                                                        onMouseDown={(event) => event.preventDefault()}
-                                                        onClick={() => addTag(value)}
-                                                    >
-                                                        {value}
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : null}
-                                </div>
-                            </label>
-
-                            {selectedTags.length > 0 ? (
-                                <div className="tagged-media-edit-tag-preview" aria-label="Selected tags">
-                                    {selectedTags.map((tag) => (
-                                        <button
-                                            key={tag}
-                                            type="button"
-                                            className="tagged-media-edit-tag-chip"
-                                            style={buildTagStyle(
-                                                tagColorByName[String(tag).trim().toLowerCase()],
-                                                "light",
-                                            )}
-                                            onClick={() => removeTag(tag)}
-                                            aria-label={`Remove tag ${tag}`}
-                                        >
-                                            <span>{tag}</span>
-                                            <span aria-hidden="true">&times;</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : null}
-
-                            {error ? (
-                                <p className="tagged-media-edit-error" aria-live="assertive">
-                                    {error}
-                                </p>
-                            ) : null}
-
-                            <footer className="tagged-media-edit-modal-footer">
-                                <div className="tagged-media-edit-modal-actions">
-                                    <button
-                                        type="button"
-                                        className="tagged-media-edit-modal-cancel"
-                                        onClick={handleCloseModal}
-                                        disabled={isSaving}
-                                        aria-label="Cancel editing"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="tagged-media-edit-submit"
-                                        disabled={isSaving}
-                                        form="tagged-media-edit-form"
-                                    >
-                                        {submitLabel}
-                                    </button>
-                                </div>
-                            </footer>
-
-                        </div>
-
-                        <aside className="tagged-media-edit-preview-panel" aria-label="Selected media preview">
-                            {activePreviewItem ? (
-                                <div className="tagged-media-edit-preview-panel-wrap">
-                                    <button
-                                        type="button"
-                                        className="tagged-media-edit-preview-inline tagged-media-edit-preview-inline--panel"
-                                        aria-label="Open selected media preview"
-                                        onClick={() => setIsPreviewLightboxOpen(true)}
-                                    >
-                                        {activePreviewItem.isVideo ? (
-                                            <video src={activePreviewItem.url} muted playsInline preload="metadata" />
-                                        ) : (
-                                            <img src={activePreviewItem.url} alt="" />
-                                        )}
-                                    </button>
-
-                                    {previewItems.length > 1 ? (
-                                        <div
-                                            className="tagged-media-edit-preview-nav"
-                                            aria-label="Selected media preview navigation"
-                                        >
-                                            <button
-                                                type="button"
-                                                className="tagged-media-edit-preview-nav-button"
-                                                onClick={goToPreviousPreview}
-                                                disabled={!canGoPrevPreview}
-                                                aria-label="Previous selected media preview"
-                                                onTouchStart={handlePreviewTouchStart}
-                                                onTouchEnd={handlePreviewTouchEnd}
-                                            >
-                                                <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
-                                            </button>
-
-                                            <p className="tagged-media-edit-preview-counter" aria-live="polite">
-                                                <strong>{normalizedPreviewIndex + 1}</strong> / {previewItems.length}
-                                            </p>
-
-                                            <button
-                                                type="button"
-                                                className="tagged-media-edit-preview-nav-button"
-                                                onClick={goToNextPreview}
-                                                disabled={!canGoNextPreview}
-                                                aria-label="Next selected media preview"
-                                                onTouchStart={handlePreviewTouchStart}
-                                                onTouchEnd={handlePreviewTouchEnd}
-                                            >
-                                                <img src="/icons/arrow_forward.svg" alt="" aria-hidden="true" />
-                                            </button>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            ) : (
-                                <div className="tagged-media-edit-preview-placeholder" aria-hidden="true">
-                                    <span>No preview</span>
-                                </div>
-                            )}
-                        </aside>
+                        ) : null}
                     </div>
 
-                </form>
-
-                {isPreviewLightboxOpen && activePreviewItem ? (
                     <div
-                        className="tagged-media-edit-preview-lightbox"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label="Selected media preview"
-                        onClick={() => setIsPreviewLightboxOpen(false)}
+                        className="relative order-1 min-h-0 touch-pan-y overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-950 md:order-2"
+                        onPointerDown={handlePreviewPointerDown}
+                        onPointerUp={handlePreviewPointerUp}
+                        onPointerCancel={() => { previewTouchStartRef.current = null; }}
                     >
-                        <div className="tagged-media-edit-preview-lightbox-content">
-                            <button
-                                type="button"
-                                className="tagged-media-edit-preview-lightbox-close"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    setIsPreviewLightboxOpen(false);
-                                }}
-                                aria-label="Close selected media preview"
-                            >
-                                &times;
-                            </button>
+                        <button
+                            type="button"
+                            className="h-full! w-full! rounded-xl! border-0! bg-transparent! p-0! shadow-none! hover:bg-transparent!"
+                            onClick={() => {
+                                if (previewDidSwipeRef.current) {
+                                    previewDidSwipeRef.current = false;
+                                    return;
+                                }
+                                if (activePreviewItem) setIsPreviewLightboxOpen(true);
+                            }}
+                            aria-label="Open selected media preview"
+                        >
+                            {renderActivePreview()}
+                        </button>
 
-                            {activePreviewItem.isVideo ? (
-                                <video
-                                    className="tagged-media-edit-preview-lightbox-media"
-                                    src={activePreviewItem.url}
-                                    controls
-                                    playsInline
-                                    onClick={(event) => event.stopPropagation()}
-                                />
-                            ) : (
-                                <img
-                                    className="tagged-media-edit-preview-lightbox-media"
-                                    src={activePreviewItem.url}
-                                    alt={activePreviewItem.label}
-                                />
-                            )}
+                        {activePreviewItem ? (
+                            <span className="pointer-events-none absolute left-2 top-2 max-w-[65%] truncate rounded-xl bg-black/65 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                                {activePreviewItem.label}
+                            </span>
+                        ) : null}
 
-                            {previewItems.length > 1 ? (
-                                <div
-                                    className="tagged-media-edit-preview-lightbox-nav"
-                                    aria-label="Selected media preview navigation"
-                                >
-                                    <button
-                                        type="button"
-                                        className="tagged-media-edit-preview-lightbox-nav-button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            goToPreviousPreview();
-                                        }}
-                                        disabled={!canGoPrevPreview}
-                                        aria-label="Previous selected media preview"
-                                        onTouchStart={handlePreviewTouchStart}
-                                        onTouchEnd={handlePreviewTouchEnd}
-                                    >
-                                        <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
-                                    </button>
-                                    <p className="tagged-media-edit-preview-lightbox-counter" aria-live="polite">
-                                        <strong>{normalizedPreviewIndex + 1}</strong> / {previewItems.length}
-                                    </p>
-                                    <button
-                                        type="button"
-                                        className="tagged-media-edit-preview-lightbox-nav-button"
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            goToNextPreview();
-                                        }}
-                                        disabled={!canGoNextPreview}
-                                        aria-label="Next selected media preview"
-                                        onTouchStart={handlePreviewTouchStart}
-                                        onTouchEnd={handlePreviewTouchEnd}
-                                    >
-                                        <img src="/icons/arrow_forward.svg" alt="" aria-hidden="true" />
-                                    </button>
-                                </div>
-                            ) : null}
-                        </div>
+                        {navigationCount > 1 ? (
+                            <>
+                                <IconButton className="absolute left-2 top-1/2 -translate-y-1/2 border-white/20 bg-black/65 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToPreviousPreview} disabled={!canGoPrevPreview} aria-label="Previous media">
+                                    <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
+                                </IconButton>
+                                <IconButton className="absolute right-2 top-1/2 -translate-y-1/2 border-white/20 bg-black/65 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToNextPreview} disabled={!canGoNextPreview} aria-label="Next media">
+                                    <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
+                                </IconButton>
+                                <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-xl bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
+                                    {navigationPosition} / {navigationCount}
+                                </span>
+                            </>
+                        ) : null}
                     </div>
-                ) : null}
-            </div>
-        </div>
+                </div>
+
+                <footer className="flex h-16 shrink-0 items-center justify-between gap-2 border-t border-neutral-200 px-3 dark:border-neutral-800 sm:gap-3 sm:px-6">
+                    {typeof onCloseOnSaveChange === "function" ? (
+                        <label className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                            <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-neutral-950 dark:accent-neutral-100"
+                                checked={Boolean(closeOnSave)}
+                                onChange={(event) => onCloseOnSaveChange(event.target.checked)}
+                                disabled={isSaving}
+                            />
+                            <span>Close on save</span>
+                        </label>
+                    ) : <span />}
+
+                    <div className="ml-auto flex items-center gap-2">
+                        <button type="button" className="h-10! w-auto! whitespace-nowrap! rounded-xl! border! border-neutral-300! bg-transparent! px-3! py-2! text-sm! font-semibold! text-neutral-600! shadow-none! hover:bg-neutral-100! sm:px-4! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!" onClick={handleCloseModal} disabled={isSaving}>
+                            Cancel
+                        </button>
+                        <button type="submit" className="inline-flex! h-10! w-auto! items-center! gap-2! whitespace-nowrap! rounded-xl! border-0! bg-neutral-950! px-3! py-2! text-sm! font-semibold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-50! sm:px-4! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white!" disabled={isSaving}>
+                            <FontAwesomeIcon icon={faFloppyDisk} aria-hidden="true" />
+                            <span>{submitLabel}</span>
+                        </button>
+                    </div>
+                </footer>
+            </form>
+
+            {isPreviewLightboxOpen && activePreviewItem ? (
+                <div
+                    className="fixed inset-0 z-[1300] flex items-center justify-center overflow-hidden bg-black/90 p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Selected media preview"
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) setIsPreviewLightboxOpen(false);
+                    }}
+                    onPointerDown={handlePreviewPointerDown}
+                    onPointerUp={handlePreviewPointerUp}
+                    onPointerCancel={() => { previewTouchStartRef.current = null; }}
+                >
+                    <IconButton className="absolute right-4 top-4 border-white/30 bg-black/60 text-white hover:bg-black/80" onClick={() => setIsPreviewLightboxOpen(false)} aria-label="Close selected media preview">
+                        <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
+                    </IconButton>
+                    {navigationCount > 1 ? (
+                        <>
+                            <IconButton className="absolute left-4 top-1/2 -translate-y-1/2 border-white/30 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToPreviousPreview} disabled={!canGoPrevPreview} aria-label="Previous media">
+                                <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
+                            </IconButton>
+                            <IconButton className="absolute right-4 top-1/2 -translate-y-1/2 border-white/30 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToNextPreview} disabled={!canGoNextPreview} aria-label="Next media">
+                                <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
+                            </IconButton>
+                        </>
+                    ) : null}
+                    {renderActivePreview({ lightbox: true })}
+                </div>
+            ) : null}
+        </MediaFormModal>
     );
 };
-

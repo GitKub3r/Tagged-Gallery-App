@@ -1,6 +1,13 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { faChevronLeft, faChevronRight, faDownload, faHeart as faHeartSolid, faPen, faPlay, faRepeat, faScrewdriverWrench, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { IconButton } from "../../components/icon-button/IconButton";
+import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useAuth } from "../../hooks/useAuth";
+import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./MediaDetailPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -11,13 +18,15 @@ const LIGHTBOX_MAX_ZOOM = 4;
 const MAX_SUGGESTIONS = 8;
 const DESKTOP_DEFAULT_TAG_LIMIT = 6;
 const DESKTOP_COPYRIGHT_TAG_LIMIT = 3;
-const MEDIA_SWITCH_ANIMATION_MS = 320;
-const DEFAULT_NEW_TAG_COLOR = "#643aff";
-
-const isDefaultTagColor = (hexColor) => normalizeHexColor(hexColor)?.toLowerCase() === DEFAULT_NEW_TAG_COLOR;
+const MEDIA_SWITCH_ANIMATION_MS = 440;
+const MEDIA_SWIPE_ANIMATION_ENABLED = true;
+const KEYBOARD_REPEAT_INTERVAL_MS = 90;
 const EDIT_MODAL_CLOSE_ON_SAVE_STORAGE_KEY = "tagged.mediaDetail.closeEditModalOnSave";
 const MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY = "tagged.mediaDetail.autoplay";
+const MEDIA_DETAIL_LOOP_STORAGE_KEY = "tagged.mediaDetail.loop";
 const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
+const DETAIL_OVERLAY_ACTION_CLASSES =
+    "pointer-events-auto! flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! bg-neutral-950! p-0! text-white! shadow-lg! transition-[transform,background-color]! duration-180! ease-out! hover:scale-[1.08]! hover:bg-neutral-800! hover:text-white! active:scale-[0.96]! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-white! disabled:scale-100! disabled:opacity-40!";
 
 const mergeDistinctValues = (currentValues, newValues) => {
     const valuesByKey = new Map();
@@ -123,16 +132,11 @@ const buildTagStyle = (hexColor, surface = "light") => {
 
     if (!rgb) {
         const isDarkSurface = surface === "dark" || darkTheme;
-        const defaultTone = isDarkSurface ? mixRgbWithWhite(getHexRgb(DEFAULT_NEW_TAG_COLOR), 0.56) : DEFAULT_NEW_TAG_COLOR;
 
-        return {
-            backgroundColor: `${defaultTone}${isDarkSurface ? "38" : "22"}`,
-            color: defaultTone,
-            "--tagged-media-detail-tag-hover-color": defaultTone,
-            borderColor: `${defaultTone}${isDarkSurface ? "BB" : "66"}`,
-            borderWidth: "2px",
-            boxShadow: `inset 0 0 0 1px ${isDarkSurface ? "rgba(255, 255, 255, 0.3)" : "rgba(0, 0, 0, 0.22)"}`,
-        };
+        return buildDefaultTagStyle({
+            darkSurface: isDarkSurface,
+            hoverColorVariable: "--tagged-media-detail-tag-hover-color",
+        });
     }
 
     const luminance = getRelativeLuminance(rgb);
@@ -198,16 +202,6 @@ const formatMediaSize = (sizeInBytes) => {
     return `${(numericSize / bytesInGb).toFixed(2)} GB`;
 };
 
-const FavouriteIcon = ({ active }) => (
-    <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className={`tagged-media-detail-favourite-icon${active ? " is-active" : ""}`}
-    >
-        <path d="m12 20.55-1.45-1.32C5.4 14.56 2 11.48 2 7.7 2 4.62 4.42 2.2 7.5 2.2c1.74 0 3.41.81 4.5 2.09A6.02 6.02 0 0 1 16.5 2.2C19.58 2.2 22 4.62 22 7.7c0 3.78-3.4 6.86-8.55 11.54L12 20.55Z" />
-    </svg>
-);
-
 const formatUploadDate = (dateValue) => {
     if (!dateValue) {
         return "Unknown";
@@ -251,6 +245,11 @@ const getThumbnailUrl = (media) => {
     }
 
     return `${UPLOADS_BASE_URL}${thumbnailPath}`;
+};
+
+const isHeicMedia = (media) => {
+    const fileReference = String(media?.filepath || media?.filename || "");
+    return /\.hei[cf](?:$|[?#])/i.test(fileReference);
 };
 
 const parseApiResponse = async (response, fallbackMessage) => {
@@ -376,29 +375,35 @@ export const MediaDetailPage = () => {
         }
         return window.localStorage.getItem(MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY) === "true";
     });
+    const [mediaDetailLoop, setMediaDetailLoop] = useState(() => {
+        if (typeof window === "undefined") {
+            return true;
+        }
+
+        const storedValue = window.localStorage.getItem(MEDIA_DETAIL_LOOP_STORAGE_KEY);
+        return storedValue === null ? true : storedValue === "true";
+    });
+    const [isMediaToolsOpen, setIsMediaToolsOpen] = useState(true);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [isLightboxImageZoomed, setIsLightboxImageZoomed] = useState(false);
     const [lightboxImageScale, setLightboxImageScale] = useState(LIGHTBOX_MIN_ZOOM);
     const [lightboxImagePan, setLightboxImagePan] = useState({ x: 0, y: 0 });
     const [isLightboxImagePanning, setIsLightboxImagePanning] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isEditPreviewLightboxOpen, setIsEditPreviewLightboxOpen] = useState(false);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isDeletingMedia, setIsDeletingMedia] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isMediaChanging, setIsMediaChanging] = useState(false);
+    const [mediaTransitionSnapshot, setMediaTransitionSnapshot] = useState(null);
     const [actionToast, setActionToast] = useState(null);
     const [editError, setEditError] = useState(null);
     const [editDisplayNameInput, setEditDisplayNameInput] = useState("");
     const [editAuthorInput, setEditAuthorInput] = useState("");
-    const [editTagInput, setEditTagInput] = useState("");
     const [editSelectedTags, setEditSelectedTags] = useState([]);
     const [editDistinctDisplayNames, setEditDistinctDisplayNames] = useState([]);
     const [editDistinctAuthors, setEditDistinctAuthors] = useState([]);
     const [editDistinctTagNames, setEditDistinctTagNames] = useState([]);
     const [editTagColorByName, setEditTagColorByName] = useState({});
-    const [editActiveSuggestionField, setEditActiveSuggestionField] = useState(null);
-    const [editActiveSuggestionIndex, setEditActiveSuggestionIndex] = useState(0);
     const [closeEditModalOnSave, setCloseEditModalOnSave] = useState(() => {
         if (typeof window === "undefined") {
             return true;
@@ -418,9 +423,6 @@ export const MediaDetailPage = () => {
 
     const touchStartXRef = useRef(0);
     const touchStartYRef = useRef(0);
-    const editPreviewTouchStartXRef = useRef(0);
-    const editPreviewTouchStartYRef = useRef(0);
-    const editPreviewDidSwipeRef = useRef(false);
     const lightboxImagePointerDownTimeRef = useRef(0);
     const lightboxImagePointerDownXRef = useRef(0);
     const lightboxImagePointerDownYRef = useRef(0);
@@ -438,6 +440,12 @@ export const MediaDetailPage = () => {
     const lightboxVideoRef = useRef(null);
     const detailVideoRef = useRef(null);
     const mediaChangeTimeoutRef = useRef(null);
+    const mediaTransitionDirectionRef = useRef("next");
+    const mediaTransitionSnapshotRef = useRef(null);
+    const keyboardMediaNavigationRef = useRef({ previous: null, next: null });
+    const navigationBurstIndexRef = useRef(null);
+    const navigationBurstResetTimeoutRef = useRef(null);
+    const lastKeyboardRepeatNavigationRef = useRef(0);
     const actionToastTimeoutRef = useRef(null);
 
     const clampLightboxScale = (scale) =>
@@ -491,6 +499,11 @@ export const MediaDetailPage = () => {
             if (actionToastTimeoutRef.current) {
                 window.clearTimeout(actionToastTimeoutRef.current);
                 actionToastTimeoutRef.current = null;
+            }
+
+            if (navigationBurstResetTimeoutRef.current) {
+                window.clearTimeout(navigationBurstResetTimeoutRef.current);
+                navigationBurstResetTimeoutRef.current = null;
             }
         },
         [],
@@ -593,10 +606,17 @@ export const MediaDetailPage = () => {
             window.clearTimeout(mediaChangeTimeoutRef.current);
         }
 
+        if (!mediaTransitionSnapshotRef.current) {
+            setIsMediaChanging(false);
+            return undefined;
+        }
+
         setIsMediaChanging(true);
 
         mediaChangeTimeoutRef.current = window.setTimeout(() => {
             setIsMediaChanging(false);
+            setMediaTransitionSnapshot(null);
+            mediaTransitionSnapshotRef.current = null;
             mediaChangeTimeoutRef.current = null;
         }, MEDIA_SWITCH_ANIMATION_MS);
 
@@ -732,6 +752,22 @@ export const MediaDetailPage = () => {
         resetDetailVideoPreview();
     };
 
+    const handleToggleMediaDetailAutoplay = () => {
+        window.dispatchEvent(
+            new CustomEvent(MEDIA_DETAIL_AUTOPLAY_EVENT, {
+                detail: { enabled: !mediaDetailAutoplay },
+            }),
+        );
+    };
+
+    const handleToggleMediaDetailLoop = () => {
+        setMediaDetailLoop((isEnabled) => {
+            const nextValue = !isEnabled;
+            window.localStorage.setItem(MEDIA_DETAIL_LOOP_STORAGE_KEY, nextValue ? "true" : "false");
+            return nextValue;
+        });
+    };
+
     const filteredMediaItems = useMemo(() => {
         const normalizedTagFilter = activeTagFilter.toLowerCase();
         const normalizedAuthorFilter = activeAuthorFilter.toLowerCase();
@@ -774,30 +810,21 @@ export const MediaDetailPage = () => {
     const currentMedia = currentIndex >= 0 ? filteredMediaItems[currentIndex] : null;
     const mediaUrl = currentMedia ? getMediaUrl(currentMedia) : "";
     const thumbnailUrl = currentMedia ? getThumbnailUrl(currentMedia) : "";
+    const isHeic = isHeicMedia(currentMedia);
     const isVideo = String(currentMedia?.mediatype || "")
         .toLowerCase()
         .includes("video");
     const hasSeparateThumbnail = Boolean(thumbnailUrl) && thumbnailUrl !== mediaUrl;
-    const shouldUseOriginalInViewer = isVideo || isOriginalLoaded || !hasSeparateThumbnail;
+    const shouldUseOriginalInViewer = isVideo || (!isHeic && (isOriginalLoaded || !hasSeparateThumbnail));
     const viewerUrl = shouldUseOriginalInViewer ? mediaUrl : thumbnailUrl;
+    const lightboxMediaUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
     const viewerIsVideo = isVideo && shouldUseOriginalInViewer;
     const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : viewerUrl;
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < filteredMediaItems.length - 1;
     const shouldShowCounter = filteredMediaItems.length > 1;
-    const shouldShowDesktopSidePreviews = filteredMediaItems.length >= 3;
-    const previousMedia = hasPrevious ? filteredMediaItems[currentIndex - 1] : null;
-    const nextMedia = hasNext ? filteredMediaItems[currentIndex + 1] : null;
-    const previousIsVideo = String(previousMedia?.mediatype || "")
-        .toLowerCase()
-        .includes("video");
-    const nextIsVideo = String(nextMedia?.mediatype || "")
-        .toLowerCase()
-        .includes("video");
-    const previousPreviewUrl = previousMedia ? getMediaUrl(previousMedia) || getThumbnailUrl(previousMedia) : "";
-    const nextPreviewUrl = nextMedia ? getMediaUrl(nextMedia) || getThumbnailUrl(nextMedia) : "";
-    const previousPreviewPosterUrl = previousMedia ? getThumbnailUrl(previousMedia) : "";
-    const nextPreviewPosterUrl = nextMedia ? getThumbnailUrl(nextMedia) : "";
+    const usesSegmentedProgress = filteredMediaItems.length <= 15;
+    const galleryProgress = filteredMediaItems.length > 0 ? ((currentIndex + 1) / filteredMediaItems.length) * 100 : 0;
 
     useEffect(() => {
         setIsOriginalLoaded(false);
@@ -887,7 +914,7 @@ export const MediaDetailPage = () => {
         }
     }, [isLightboxOpen, isVideo, mediaId]);
 
-    const goToMediaAtIndex = (targetIndex) => {
+    const goToMediaAtIndex = (targetIndex, requestedDirection) => {
         if (targetIndex < 0 || targetIndex >= filteredMediaItems.length) {
             return;
         }
@@ -898,20 +925,76 @@ export const MediaDetailPage = () => {
             return;
         }
 
-        navigate(`/gallery/${targetMedia.id}${location.search || ""}`, {
-            replace: true,
-            state: {
-                mediaItems: filteredMediaItems,
-            },
-        });
+        const direction = requestedDirection || (targetIndex > currentIndex ? "next" : "previous");
+        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        const navigateToTarget = () => {
+            navigate(`/gallery/${targetMedia.id}${location.search || ""}`, {
+                replace: true,
+                state: {
+                    mediaItems: filteredMediaItems,
+                },
+            });
+        };
+
+        if (MEDIA_SWIPE_ANIMATION_ENABLED && !prefersReducedMotion && currentMedia && viewerUrl) {
+            mediaTransitionDirectionRef.current = direction;
+            const snapshot = {
+                id: currentMedia.id,
+                direction,
+                url: viewerUrl,
+                blurUrl: viewerBlurBackgroundUrl,
+                showBlur: mediaFit === "blur",
+                isVideo: viewerIsVideo,
+                poster: thumbnailUrl || undefined,
+                label: currentMedia.displayname || currentMedia.filename || "Media",
+            };
+            mediaTransitionSnapshotRef.current = snapshot;
+            setMediaTransitionSnapshot(snapshot);
+        } else {
+            mediaTransitionSnapshotRef.current = null;
+            setMediaTransitionSnapshot(null);
+        }
+
+        navigateToTarget();
+    };
+
+    const requestMediaNavigation = (offset) => {
+        const currentBurstIndex = navigationBurstIndexRef.current;
+        const baseIndex = Number.isInteger(currentBurstIndex) ? currentBurstIndex : currentIndex;
+        const targetIndex = Math.min(
+            filteredMediaItems.length - 1,
+            Math.max(0, baseIndex + offset),
+        );
+
+        if (targetIndex === baseIndex) {
+            return;
+        }
+
+        navigationBurstIndexRef.current = targetIndex;
+
+        if (navigationBurstResetTimeoutRef.current) {
+            window.clearTimeout(navigationBurstResetTimeoutRef.current);
+        }
+
+        navigationBurstResetTimeoutRef.current = window.setTimeout(() => {
+            navigationBurstIndexRef.current = null;
+            navigationBurstResetTimeoutRef.current = null;
+        }, 180);
+
+        goToMediaAtIndex(targetIndex, offset > 0 ? "next" : "previous");
     };
 
     const handlePrevMedia = () => {
-        goToMediaAtIndex(currentIndex - 1);
+        requestMediaNavigation(-1);
     };
 
     const handleNextMedia = () => {
-        goToMediaAtIndex(currentIndex + 1);
+        requestMediaNavigation(1);
+    };
+
+    keyboardMediaNavigationRef.current = {
+        previous: hasPrevious ? handlePrevMedia : null,
+        next: hasNext ? handleNextMedia : null,
     };
 
     const handleToggleFavourite = async () => {
@@ -1038,15 +1121,36 @@ export const MediaDetailPage = () => {
                 return;
             }
 
-            if (event.key === "ArrowLeft" && hasPrevious) {
-                event.preventDefault();
-                handlePrevMedia();
+            if (isDeleteConfirmOpen) {
                 return;
             }
 
-            if (event.key === "ArrowRight" && hasNext) {
+            if (isEditModalOpen || document.getElementById("edit-media-title")) {
+                return;
+            }
+
+            if (event.repeat) {
+                const now = Date.now();
+
+                if (now - lastKeyboardRepeatNavigationRef.current < KEYBOARD_REPEAT_INTERVAL_MS) {
+                    event.preventDefault();
+                    return;
+                }
+
+                lastKeyboardRepeatNavigationRef.current = now;
+            } else {
+                lastKeyboardRepeatNavigationRef.current = 0;
+            }
+
+            if (event.key === "ArrowLeft" && keyboardMediaNavigationRef.current.previous) {
                 event.preventDefault();
-                handleNextMedia();
+                keyboardMediaNavigationRef.current.previous();
+                return;
+            }
+
+            if (event.key === "ArrowRight" && keyboardMediaNavigationRef.current.next) {
+                event.preventDefault();
+                keyboardMediaNavigationRef.current.next();
             }
         };
 
@@ -1055,7 +1159,7 @@ export const MediaDetailPage = () => {
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [hasPrevious, hasNext, currentIndex, filteredMediaItems, isDeleteConfirmOpen]);
+    }, [isDeleteConfirmOpen, isEditModalOpen]);
 
     const handleTouchStart = (event) => {
         touchStartXRef.current = event.changedTouches[0]?.clientX || 0;
@@ -1088,50 +1192,12 @@ export const MediaDetailPage = () => {
         }
     };
 
-    const handleEditPreviewTouchStart = (event) => {
-        editPreviewTouchStartXRef.current = event.changedTouches[0]?.clientX || 0;
-        editPreviewTouchStartYRef.current = event.changedTouches[0]?.clientY || 0;
-        editPreviewDidSwipeRef.current = false;
-    };
-
-    const handleEditPreviewTouchEnd = (event) => {
-        const touchEndY = event.changedTouches[0]?.clientY || 0;
-        const touchEndX = event.changedTouches[0]?.clientX || 0;
-        const deltaX = touchEndX - editPreviewTouchStartXRef.current;
-        const deltaY = touchEndY - editPreviewTouchStartYRef.current;
-        const swipeThreshold = 48;
-
-        if (Math.abs(deltaX) <= Math.abs(deltaY) || Math.abs(deltaX) < swipeThreshold) {
-            return;
-        }
-
-        if (deltaX > 0 && hasPrevious) {
-            editPreviewDidSwipeRef.current = true;
-            handlePrevMedia();
-            return;
-        }
-
-        if (deltaX < 0 && hasNext) {
-            editPreviewDidSwipeRef.current = true;
-            handleNextMedia();
-        }
-    };
-
-    const handleEditPreviewClick = () => {
-        if (editPreviewDidSwipeRef.current) {
-            editPreviewDidSwipeRef.current = false;
-            return;
-        }
-
-        setIsEditPreviewLightboxOpen(true);
-    };
-
     const handleOpenLightbox = () => {
         if (!currentMedia) {
             return;
         }
 
-        if (!shouldUseOriginalInViewer && hasSeparateThumbnail) {
+        if (!isHeic && !shouldUseOriginalInViewer && hasSeparateThumbnail) {
             setIsOriginalLoaded(true);
         }
 
@@ -1540,100 +1606,6 @@ export const MediaDetailPage = () => {
         lightboxImagePointerDownTimeRef.current = 0;
     };
 
-    const visibleEditDisplayNameSuggestions = useMemo(() => {
-        const currentInput = editDisplayNameInput.trim().toLowerCase();
-
-        return editDistinctDisplayNames
-            .filter((value) => {
-                const normalized = String(value || "").toLowerCase();
-
-                if (!normalized) {
-                    return false;
-                }
-
-                if (!currentInput) {
-                    return true;
-                }
-
-                return normalized.includes(currentInput);
-            })
-            .slice(0, MAX_SUGGESTIONS);
-    }, [editDistinctDisplayNames, editDisplayNameInput]);
-
-    const visibleEditAuthorSuggestions = useMemo(() => {
-        const currentInput = editAuthorInput.trim().toLowerCase();
-
-        return editDistinctAuthors
-            .filter((value) => {
-                const normalized = String(value || "").toLowerCase();
-
-                if (!normalized) {
-                    return false;
-                }
-
-                if (!currentInput) {
-                    return true;
-                }
-
-                return normalized.includes(currentInput);
-            })
-            .slice(0, MAX_SUGGESTIONS);
-    }, [editDistinctAuthors, editAuthorInput]);
-
-    const visibleEditTagSuggestions = useMemo(() => {
-        const currentInput = editTagInput.trim().toLowerCase();
-        const selectedSet = new Set(editSelectedTags.map((tag) => tag.toLowerCase()));
-
-        return editDistinctTagNames
-            .filter((tagName) => {
-                const normalized = String(tagName || "").toLowerCase();
-
-                if (!normalized || selectedSet.has(normalized)) {
-                    return false;
-                }
-
-                if (!currentInput) {
-                    return true;
-                }
-
-                return normalized.includes(currentInput);
-            })
-            .slice(0, MAX_SUGGESTIONS);
-    }, [editDistinctTagNames, editSelectedTags, editTagInput]);
-
-    useEffect(() => {
-        const activeSuggestions =
-            editActiveSuggestionField === "displayname"
-                ? visibleEditDisplayNameSuggestions
-                : editActiveSuggestionField === "author"
-                  ? visibleEditAuthorSuggestions
-                  : editActiveSuggestionField === "tag"
-                    ? visibleEditTagSuggestions
-                    : [];
-
-        if (activeSuggestions.length === 0) {
-            setEditActiveSuggestionIndex(0);
-            return;
-        }
-
-        setEditActiveSuggestionIndex((previous) => {
-            if (previous < 0) {
-                return 0;
-            }
-
-            if (previous >= activeSuggestions.length) {
-                return activeSuggestions.length - 1;
-            }
-
-            return previous;
-        });
-    }, [
-        editActiveSuggestionField,
-        visibleEditDisplayNameSuggestions,
-        visibleEditAuthorSuggestions,
-        visibleEditTagSuggestions,
-    ]);
-
     useEffect(() => {
         if (!isEditModalOpen || !user || user.type === "admin") {
             return;
@@ -1745,12 +1717,8 @@ export const MediaDetailPage = () => {
 
         setEditDisplayNameInput(String(currentMedia.displayname || ""));
         setEditAuthorInput(String(currentMedia.author || ""));
-        setEditTagInput("");
         setEditSelectedTags(currentTags);
         setEditError(null);
-        setIsEditPreviewLightboxOpen(false);
-        setEditActiveSuggestionField(null);
-        setEditActiveSuggestionIndex(0);
     }, [isEditModalOpen, isSavingEdit, currentMedia?.id]);
 
     useEffect(() => {
@@ -1827,41 +1795,11 @@ export const MediaDetailPage = () => {
         : copyrightTags.slice(0, DESKTOP_COPYRIGHT_TAG_LIMIT);
     const hiddenDesktopDefaultTags = Math.max(0, defaultTags.length - DESKTOP_DEFAULT_TAG_LIMIT);
     const hiddenDesktopCopyrightTags = Math.max(0, copyrightTags.length - DESKTOP_COPYRIGHT_TAG_LIMIT);
-    const editPreviewPosterPath = currentMedia.thumbpath || "";
-    const editPreviewMediaPath = currentMedia.filepath || "";
-    const editPreviewPosterUrl = editPreviewPosterPath
-        ? editPreviewPosterPath.startsWith("http://") || editPreviewPosterPath.startsWith("https://")
-            ? editPreviewPosterPath
-            : `${UPLOADS_BASE_URL}${editPreviewPosterPath}`
-        : "";
-    const editPreviewMediaUrl = editPreviewMediaPath
-        ? editPreviewMediaPath.startsWith("http://") || editPreviewMediaPath.startsWith("https://")
-            ? editPreviewMediaPath
-            : `${UPLOADS_BASE_URL}${editPreviewMediaPath}`
-        : "";
-    const isEditPreviewVideo = isVideo && Boolean(editPreviewMediaUrl);
-    const editPreviewUrl = isEditPreviewVideo
-        ? editPreviewPosterUrl || editPreviewMediaUrl
-        : editPreviewMediaUrl || editPreviewPosterUrl;
-
-    const openEditSuggestions = (field) => {
-        setEditActiveSuggestionField(field);
-        setEditActiveSuggestionIndex(0);
-    };
-
-    const closeEditSuggestions = () => {
-        setEditActiveSuggestionField(null);
-        setEditActiveSuggestionIndex(0);
-    };
-
     const openEditModal = () => {
         setEditDisplayNameInput(currentMedia.displayname || "");
         setEditAuthorInput(currentMedia.author || "");
-        setEditTagInput("");
         setEditSelectedTags(Array.from(new Set(allTags.map((tag) => tag.tagname).filter(Boolean))));
         setEditError(null);
-        setIsEditPreviewLightboxOpen(false);
-        closeEditSuggestions();
         setIsEditModalOpen(true);
     };
 
@@ -1871,93 +1809,10 @@ export const MediaDetailPage = () => {
         }
 
         setIsEditModalOpen(false);
-        setIsEditPreviewLightboxOpen(false);
         setEditError(null);
-        closeEditSuggestions();
     };
 
-    const addEditTag = (rawTag) => {
-        const trimmed = String(rawTag || "").trim();
-
-        if (!trimmed) {
-            return;
-        }
-
-        setEditSelectedTags((previous) => {
-            const exists = previous.some((tag) => tag.toLowerCase() === trimmed.toLowerCase());
-
-            if (exists) {
-                return previous;
-            }
-
-            return [...previous, trimmed];
-        });
-
-        setEditTagInput("");
-        closeEditSuggestions();
-    };
-
-    const removeEditTag = (tagToRemove) => {
-        setEditSelectedTags((previous) => previous.filter((tag) => tag !== tagToRemove));
-    };
-
-    const handleEditSuggestionKeyboard = (event, field, suggestions, onSelect, onEnterFallback = null) => {
-        if (!Array.isArray(suggestions) || suggestions.length === 0) {
-            if (event.key === "Enter" && onEnterFallback) {
-                onEnterFallback();
-                closeEditSuggestions();
-            }
-
-            return;
-        }
-
-        if (event.key === "ArrowDown") {
-            event.preventDefault();
-
-            if (editActiveSuggestionField !== field) {
-                openEditSuggestions(field);
-                return;
-            }
-
-            setEditActiveSuggestionIndex((previous) => (previous + 1) % suggestions.length);
-            return;
-        }
-
-        if (event.key === "ArrowUp") {
-            event.preventDefault();
-
-            if (editActiveSuggestionField !== field) {
-                openEditSuggestions(field);
-                return;
-            }
-
-            setEditActiveSuggestionIndex((previous) => (previous - 1 + suggestions.length) % suggestions.length);
-            return;
-        }
-
-        if (event.key === "Enter") {
-            if (editActiveSuggestionField === field) {
-                event.preventDefault();
-                onSelect(suggestions[editActiveSuggestionIndex] || suggestions[0]);
-                return;
-            }
-
-            if (onEnterFallback) {
-                onEnterFallback();
-            }
-
-            return;
-        }
-
-        if (event.key === "Escape" && editActiveSuggestionField === field) {
-            event.preventDefault();
-            closeEditSuggestions();
-        }
-    };
-
-    const handleEditMediaSubmit = async (event) => {
-        event.preventDefault();
-
+    const handleEditMediaSubmit = async (payload) => {
         if (!currentMedia?.id || isSavingEdit) {
             return;
         }
@@ -1972,9 +1827,9 @@ export const MediaDetailPage = () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    displayname: editDisplayNameInput.trim(),
-                    author: editAuthorInput.trim(),
-                    tag_names: JSON.stringify(editSelectedTags),
+                    displayname: String(payload?.displayname || "").trim(),
+                    author: String(payload?.author || "").trim(),
+                    tag_names: JSON.stringify(Array.isArray(payload?.tags) ? payload.tags : []),
                 }),
             });
 
@@ -1995,12 +1850,6 @@ export const MediaDetailPage = () => {
 
             if (closeEditModalOnSave) {
                 setIsEditModalOpen(false);
-                setIsEditPreviewLightboxOpen(false);
-                closeEditSuggestions();
-            } else {
-                setIsEditPreviewLightboxOpen(false);
-                setEditTagInput("");
-                closeEditSuggestions();
             }
             showActionToast(
                 {
@@ -2049,6 +1898,45 @@ export const MediaDetailPage = () => {
                 </aside>
             ) : null}
 
+            <header className="tagged-media-detail-tools-row" aria-label="Media tools">
+                <div className={`tagged-media-detail-tools${isMediaToolsOpen ? " is-open" : ""}`}>
+                    <button
+                        type="button"
+                        className="tagged-media-detail-tools-toggle"
+                        onClick={() => setIsMediaToolsOpen((isOpen) => !isOpen)}
+                        aria-label={isMediaToolsOpen ? "Collapse media tools" : "Expand media tools"}
+                        aria-expanded={isMediaToolsOpen}
+                        title={isMediaToolsOpen ? "Collapse tools" : "Expand tools"}
+                    >
+                        <FontAwesomeIcon icon={faScrewdriverWrench} aria-hidden="true" />
+                    </button>
+
+                    <div className="tagged-media-detail-tools-expandable" aria-hidden={!isMediaToolsOpen}>
+                        <span className="tagged-media-detail-tools-separator" aria-hidden="true" />
+                        <button
+                            type="button"
+                            className="tagged-media-detail-tool-action"
+                            onClick={handleToggleMediaDetailAutoplay}
+                            aria-pressed={mediaDetailAutoplay}
+                            tabIndex={isMediaToolsOpen ? 0 : -1}
+                        >
+                            <FontAwesomeIcon icon={faPlay} aria-hidden="true" />
+                            <span>Autoplay</span>
+                        </button>
+                        <button
+                            type="button"
+                            className="tagged-media-detail-tool-action"
+                            onClick={handleToggleMediaDetailLoop}
+                            aria-pressed={mediaDetailLoop}
+                            tabIndex={isMediaToolsOpen ? 0 : -1}
+                        >
+                            <FontAwesomeIcon icon={faRepeat} aria-hidden="true" />
+                            <span>Loop</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
             <div className="tagged-media-detail-shell">
                 <div
                     className="tagged-media-detail-media-column"
@@ -2056,55 +1944,90 @@ export const MediaDetailPage = () => {
                     onTouchEnd={handleTouchEnd}
                 >
                     <div
-                        className="tagged-media-detail-viewer"
+                        className={`tagged-media-detail-viewer${isMediaChanging ? " is-transitioning" : ""}`}
                         aria-label="Selected media preview"
                         onMouseEnter={handleDetailPreviewMouseEnter}
                         onMouseLeave={handleDetailPreviewMouseLeave}
                     >
-                        {viewerBlurBackgroundUrl && mediaFit === "blur" && (
-                            <div
-                                className="tagged-media-detail-viewer-blur-bg"
-                                style={{ backgroundImage: `url(${viewerBlurBackgroundUrl})` }}
-                                aria-hidden="true"
-                            />
-                        )}
+                        <div
+                            key={`current-frame-${currentMedia.id}`}
+                            className={`tagged-media-detail-frame tagged-media-detail-frame--current${isMediaChanging ? ` is-entering is-${mediaTransitionDirectionRef.current}` : ""}`}
+                        >
+                            {viewerBlurBackgroundUrl && mediaFit === "blur" && (
+                                <div
+                                    className="tagged-media-detail-viewer-blur-bg"
+                                    style={{ backgroundImage: `url(${viewerBlurBackgroundUrl})` }}
+                                    aria-hidden="true"
+                                />
+                            )}
 
-                        {viewerUrl ? (
-                            viewerIsVideo ? (
-                                <video
-                                    ref={detailVideoRef}
-                                    key={`viewer-video-${currentMedia.id}`}
-                                    className={`tagged-media-detail-media${isMediaChanging ? " is-changing" : ""}`}
-                                    src={viewerUrl}
-                                    controls={false}
-                                    muted
-                                    playsInline
-                                    preload="metadata"
-                                    poster={thumbnailUrl || undefined}
-                                    onLoadedMetadata={handleVideoMetadata}
-                                    onPlay={() => setIsDetailVideoPlaying(true)}
-                                    onPause={() => setIsDetailVideoPlaying(false)}
-                                    onEnded={() => setIsDetailVideoPlaying(false)}
-                                    onMouseEnter={handleDetailPreviewMouseEnter}
-                                    onMouseLeave={handleDetailPreviewMouseLeave}
-                                    loop={true}
-                                    style={{ objectFit: "contain" }}
-                                />
+                            {viewerUrl ? (
+                                viewerIsVideo ? (
+                                    <video
+                                        ref={detailVideoRef}
+                                        key={`viewer-video-${currentMedia.id}`}
+                                        className="tagged-media-detail-media"
+                                        src={viewerUrl}
+                                        controls={false}
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                        poster={thumbnailUrl || undefined}
+                                        onLoadedMetadata={handleVideoMetadata}
+                                        onPlay={() => setIsDetailVideoPlaying(true)}
+                                        onPause={() => setIsDetailVideoPlaying(false)}
+                                        onEnded={() => setIsDetailVideoPlaying(false)}
+                                        onMouseEnter={handleDetailPreviewMouseEnter}
+                                        onMouseLeave={handleDetailPreviewMouseLeave}
+                                        loop={mediaDetailLoop}
+                                        style={{ objectFit: "contain" }}
+                                    />
+                                ) : (
+                                    <img
+                                        key={`viewer-image-${currentMedia.id}`}
+                                        className="tagged-media-detail-media"
+                                        src={viewerUrl}
+                                        alt={currentMedia.displayname || currentMedia.filename || "Media"}
+                                        onLoad={handleImageLoad}
+                                        style={{ objectFit: "contain" }}
+                                    />
+                                )
                             ) : (
-                                <img
-                                    key={`viewer-image-${currentMedia.id}`}
-                                    className={`tagged-media-detail-media${isMediaChanging ? " is-changing" : ""}`}
-                                    src={viewerUrl}
-                                    alt={currentMedia.displayname || currentMedia.filename || "Media"}
-                                    onLoad={handleImageLoad}
-                                    style={{ objectFit: "contain" }}
-                                />
-                            )
-                        ) : (
-                            <div className="tagged-media-detail-empty-preview">
-                                <p>No preview available for this file.</p>
+                                <div className="tagged-media-detail-empty-preview">
+                                    <p>No preview available for this file.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {mediaTransitionSnapshot ? (
+                            <div
+                                className={`tagged-media-detail-frame tagged-media-detail-frame--snapshot${isMediaChanging ? ` is-leaving is-${mediaTransitionSnapshot.direction}` : ""}`}
+                                aria-hidden="true"
+                            >
+                                {mediaTransitionSnapshot.blurUrl && mediaTransitionSnapshot.showBlur ? (
+                                    <div
+                                        className="tagged-media-detail-viewer-blur-bg"
+                                        style={{ backgroundImage: `url(${mediaTransitionSnapshot.blurUrl})` }}
+                                    />
+                                ) : null}
+                                {mediaTransitionSnapshot.isVideo ? (
+                                    <video
+                                        className="tagged-media-detail-media"
+                                        src={mediaTransitionSnapshot.url}
+                                        poster={mediaTransitionSnapshot.poster}
+                                        muted
+                                        playsInline
+                                        preload="metadata"
+                                    />
+                                ) : (
+                                    <img
+                                        className="tagged-media-detail-media"
+                                        src={mediaTransitionSnapshot.url}
+                                        alt=""
+                                    />
+                                )}
                             </div>
-                        )}
+                        ) : null}
 
                         {viewerUrl && (
                             <button
@@ -2115,11 +2038,9 @@ export const MediaDetailPage = () => {
                             />
                         )}
 
-                        {isVideo && !isDetailVideoPlaying ? (
+                        {isVideo && !isDetailVideoPlaying && !isMediaChanging ? (
                             <span className="tagged-media-detail-play-badge" aria-hidden="true">
-                                <svg viewBox="0 0 24 24" className="tagged-media-detail-play-icon" aria-hidden="true">
-                                    <path d="M8 6.8v10.4c0 .8.9 1.3 1.6.9l8.5-5.2c.7-.4.7-1.4 0-1.8L9.6 5.9c-.7-.4-1.6.1-1.6.9Z" />
-                                </svg>
+                                <FontAwesomeIcon icon={faPlay} className="text-xl text-white" />
                             </span>
                         ) : null}
 
@@ -2143,44 +2064,44 @@ export const MediaDetailPage = () => {
                                     <div className="tagged-media-detail-actions tagged-media-detail-actions--desktop">
                                         <button
                                             type="button"
-                                            className="tagged-media-detail-action tagged-media-detail-action--edit tagged-media-detail-action--icon tagged-media-detail-action--favourite"
+                                            className={DETAIL_OVERLAY_ACTION_CLASSES}
                                             onClick={handleToggleFavourite}
                                             aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                                             aria-pressed={isFavourite}
                                             disabled={isTogglingFavourite}
                                             title={isFavourite ? "Remove from favourites" : "Add to favourites"}
                                         >
-                                            <FavouriteIcon active={isFavourite} />
+                                            <FontAwesomeIcon icon={isFavourite ? faHeartSolid : faHeartRegular} className="text-lg" aria-hidden="true" />
                                         </button>
 
                                         <button
                                             type="button"
-                                            className="tagged-media-detail-action tagged-media-detail-action--edit tagged-media-detail-action--icon"
+                                            className={DETAIL_OVERLAY_ACTION_CLASSES}
                                             onClick={openEditModal}
                                             aria-label="Edit media"
                                             title="Edit media"
                                         >
-                                            <img src="/icons/edit.svg" alt="" aria-hidden="true" />
+                                            <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                                         </button>
                                         <button
                                             type="button"
-                                            className="tagged-media-detail-action tagged-media-detail-action--delete tagged-media-detail-action--icon"
+                                            className={DETAIL_OVERLAY_ACTION_CLASSES}
                                             onClick={openDeleteCurrentMediaConfirm}
                                             aria-label="Delete media"
                                             title="Delete media"
                                             disabled={isDeletingMedia}
                                         >
-                                            <img src="/icons/delete.svg" alt="" aria-hidden="true" />
+                                            <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
                                         </button>
                                         <button
                                             type="button"
-                                            className="tagged-media-detail-action tagged-media-detail-action--download tagged-media-detail-action--icon"
+                                            className={DETAIL_OVERLAY_ACTION_CLASSES}
                                             onClick={handleDownloadMedia}
                                             aria-label="Download media"
                                             title="Download media"
                                             disabled={!mediaUrl || !currentMedia}
                                         >
-                                            <img src="/icons/download.svg" alt="" aria-hidden="true" />
+                                            <FontAwesomeIcon icon={faDownload} aria-hidden="true" />
                                         </button>
                                     </div>
                                 </div>
@@ -2270,6 +2191,41 @@ export const MediaDetailPage = () => {
                             </div>
                         </div>
                     </div>
+
+                    {shouldShowCounter ? (
+                        <div
+                            className="tagged-media-detail-gallery-position"
+                            role="status"
+                            aria-label={`Media ${currentIndex + 1} of ${filteredMediaItems.length}`}
+                        >
+                            <div
+                                className={`tagged-media-detail-gallery-progress${usesSegmentedProgress ? " is-segmented" : ""}`}
+                                aria-hidden="true"
+                                style={
+                                    usesSegmentedProgress
+                                        ? { "--tagged-gallery-segments": filteredMediaItems.length }
+                                        : undefined
+                                }
+                            >
+                                {usesSegmentedProgress ? (
+                                    Array.from({ length: filteredMediaItems.length }, (_, index) => (
+                                        <span
+                                            key={`gallery-progress-${filteredMediaItems[index]?.id || index}`}
+                                            className={`tagged-media-detail-gallery-progress-segment${index === currentIndex ? " is-active" : ""}`}
+                                        />
+                                    ))
+                                ) : (
+                                    <span
+                                        className="tagged-media-detail-gallery-progress-value"
+                                        style={{ width: `${galleryProgress}%` }}
+                                    />
+                                )}
+                            </div>
+                            <span className="tagged-media-detail-gallery-position-label" aria-hidden="true">
+                                {currentIndex + 1} / {filteredMediaItems.length}
+                            </span>
+                        </div>
+                    ) : null}
                 </div>
 
                 <aside className="tagged-media-detail-info-column tagged-media-detail-info-column--mobile">
@@ -2284,13 +2240,13 @@ export const MediaDetailPage = () => {
                             <div className="tagged-media-detail-header-actions">
                                 <button
                                     type="button"
-                                    className="tagged-media-detail-favourite-button"
+                                    className="flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-500! shadow-none! hover:bg-transparent! hover:text-neutral-950! dark:text-neutral-400! dark:hover:text-neutral-100!"
                                     onClick={handleToggleFavourite}
                                     aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                                     aria-pressed={isFavourite}
                                     disabled={isTogglingFavourite}
                                 >
-                                    <FavouriteIcon active={isFavourite} />
+                                    <FontAwesomeIcon icon={isFavourite ? faHeartSolid : faHeartRegular} className="text-lg" aria-hidden="true" />
                                 </button>
                             </div>
                         </div>
@@ -2389,105 +2345,9 @@ export const MediaDetailPage = () => {
             </div>
 
             <nav
-                className="tagged-media-detail-page-nav tagged-media-detail-page-nav--desktop"
+                className={`tagged-media-detail-page-nav tagged-media-detail-page-nav--desktop${isMediaChanging ? " is-transitioning" : ""}`}
                 aria-label="Media navigation"
             >
-                {shouldShowDesktopSidePreviews ? (
-                    <>
-                        {hasPrevious && previousPreviewUrl ? (
-                            <button
-                                type="button"
-                                className="tagged-media-detail-side-preview tagged-media-detail-side-preview--prev"
-                                onClick={handlePrevMedia}
-                                aria-label="Open previous media preview"
-                            >
-                                {previousIsVideo ? (
-                                    <video
-                                        className="tagged-media-detail-side-preview-media"
-                                        src={previousPreviewUrl}
-                                        poster={previousPreviewPosterUrl || undefined}
-                                        muted
-                                        playsInline
-                                        preload="metadata"
-                                        aria-hidden="true"
-                                    />
-                                ) : (
-                                    <img
-                                        className="tagged-media-detail-side-preview-media"
-                                        src={previousPreviewUrl}
-                                        alt=""
-                                        aria-hidden="true"
-                                    />
-                                )}
-
-                                {previousIsVideo ? (
-                                    <span
-                                        className="tagged-media-detail-side-preview-play-badge tagged-media-detail-side-preview-play-badge--left"
-                                        aria-hidden="true"
-                                    >
-                                        <svg
-                                            className="tagged-media-detail-side-preview-play-icon"
-                                            viewBox="0 0 24 24"
-                                            focusable="false"
-                                        >
-                                            <path d="M8 5v14l11-7z" />
-                                        </svg>
-                                    </span>
-                                ) : null}
-                            </button>
-                        ) : null}
-
-                        {hasNext && nextPreviewUrl ? (
-                            <button
-                                type="button"
-                                className="tagged-media-detail-side-preview tagged-media-detail-side-preview--next"
-                                onClick={handleNextMedia}
-                                aria-label="Open next media preview"
-                            >
-                                {nextIsVideo ? (
-                                    <video
-                                        className="tagged-media-detail-side-preview-media"
-                                        src={nextPreviewUrl}
-                                        poster={nextPreviewPosterUrl || undefined}
-                                        muted
-                                        playsInline
-                                        preload="metadata"
-                                        aria-hidden="true"
-                                    />
-                                ) : (
-                                    <img
-                                        className="tagged-media-detail-side-preview-media"
-                                        src={nextPreviewUrl}
-                                        alt=""
-                                        aria-hidden="true"
-                                    />
-                                )}
-
-                                {nextIsVideo ? (
-                                    <span
-                                        className="tagged-media-detail-side-preview-play-badge tagged-media-detail-side-preview-play-badge--right"
-                                        aria-hidden="true"
-                                    >
-                                        <svg
-                                            className="tagged-media-detail-side-preview-play-icon"
-                                            viewBox="0 0 24 24"
-                                            focusable="false"
-                                        >
-                                            <path d="M8 5v14l11-7z" />
-                                        </svg>
-                                    </span>
-                                ) : null}
-                            </button>
-                        ) : null}
-                    </>
-                ) : null}
-
-                {shouldShowCounter ? (
-                    <p className="tagged-media-detail-counter tagged-media-detail-counter--desktop" aria-live="polite">
-                        <strong>{currentIndex + 1}</strong> / {filteredMediaItems.length}
-                    </p>
-                ) : null}
-
                 {hasPrevious ? (
                     <button
                         type="button"
@@ -2495,7 +2355,7 @@ export const MediaDetailPage = () => {
                         onClick={handlePrevMedia}
                         aria-label="Previous media"
                     >
-                        <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" />
                     </button>
                 ) : null}
 
@@ -2506,7 +2366,7 @@ export const MediaDetailPage = () => {
                         onClick={handleNextMedia}
                         aria-label="Next media"
                     >
-                        <img src="/icons/arrow_forward.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
                     </button>
                 ) : null}
             </nav>
@@ -2522,14 +2382,8 @@ export const MediaDetailPage = () => {
                         onClick={handlePrevMedia}
                         aria-label="Previous media"
                     >
-                        <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" />
                     </button>
-                ) : null}
-
-                {shouldShowCounter ? (
-                    <p className="tagged-media-detail-counter" aria-live="polite">
-                        <strong>{currentIndex + 1}</strong> / {filteredMediaItems.length}
-                    </p>
                 ) : null}
 
                 {hasNext ? (
@@ -2539,440 +2393,59 @@ export const MediaDetailPage = () => {
                         onClick={handleNextMedia}
                         aria-label="Next media"
                     >
-                        <img src="/icons/arrow_forward.svg" alt="" aria-hidden="true" />
+                        <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
                     </button>
                 ) : null}
             </nav>
 
-            {isEditModalOpen ? (
-                <div
-                    className="tagged-media-edit-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Edit media"
-                    onClick={closeEditModal}
-                >
-                    <div className="tagged-media-edit-modal-content" onClick={(event) => event.stopPropagation()}>
-                        <header className="tagged-media-edit-modal-header">
-                            <h2>Edit Media</h2>
-                            <button
-                                type="button"
-                                className="tagged-media-edit-modal-close"
-                                onClick={closeEditModal}
-                                disabled={isSavingEdit}
-                                aria-label="Close edit modal"
-                            >
-                                &times;
-                            </button>
-                        </header>
+            <MediaEditModal
+                isOpen={isEditModalOpen}
+                initialValues={{
+                    displayname: editDisplayNameInput,
+                    author: editAuthorInput,
+                    tags: editSelectedTags,
+                }}
+                distinctDisplayNames={editDistinctDisplayNames}
+                distinctAuthors={editDistinctAuthors}
+                distinctTagNames={editDistinctTagNames}
+                tagColorByName={editTagColorByName}
+                tagTypeByName={Object.fromEntries(
+                    allTags.map((tag) => [
+                        String(tag?.tagname || "").trim().toLowerCase(),
+                        String(tag?.type || "default").toLowerCase(),
+                    ]),
+                )}
+                selectedMediaItems={[currentMedia]}
+                getAssetUrl={(assetPath) => String(assetPath || "").startsWith("http")
+                    ? String(assetPath)
+                    : UPLOADS_BASE_URL + String(assetPath || "")}
+                isSaving={isSavingEdit}
+                error={editError}
+                closeOnSave={closeEditModalOnSave}
+                onCloseOnSaveChange={setCloseEditModalOnSave}
+                navigation={{
+                    current: currentIndex + 1,
+                    total: filteredMediaItems.length,
+                    hasPrevious,
+                    hasNext,
+                    onPrevious: handlePrevMedia,
+                    onNext: handleNextMedia,
+                }}
+                onClose={closeEditModal}
+                onSubmit={handleEditMediaSubmit}
+            />
 
-                        <form className="tagged-media-edit-form" onSubmit={handleEditMediaSubmit}>
-                            <div className="tagged-media-edit-form-layout">
-                                <div className="tagged-media-edit-form-main-column">
-                                    {editPreviewUrl ? (
-                                        <button
-                                            type="button"
-                                            className="tagged-media-edit-preview-inline tagged-media-edit-preview-inline--mobile"
-                                            aria-label="Open selected media preview"
-                                            onClick={handleEditPreviewClick}
-                                            onTouchStart={handleEditPreviewTouchStart}
-                                            onTouchEnd={handleEditPreviewTouchEnd}
-                                        >
-                                            {isEditPreviewVideo ? (
-                                                <video
-                                                    src={editPreviewMediaUrl}
-                                                    poster={editPreviewPosterUrl || undefined}
-                                                    muted
-                                                    playsInline
-                                                    preload="auto"
-                                                />
-                                            ) : (
-                                                <img src={editPreviewUrl} alt="" />
-                                            )}
+            <DeleteConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                title="Delete this media?"
+                description="The file and its metadata will be permanently removed. This action cannot be undone."
+                confirmLabel="Delete media"
+                isDeleting={isDeletingMedia}
+                onConfirm={handleDeleteCurrentMedia}
+                onClose={closeDeleteCurrentMediaConfirm}
+            />
 
-                                            {isEditPreviewVideo ? (
-                                                <span
-                                                    className="tagged-media-edit-preview-play-badge"
-                                                    aria-hidden="true"
-                                                >
-                                                    <svg
-                                                        viewBox="0 0 24 24"
-                                                        className="tagged-media-edit-preview-play-icon"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <path d="M8 6.8v10.4c0 .8.9 1.3 1.6.9l8.5-5.2c.7-.4.7-1.4 0-1.8L9.6 5.9c-.7-.4-1.6.1-1.6.9Z" />
-                                                    </svg>
-                                                </span>
-                                            ) : null}
-                                        </button>
-                                    ) : null}
-
-                                    {editPreviewUrl && (hasPrevious || hasNext || shouldShowCounter) ? (
-                                        <nav
-                                            className="tagged-media-edit-mobile-nav"
-                                            aria-label="Edit modal media navigation"
-                                        >
-                                            <button
-                                                type="button"
-                                                className="tagged-media-edit-mobile-nav-button"
-                                                onClick={handlePrevMedia}
-                                                disabled={!hasPrevious}
-                                                aria-label="Previous media"
-                                            >
-                                                <img src="/icons/arrow_back.svg" alt="" aria-hidden="true" />
-                                            </button>
-
-                                            {shouldShowCounter ? (
-                                                <p className="tagged-media-edit-mobile-counter" aria-live="polite">
-                                                    <strong>{currentIndex + 1}</strong> / {filteredMediaItems.length}
-                                                </p>
-                                            ) : null}
-
-                                            <button
-                                                type="button"
-                                                className="tagged-media-edit-mobile-nav-button"
-                                                onClick={handleNextMedia}
-                                                disabled={!hasNext}
-                                                aria-label="Next media"
-                                            >
-                                                <img src="/icons/arrow_forward.svg" alt="" aria-hidden="true" />
-                                            </button>
-                                        </nav>
-                                    ) : null}
-
-                                    <div className="tagged-media-edit-row tagged-media-edit-row--two-columns">
-                                        <label className="tagged-media-edit-field">
-                                            <span>Media Name</span>
-                                            <div className="tagged-media-edit-autocomplete">
-                                                <input
-                                                    type="text"
-                                                    value={editDisplayNameInput}
-                                                    onChange={(event) => {
-                                                        setEditDisplayNameInput(event.target.value);
-                                                        openEditSuggestions("displayname");
-                                                    }}
-                                                    onFocus={() => openEditSuggestions("displayname")}
-                                                    onBlur={closeEditSuggestions}
-                                                    onKeyDown={(event) =>
-                                                        handleEditSuggestionKeyboard(
-                                                            event,
-                                                            "displayname",
-                                                            visibleEditDisplayNameSuggestions,
-                                                            (selectedValue) => {
-                                                                setEditDisplayNameInput(selectedValue || "");
-                                                                closeEditSuggestions();
-                                                            },
-                                                        )
-                                                    }
-                                                    placeholder="Undefined"
-                                                />
-
-                                                {editActiveSuggestionField === "displayname" &&
-                                                visibleEditDisplayNameSuggestions.length > 0 ? (
-                                                    <ul className="tagged-media-edit-suggestion-list" role="listbox">
-                                                        {visibleEditDisplayNameSuggestions.map((value, index) => (
-                                                            <li key={value}>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`tagged-media-edit-suggestion-item${index === editActiveSuggestionIndex ? " is-active" : ""}`}
-                                                                    onMouseDown={(event) => event.preventDefault()}
-                                                                    onClick={() => {
-                                                                        setEditDisplayNameInput(value);
-                                                                        closeEditSuggestions();
-                                                                    }}
-                                                                >
-                                                                    {value}
-                                                                </button>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : null}
-                                            </div>
-                                        </label>
-
-                                        <label className="tagged-media-edit-field">
-                                            <span>Author</span>
-                                            <div className="tagged-media-edit-autocomplete">
-                                                <input
-                                                    type="text"
-                                                    value={editAuthorInput}
-                                                    onChange={(event) => {
-                                                        setEditAuthorInput(event.target.value);
-                                                        openEditSuggestions("author");
-                                                    }}
-                                                    onFocus={() => openEditSuggestions("author")}
-                                                    onBlur={closeEditSuggestions}
-                                                    onKeyDown={(event) =>
-                                                        handleEditSuggestionKeyboard(
-                                                            event,
-                                                            "author",
-                                                            visibleEditAuthorSuggestions,
-                                                            (selectedValue) => {
-                                                                setEditAuthorInput(selectedValue || "");
-                                                                closeEditSuggestions();
-                                                            },
-                                                        )
-                                                    }
-                                                    placeholder="Optional"
-                                                />
-
-                                                {editActiveSuggestionField === "author" &&
-                                                visibleEditAuthorSuggestions.length > 0 ? (
-                                                    <ul className="tagged-media-edit-suggestion-list" role="listbox">
-                                                        {visibleEditAuthorSuggestions.map((value, index) => (
-                                                            <li key={value}>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`tagged-media-edit-suggestion-item${index === editActiveSuggestionIndex ? " is-active" : ""}`}
-                                                                    onMouseDown={(event) => event.preventDefault()}
-                                                                    onClick={() => {
-                                                                        setEditAuthorInput(value);
-                                                                        closeEditSuggestions();
-                                                                    }}
-                                                                >
-                                                                    {value}
-                                                                </button>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                ) : null}
-                                            </div>
-                                        </label>
-                                    </div>
-
-                                    <label className="tagged-media-edit-field">
-                                        <span>Tags (press Enter to add)</span>
-                                        <div className="tagged-media-edit-autocomplete">
-                                            <input
-                                                type="text"
-                                                value={editTagInput}
-                                                onChange={(event) => {
-                                                    setEditTagInput(event.target.value);
-                                                    openEditSuggestions("tag");
-                                                }}
-                                                onFocus={() => openEditSuggestions("tag")}
-                                                onBlur={closeEditSuggestions}
-                                                placeholder="Write tag name and press Enter"
-                                                onKeyDown={(event) =>
-                                                    handleEditSuggestionKeyboard(
-                                                        event,
-                                                        "tag",
-                                                        visibleEditTagSuggestions,
-                                                        (selectedValue) => addEditTag(selectedValue),
-                                                        () => {
-                                                            if (event.key === "Enter") {
-                                                                event.preventDefault();
-                                                                addEditTag(editTagInput);
-                                                            }
-                                                        },
-                                                    )
-                                                }
-                                            />
-
-                                            {editActiveSuggestionField === "tag" &&
-                                            visibleEditTagSuggestions.length > 0 ? (
-                                                <ul className="tagged-media-edit-suggestion-list" role="listbox">
-                                                    {visibleEditTagSuggestions.map((value, index) => (
-                                                        <li key={value}>
-                                                            <button
-                                                                type="button"
-                                                                className={`tagged-media-edit-suggestion-item${index === editActiveSuggestionIndex ? " is-active" : ""}`}
-                                                                onMouseDown={(event) => event.preventDefault()}
-                                                                onClick={() => addEditTag(value)}
-                                                            >
-                                                                {value}
-                                                            </button>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : null}
-                                        </div>
-                                    </label>
-
-                                    {editSelectedTags.length > 0 ? (
-                                        <div className="tagged-media-edit-tag-preview" aria-label="Selected tags">
-                                            {editSelectedTags.map((tag) => (
-                                                <button
-                                                    key={tag}
-                                                    type="button"
-                                                    className="tagged-media-edit-tag-chip"
-                                                    style={buildTagStyle(
-                                                        editTagColorByName[String(tag).toLowerCase()],
-                                                        "dark",
-                                                    )}
-                                                    onClick={() => removeEditTag(tag)}
-                                                    aria-label={`Remove tag ${tag}`}
-                                                >
-                                                    <span>{tag}</span>
-                                                    <span aria-hidden="true">&times;</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    ) : null}
-
-                                    {editError ? <p className="tagged-media-edit-error">{editError}</p> : null}
-
-                                </div>
-
-                                <aside className="tagged-media-edit-preview-panel" aria-label="Selected media preview">
-                                    {editPreviewUrl ? (
-                                        <button
-                                            type="button"
-                                            className="tagged-media-edit-preview-inline tagged-media-edit-preview-inline--panel"
-                                            aria-label="Open selected media preview"
-                                            onClick={() => setIsEditPreviewLightboxOpen(true)}
-                                        >
-                                            {isEditPreviewVideo ? (
-                                                <video
-                                                    src={editPreviewMediaUrl}
-                                                    poster={editPreviewPosterUrl || undefined}
-                                                    muted
-                                                    playsInline
-                                                    preload="auto"
-                                                />
-                                            ) : (
-                                                <img src={editPreviewUrl} alt="" />
-                                            )}
-
-                                            {isEditPreviewVideo ? (
-                                                <span
-                                                    className="tagged-media-edit-preview-play-badge"
-                                                    aria-hidden="true"
-                                                >
-                                                    <svg
-                                                        viewBox="0 0 24 24"
-                                                        className="tagged-media-edit-preview-play-icon"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <path d="M8 6.8v10.4c0 .8.9 1.3 1.6.9l8.5-5.2c.7-.4.7-1.4 0-1.8L9.6 5.9c-.7-.4-1.6.1-1.6.9Z" />
-                                                    </svg>
-                                                </span>
-                                            ) : null}
-                                        </button>
-                                    ) : (
-                                        <div className="tagged-media-edit-preview-placeholder" aria-hidden="true">
-                                            <span>No preview</span>
-                                        </div>
-                                    )}
-                                </aside>
-                            </div>
-
-                            <footer className="tagged-media-edit-modal-footer">
-                                <label className="tagged-media-edit-close-on-save">
-                                    <input
-                                        type="checkbox"
-                                        checked={closeEditModalOnSave}
-                                        onChange={(event) => setCloseEditModalOnSave(event.target.checked)}
-                                        disabled={isSavingEdit}
-                                    />
-                                    <span>Close on save</span>
-                                </label>
-
-                                <div className="tagged-media-edit-modal-actions">
-                                    <button
-                                        type="button"
-                                        className="tagged-media-edit-modal-cancel"
-                                        onClick={closeEditModal}
-                                        disabled={isSavingEdit}
-                                        aria-label="Cancel editing"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="tagged-media-edit-submit"
-                                        disabled={isSavingEdit}
-                                    >
-                                        {isSavingEdit ? "Saving..." : "Save Changes"}
-                                    </button>
-                                </div>
-                            </footer>
-                        </form>
-
-                        {isEditPreviewLightboxOpen && editPreviewUrl ? (
-                            <div
-                                className="tagged-media-edit-preview-lightbox"
-                                role="dialog"
-                                aria-modal="true"
-                                aria-label="Selected media preview"
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    setIsEditPreviewLightboxOpen(false);
-                                }}
-                            >
-                                <div
-                                    className="tagged-media-edit-preview-lightbox-content"
-                                    onClick={(event) => event.stopPropagation()}
-                                >
-                                    <button
-                                        type="button"
-                                        className="tagged-media-edit-preview-lightbox-close"
-                                        onClick={() => setIsEditPreviewLightboxOpen(false)}
-                                        aria-label="Close selected media preview"
-                                    >
-                                        &times;
-                                    </button>
-
-                                    {isEditPreviewVideo ? (
-                                        <video
-                                            className="tagged-media-edit-preview-lightbox-media"
-                                            src={editPreviewMediaUrl}
-                                            controls
-                                            playsInline
-                                            autoPlay
-                                        />
-                                    ) : (
-                                        <img
-                                            className="tagged-media-edit-preview-lightbox-media"
-                                            src={editPreviewUrl}
-                                            alt=""
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            ) : null}
-
-            {isDeleteConfirmOpen ? (
-                <div
-                    className="tagged-media-detail-confirm-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-media-detail-confirm-title"
-                    aria-describedby="tagged-media-detail-confirm-description"
-                    onClick={closeDeleteCurrentMediaConfirm}
-                >
-                    <div
-                        className="tagged-media-detail-confirm-modal-content"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <h2 id="tagged-media-detail-confirm-title">You are about to delete 1 element</h2>
-                        <p id="tagged-media-detail-confirm-description">This action can not be undone</p>
-                        <div className="tagged-media-detail-confirm-actions">
-                            <button
-                                type="button"
-                                className="tagged-media-detail-confirm-continue"
-                                onClick={handleDeleteCurrentMedia}
-                                disabled={isDeletingMedia}
-                            >
-                                Continue
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-media-detail-confirm-cancel"
-                                onClick={closeDeleteCurrentMediaConfirm}
-                                disabled={isDeletingMedia}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
-
-            {isLightboxOpen && mediaUrl && (
+            {isLightboxOpen && lightboxMediaUrl && (
                 <div
                     className="tagged-media-lightbox"
                     role="dialog"
@@ -2991,17 +2464,15 @@ export const MediaDetailPage = () => {
                                 <span>{currentMedia.displayname || currentMedia.filename || "Media"}</span>
                             </h2>
 
-                            <button
-                                type="button"
-                                className="tagged-media-lightbox-close"
+                            <IconButton
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     handleCloseLightbox();
                                 }}
                                 aria-label="Close modal"
                             >
-                                &times;
-                            </button>
+                                <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
+                            </IconButton>
                         </header>
 
                         <div className="tagged-media-lightbox-media-wrap">
@@ -3010,17 +2481,17 @@ export const MediaDetailPage = () => {
                                     ref={lightboxVideoRef}
                                     key={`lightbox-video-${currentMedia.id}`}
                                     className="tagged-media-lightbox-media"
-                                    src={mediaUrl}
+                                    src={lightboxMediaUrl}
                                     controls
                                     playsInline
                                     onClick={(event) => event.stopPropagation()}
-                                    loop={true}
+                                    loop={mediaDetailLoop}
                                 />
                             ) : (
                                 <img
                                     key={`lightbox-image-${currentMedia.id}`}
                                     className={`tagged-media-lightbox-media${isLightboxImageZoomed ? " is-zoomed" : ""}${isLightboxImagePanning ? " is-panning" : ""}`}
-                                    src={mediaUrl}
+                                    src={lightboxMediaUrl}
                                     alt={currentMedia.displayname || currentMedia.filename || "Media"}
                                     draggable={false}
                                     onClick={handleLightboxImageClick}
@@ -3051,4 +2522,3 @@ export const MediaDetailPage = () => {
         </section>
     );
 };
-

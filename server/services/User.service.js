@@ -2,8 +2,75 @@ const UserModel = require("../models/User.model");
 const bcrypt = require("bcrypt");
 const { generateToken, generateRefreshToken, getRefreshTokenExpiration } = require("../utils/jwt");
 const RefreshTokenModel = require("../models/RefreshToken.model");
+const fs = require("fs/promises");
+const path = require("path");
 
 class UserService {
+    static validateProfile({ username, email }) {
+        const normalizedUsername = String(username || "").trim();
+        const normalizedEmail = String(email || "").trim().toLowerCase();
+
+        if (normalizedUsername.length < 3 || normalizedUsername.length > 50) {
+            return { success: false, message: "Username must be between 3 and 50 characters" };
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+            return { success: false, message: "Invalid email format" };
+        }
+        return { success: true, data: { username: normalizedUsername, email: normalizedEmail } };
+    }
+
+    static async updateOwnProfile(id, profile) {
+        const validation = this.validateProfile(profile);
+        if (!validation.success) return validation;
+        return this.updateUser(id, validation.data);
+    }
+
+    static async changeOwnPassword(id, currentPassword, newPassword) {
+        if (!currentPassword || !newPassword) {
+            return { success: false, message: "Current and new password are required" };
+        }
+        if (newPassword.length < 6) {
+            return { success: false, message: "Password must be at least 6 characters" };
+        }
+
+        const user = await UserModel.findByIdWithPassword(id);
+        if (!user || !(await bcrypt.compare(currentPassword, user.password))) {
+            return { success: false, message: "Current password is incorrect" };
+        }
+        if (await bcrypt.compare(newPassword, user.password)) {
+            return { success: false, message: "New password must be different" };
+        }
+
+        const password = await bcrypt.hash(newPassword, 10);
+        await UserModel.update(id, { password });
+        return { success: true, message: "Password updated successfully" };
+    }
+
+    static async updateAvatar(id, file) {
+        if (!file) return { success: false, message: "Profile image is required" };
+        const existing = await UserModel.findById(id);
+        const avatarPath = `/uploads/avatars/${file.filename}`;
+        await UserModel.update(id, { avatar_path: avatarPath });
+
+        if (existing?.avatar_path?.startsWith("/uploads/avatars/")) {
+            const previousFile = path.join(__dirname, "..", existing.avatar_path.replace(/^\//, ""));
+            await fs.unlink(previousFile).catch(() => {});
+        }
+        return { success: true, data: await UserModel.findById(id), message: "Profile image updated" };
+    }
+
+    static async resetAvatar(id) {
+        const existing = await UserModel.findById(id);
+        if (!existing) return { success: false, message: "User not found" };
+
+        await UserModel.update(id, { avatar_path: null });
+        if (existing.avatar_path?.startsWith("/uploads/avatars/")) {
+            const previousFile = path.join(__dirname, "..", existing.avatar_path.replace(/^\//, ""));
+            await fs.unlink(previousFile).catch(() => {});
+        }
+        return { success: true, data: await UserModel.findById(id), message: "Profile image removed" };
+    }
+
     /**
      * Obtener todos los usuarios
      */

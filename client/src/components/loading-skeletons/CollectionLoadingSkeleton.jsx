@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import "./CollectionLoadingSkeleton.css";
 
+const SKELETON_VISIBILITY_DELAY_MS = 300;
 const CARD_SKELETON_KEYS = Array.from({ length: 15 }, (_, index) => `card-skeleton-${index}`);
 const LIST_SKELETON_KEYS = Array.from({ length: 8 }, (_, index) => `list-skeleton-${index}`);
 
@@ -97,6 +99,7 @@ export const CollectionLoadingSkeleton = ({
     className = "",
     ariaLabel = "Loading content",
 }) => {
+    const [isVisible, setIsVisible] = useState(false);
     const normalizedViewMode = viewMode === "list" ? "list" : "card";
     const skeletonKeys =
         normalizedViewMode === "list"
@@ -110,6 +113,20 @@ export const CollectionLoadingSkeleton = ({
             : normalizedViewMode === "list"
               ? MediaListSkeleton
               : MediaCardSkeleton;
+
+    useEffect(() => {
+        const visibilityTimer = window.setTimeout(() => {
+            setIsVisible(true);
+        }, SKELETON_VISIBILITY_DELAY_MS);
+
+        return () => {
+            window.clearTimeout(visibilityTimer);
+        };
+    }, []);
+
+    if (!isVisible) {
+        return null;
+    }
 
     return (
         <div

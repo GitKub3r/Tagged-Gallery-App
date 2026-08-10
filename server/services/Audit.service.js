@@ -21,6 +21,10 @@ const DEFAULT_ACTION_NAMES = {
     BACKUP_DOWNLOAD_CANCELLED: "Backup download cancelled",
     BACKUP_DOWNLOAD_SUCCEEDED: "Backup download succeeded",
     BACKUP_DOWNLOAD_FAILED: "Backup download failed",
+    PROFILE_UPDATE: "Update profile details",
+    PROFILE_AVATAR_UPDATE: "Update profile image",
+    PROFILE_AVATAR_RESET: "Remove profile image",
+    PROFILE_PASSWORD_UPDATE: "Change account password",
 };
 
 class AuditService {

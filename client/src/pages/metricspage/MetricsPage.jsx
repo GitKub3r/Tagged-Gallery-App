@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { faChartColumn } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { EmptyState } from "../../components/empty-state/EmptyState";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { useAuth } from "../../hooks/useAuth";
+import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./MetricsPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -349,17 +352,12 @@ export const DashboardPage = () => {
     if (!dashboard || dashboard.totalMedia === 0) {
         return (
             <section className="tagged-app-page tagged-metrics-page">
-                <article className="tagged-app-page-card tagged-metrics-empty-card tagged-metrics-empty-card--no-media">
-                    <h2>No media to analyze yet</h2>
-                    <p>
-                        Dashboard insights are generated from your uploaded media. Let&apos;s{" "}
-                        <Link className="tagged-metrics-empty-link" to="/gallery">
-                            go to gallery
-                        </Link>
-                        .
-                    </p>
-                    <img className="tagged-metrics-empty-icon" src="/icons/metrics.svg" alt="" aria-hidden="true" />
-                </article>
+                <EmptyState
+                    title="No media to analyze yet"
+                    icon={faChartColumn}
+                    actionLabel="Go to gallery"
+                    onAction={() => navigate("/gallery")}
+                />
             </section>
         );
     }
@@ -510,7 +508,7 @@ export const DashboardPage = () => {
                                     dataKey="monthLabel"
                                     tickLine={false}
                                     axisLine={false}
-                                    tick={{ fill: "#555555", fontSize: 11 }}
+                                    tick={{ fill: "#a3a3a3", fontSize: 11 }}
                                     interval={0}
                                     minTickGap={0}
                                     tickMargin={8}
@@ -518,12 +516,12 @@ export const DashboardPage = () => {
                                 <YAxis
                                     tickLine={false}
                                     axisLine={false}
-                                    tick={{ fill: "#555555", fontSize: 11 }}
+                                    tick={{ fill: "#a3a3a3", fontSize: 11 }}
                                     width={32}
                                     allowDecimals={false}
                                 />
-                                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(100, 58, 255, 0.04)" }} />
-                                <Bar dataKey="uploads" radius={[10, 10, 0, 0]} fill="#643aff" maxBarSize={42} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(115, 115, 115, 0.08)" }} />
+                                <Bar dataKey="uploads" radius={[10, 10, 0, 0]} fill="#a3a3a3" maxBarSize={42} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -593,9 +591,11 @@ export const DashboardPage = () => {
                                             <div className="tagged-metrics-list-label-row tagged-metrics-list-label-row--tag">
                                                 <span
                                                     className="tagged-metrics-tag-swatch"
-                                                    style={{
-                                                        backgroundColor: tag.tagcolor_hex || "rgba(100, 58, 255, 0.18)",
-                                                    }}
+                                                    style={
+                                                        isDefaultTagColor(tag.tagcolor_hex)
+                                                            ? buildDefaultTagStyle()
+                                                            : { backgroundColor: tag.tagcolor_hex }
+                                                    }
                                                     aria-hidden="true"
                                                 />
                                                 <strong>{tag.tagname}</strong>

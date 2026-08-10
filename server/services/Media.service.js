@@ -226,24 +226,45 @@ class MediaService {
         };
     }
 
-    static async getAll(requestUser, page = 1, limit = 20) {
+    static async getAll(requestUser, page = 1, limit = 20, filters = {}) {
         try {
             const parsedPage = Math.max(1, Number(page) || 1);
-            const parsedLimit = Math.min(10000, Math.max(1, Number(limit) || 20));
+            const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+            const toArray = (value) => (Array.isArray(value) ? value : value ? [value] : [])
+                .map((item) => String(item).trim())
+                .filter(Boolean);
+            const searchTokens = String(filters.search || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+            const authorTerms = [];
+            const nameTerms = [];
+            const freeTerms = [];
 
-            let items, total;
+            searchTokens.forEach((token) => {
+                if (token.startsWith("a:") || token.startsWith("author:")) {
+                    const value = token.slice(token.indexOf(":") + 1).trim();
+                    if (value) authorTerms.push(value);
+                } else if (token.startsWith("n:") || token.startsWith("name:")) {
+                    const value = token.slice(token.indexOf(":") + 1).trim();
+                    if (value) nameTerms.push(value);
+                } else {
+                    freeTerms.push(token);
+                }
+            });
 
-            if (requestUser.type === "admin") {
-                [items, total] = await Promise.all([
-                    MediaModel.findAllPaginated(parsedPage, parsedLimit),
-                    MediaModel.countAll(),
-                ]);
-            } else {
-                [items, total] = await Promise.all([
-                    MediaModel.findAllByUserIdPaginated(requestUser.id, parsedPage, parsedLimit),
-                    MediaModel.countByUserId(requestUser.id),
-                ]);
-            }
+            const { rows: items, total } = await MediaModel.findFilteredPaginated({
+                userId: requestUser.type === "admin" ? null : requestUser.id,
+                page: parsedPage,
+                limit: parsedLimit,
+                favouritesOnly: String(filters.favourites || "").toLowerCase() === "true",
+                mediaType: ["image", "video"].includes(filters.mediaType) ? filters.mediaType : "all",
+                author: String(filters.author || "").trim(),
+                tag: String(filters.tag || "").trim(),
+                includeTags: toArray(filters.includeTag),
+                excludeTags: toArray(filters.excludeTag),
+                authorTerms,
+                nameTerms,
+                freeTerms,
+                randomSeed: filters.randomSeed,
+            });
 
             const enrichedItems = await this.enrichMediaListWithTags(items);
 
@@ -253,6 +274,7 @@ class MediaService {
                 total,
                 page: parsedPage,
                 limit: parsedLimit,
+                totalPages: Math.max(1, Math.ceil(total / parsedLimit)),
             };
         } catch (error) {
             console.error("Error in MediaService.getAll:", error);
@@ -498,7 +520,7 @@ class MediaService {
         let createdMedia = null;
 
         try {
-            const mediatype = detectMediaType(file.mimetype);
+            const mediatype = detectMediaType(file.mimetype, file.originalname || file.filename);
             const thumbnail = await generateThumbnail(file, mediatype);
             const normalizedDisplayName = this.normalizeOptionalText(payload.displayname);
             const normalizedAuthor = this.normalizeOptionalText(payload.author);
@@ -567,7 +589,7 @@ class MediaService {
             const normalizedAuthor = this.normalizeOptionalText(payload.author);
 
             for (const file of files) {
-                const mediatype = detectMediaType(file.mimetype);
+                const mediatype = detectMediaType(file.mimetype, file.originalname || file.filename);
                 const thumbnail = await generateThumbnail(file, mediatype);
 
                 processedFiles.push({
@@ -829,4 +851,3 @@ class MediaService {
 }
 
 module.exports = MediaService;
-

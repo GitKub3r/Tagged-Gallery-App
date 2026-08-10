@@ -4,16 +4,15 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAccessControl } from "../../hooks/useAccessControl";
 import { TagFilterProvider } from "../../context/TagFilterContext";
 import { GridViewProvider } from "../../context/GridViewContext";
-import "./ProtectedLayout.css";
 
 export const ProtectedLayout = () => {
-    const { loading, isAuthenticated, user } = useAuth();
+    const { loading, isAuthenticated } = useAuth();
 
     // Enforce role-based access control
     useAccessControl();
 
     if (loading) {
-        return <main className="tagged-shell-loading">Loading...</main>;
+        return <main className="grid min-h-dvh place-items-center bg-neutral-950 text-sm font-bold tracking-wide text-neutral-400">Loading...</main>;
     }
 
     if (!isAuthenticated) {
@@ -22,14 +21,14 @@ export const ProtectedLayout = () => {
 
     return (
         <TagFilterProvider>
-        <GridViewProvider>
-            <div className="tagged-shell">
-                <Sidebar />
-                <main className="tagged-shell-content">
-                    <Outlet />
-                </main>
-            </div>
-        </GridViewProvider>
+            <GridViewProvider>
+                <div className="flex min-h-dvh bg-neutral-100 dark:bg-neutral-950">
+                    <Sidebar />
+                    <main className="tagged-shell-content min-w-0 flex-1 px-4 pb-4 pt-20 xl:p-8">
+                        <Outlet />
+                    </main>
+                </div>
+            </GridViewProvider>
         </TagFilterProvider>
     );
 };

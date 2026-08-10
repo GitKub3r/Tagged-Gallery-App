@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
+import { faCalendarDays, faCheck, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faTableCellsLarge, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useGridView } from "../../context/GridViewContext";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
+import { EmptyState } from "../../components/empty-state/EmptyState";
+import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
 import "./AlbumPage.css";
@@ -42,7 +46,6 @@ const parseApiResponse = async (response, fallbackMessage) => {
         };
     }
 };
-
 const getAssetUrl = (assetPath) => {
     if (!assetPath) {
         return "";
@@ -82,6 +85,15 @@ const formatAlbumDate = (rawDate) => {
         year: "numeric",
     }).format(parsedDate);
 };
+
+const AlbumSelectionIndicator = ({ isSelected }) => (
+    <span
+        className={`absolute left-3 top-3 z-20 grid h-6 w-6 place-items-center rounded-full border-2 border-white shadow-md transition-[background-color,color,transform] ${isSelected ? "bg-white text-neutral-950" : "bg-black/20 text-transparent"}`}
+        aria-hidden="true"
+    >
+        {isSelected ? <FontAwesomeIcon icon={faCheck} className="text-[0.68rem]" /> : null}
+    </span>
+);
 
 const mapTagsFromMedia = (media) => {
     const candidates = media?.tags || media?.tag_names || media?.mediaTags || media?.relatedTags || [];
@@ -1177,14 +1189,14 @@ export const AlbumPage = () => {
     return (
         <section className="tagged-app-page tagged-album-page">
             {!loading && !error && albums.length > 0 ? (
-                <div className="tagged-album-search" aria-label="Search albums">
-                    <div className="tagged-album-search-wrap tagged-album-search-field">
-                        <span>Search albums</span>
-
-                        <div className="tagged-album-search-input-wrap">
+                <div className="mx-auto w-full max-w-[91.5rem]" aria-label="Search albums">
+                    <span className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-300">Search albums</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="relative min-w-0 flex-1 basis-72">
+                            <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
                             <input
                                 type="search"
-                                className="tagged-album-search-input"
+                                className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-11 pr-11 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600"
                                 value={albumSearch}
                                 onChange={(event) => setAlbumSearch(event.target.value)}
                                 placeholder="Search albums by name or date..."
@@ -1194,40 +1206,40 @@ export const AlbumPage = () => {
                             {hasActiveAlbumFilter ? (
                                 <button
                                     type="button"
-                                    className="tagged-album-search-inline-clear"
+                                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border-0 bg-transparent p-0 text-neutral-400 shadow-none hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
                                     onMouseDown={(event) => event.preventDefault()}
                                     onClick={() => setAlbumSearch("")}
                                     aria-label="Clear search"
                                     title="Clear search"
                                 >
-                                    <span className="tagged-album-search-inline-clear-icon" aria-hidden="true" />
+                                    <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                                 </button>
                             ) : null}
                         </div>
 
-                        <div className="tagged-album-view-switch" aria-label="Album view mode">
+                        <div className="flex items-center gap-2" aria-label="Album view mode">
                             <button
                                 type="button"
-                                className={`tagged-album-view-switch-button${albumViewMode === "card" ? " is-active" : ""}`}
+                                className={`flex h-12 w-auto items-center gap-2 rounded-xl border px-4 text-sm font-bold shadow-none transition-transform hover:scale-[1.04] ${albumViewMode === "card" ? "border-neutral-950 bg-neutral-950 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-950" : "border-neutral-300 bg-white text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"}`}
                                 onClick={() => setAlbumViewMode("card")}
                                 aria-pressed={albumViewMode === "card"}
                                 aria-label="Card view"
                                 title="Card view"
                             >
-                                <span className="tagged-album-view-switch-icon tagged-album-view-switch-icon--card" />
-                                <span className="tagged-album-view-switch-label">Card</span>
+                                <FontAwesomeIcon icon={faTableCellsLarge} aria-hidden="true" />
+                                <span className="hidden sm:inline">Cards</span>
                             </button>
 
                             <button
                                 type="button"
-                                className={`tagged-album-view-switch-button${albumViewMode === "list" ? " is-active" : ""}`}
+                                className={`flex h-12 w-auto items-center gap-2 rounded-xl border px-4 text-sm font-bold shadow-none transition-transform hover:scale-[1.04] ${albumViewMode === "list" ? "border-neutral-950 bg-neutral-950 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-950" : "border-neutral-300 bg-white text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"}`}
                                 onClick={() => setAlbumViewMode("list")}
                                 aria-pressed={albumViewMode === "list"}
                                 aria-label="List view"
                                 title="List view"
                             >
-                                <span className="tagged-album-view-switch-icon tagged-album-view-switch-icon--list" />
-                                <span className="tagged-album-view-switch-label">List</span>
+                                <FontAwesomeIcon icon={faList} aria-hidden="true" />
+                                <span className="hidden sm:inline">List</span>
                             </button>
                         </div>
                     </div>
@@ -1253,50 +1265,22 @@ export const AlbumPage = () => {
                 </article>
             ) : !loading && !error ? (
                 albums.length === 0 ? (
-                    <article
-                        className="tagged-app-page-card tagged-album-empty-card tagged-album-empty-card--no-albums"
-                        aria-live="polite"
-                    >
-                        <h2>Kinda lonely</h2>
-                        {mediaItems.length === 0 ? (
-                            <p>
-                                You need media before creating albums. Let&apos;s{" "}
-                                <button
-                                    type="button"
-                                    className="tagged-album-empty-action"
-                                    onClick={() => navigate("/gallery")}
-                                >
-                                    go to gallery
-                                </button>
-                                .
-                            </p>
-                        ) : (
-                            <p>
-                                Start organizing your media and{" "}
-                                <button
-                                    type="button"
-                                    className="tagged-album-empty-action"
-                                    onClick={handleOpenCreateModal}
-                                >
-                                    create your first album
-                                </button>
-                                .
-                            </p>
-                        )}
-                    </article>
+                    <EmptyState
+                        title="No albums yet"
+                        icon={faFolderOpen}
+                        actionLabel={mediaItems.length === 0 ? "Go to gallery" : "Create album"}
+                        onAction={mediaItems.length === 0 ? () => navigate("/gallery") : handleOpenCreateModal}
+                    />
                 ) : albumViewMode === "list" ? (
-                    <div className="tagged-album-list" aria-label="Albums list">
+                    <div className="mx-auto grid w-full max-w-[91.5rem] gap-1" aria-label="Albums list">
                         <button
                             type="button"
-                            className="tagged-album-list-create-tile"
+                            className="mb-2 flex min-h-20 w-full items-center gap-3 rounded-xl border-2 border-dashed border-neutral-400 bg-transparent px-4 text-left text-neutral-600 shadow-none transition-[transform,border-color,color] hover:scale-[1.01] hover:border-neutral-950 hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-100 dark:hover:text-neutral-100"
                             onClick={handleOpenCreateModal}
                             aria-label="Add new album"
                         >
-                            <span
-                                className="tagged-album-create-icon tagged-album-create-icon--list"
-                                aria-hidden="true"
-                            />
-                            <span>Add new album</span>
+                            <FontAwesomeIcon icon={faFolderPlus} className="text-xl" aria-hidden="true" />
+                            <span className="font-bold">Add new album</span>
                         </button>
 
                         {visibleAlbums.map((album) => {
@@ -1308,54 +1292,11 @@ export const AlbumPage = () => {
                             return (
                                 <article
                                     key={album.id}
-                                    className={`tagged-album-list-item${isAlbumSelectionMode ? " is-selection-mode" : ""}${isSelected ? " is-selected" : ""}`}
+                                    className={`group relative flex min-h-20 w-full cursor-pointer items-center gap-4 border-b border-neutral-200 px-1 py-3 transition-colors dark:border-neutral-800 ${isSelected ? "bg-neutral-100/70 dark:bg-neutral-800/50" : ""}`}
                                 >
-                                    <div
-                                        className={`tagged-album-list-preview${isAlbumSelectionMode ? " is-selection-mode" : ""}${isSelected ? " is-selected" : ""}`}
-                                        aria-hidden="true"
-                                        onClick={() => {
-                                            if (longPressConsumedAlbumIdRef.current === album.id) {
-                                                longPressConsumedAlbumIdRef.current = null;
-                                                return;
-                                            }
-
-                                            handleOpenAlbumDetail(album.id);
-                                        }}
-                                        onPointerDown={(event) => handleAlbumPointerDown(album.id, event)}
-                                        onPointerMove={handleAlbumPointerMove}
-                                        onPointerUp={() => handleAlbumPointerUpOrCancel(album.id)}
-                                        onPointerLeave={() => handleAlbumPointerUpOrCancel(album.id)}
-                                        onPointerCancel={() => handleAlbumPointerUpOrCancel(album.id)}
-                                    >
-                                        {coverUrl ? (
-                                            <img
-                                                src={coverUrl}
-                                                alt=""
-                                                onError={(event) => {
-                                                    event.currentTarget.onerror = null;
-                                                    event.currentTarget.style.display = "none";
-                                                }}
-                                            />
-                                        ) : (
-                                            <div
-                                                className="tagged-album-cover-fallback tagged-album-cover-fallback--list"
-                                                style={getAlbumCoverGradientStyle(album)}
-                                                aria-hidden="true"
-                                            />
-                                        )}
-
-                                        {isAlbumSelectionMode ? (
-                                            <span
-                                                className={`tagged-album-list-selection-check${isSelected ? " is-selected" : ""}`}
-                                            >
-                                                {isSelected ? "\u2713" : ""}
-                                            </span>
-                                        ) : null}
-                                    </div>
-
                                     <button
                                         type="button"
-                                        className="tagged-album-list-main"
+                                        className="flex min-w-0 flex-1 items-center gap-4 border-0 bg-transparent p-0 text-left text-inherit shadow-none"
                                         onClick={() => {
                                             if (longPressConsumedAlbumIdRef.current === album.id) {
                                                 longPressConsumedAlbumIdRef.current = null;
@@ -1373,26 +1314,40 @@ export const AlbumPage = () => {
                                         aria-pressed={isAlbumSelectionMode ? isSelected : undefined}
                                         aria-label={`Open album ${albumDisplayName}`}
                                     >
-                                        <h2 title={albumDisplayName}>{albumDisplayName}</h2>
-                                        {createdLabel ? <p className="tagged-album-list-date">{createdLabel}</p> : null}
+                                        <span className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-900 sm:h-20 sm:w-28">
+                                            {coverUrl ? (
+                                                <img className="h-full w-full object-cover" src={coverUrl} alt="" />
+                                            ) : (
+                                                <span className="grid h-full w-full place-items-center text-neutral-500" style={getAlbumCoverGradientStyle(album)}>
+                                                    <FontAwesomeIcon icon={faFolderOpen} aria-hidden="true" />
+                                                </span>
+                                            )}
+                                            {isAlbumSelectionMode ? <AlbumSelectionIndicator isSelected={isSelected} /> : null}
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block truncate text-sm font-bold text-neutral-950 dark:text-neutral-100 sm:text-base" title={albumDisplayName}>{albumDisplayName}</span>
+                                            {createdLabel ? (
+                                                <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                    <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" />
+                                                    {createdLabel}
+                                                </span>
+                                            ) : null}
+                                        </span>
                                     </button>
                                 </article>
                             );
                         })}
                     </div>
                 ) : (
-                    <div className="tagged-album-grid" aria-label="Albums grid" style={{ "--tagged-grid-columns": gridColumns }}>
+                    <div className="tagged-album-grid-v2" aria-label="Albums grid" style={{ "--tagged-grid-columns": gridColumns }}>
                         <button
                             type="button"
-                            className="tagged-album-card tagged-album-create-tile"
+                            className="tagged-album-create-tile-v2 group flex h-full min-h-56 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-400 bg-transparent p-5 text-neutral-600 shadow-none transition-[transform,border-color,color] hover:scale-[1.015] hover:border-neutral-950 hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-100 dark:hover:text-neutral-100"
                             onClick={handleOpenCreateModal}
                             aria-label="Add new album"
                         >
-                            <span
-                                className="tagged-album-create-icon tagged-album-create-icon--card"
-                                aria-hidden="true"
-                            />
-                            <span>Add new album</span>
+                            <FontAwesomeIcon icon={faFolderPlus} className="text-3xl transition-transform group-hover:scale-110" aria-hidden="true" />
+                            <span className="text-sm font-bold">Add new album</span>
                         </button>
 
                         {visibleAlbums.map((album) => {
@@ -1404,20 +1359,11 @@ export const AlbumPage = () => {
                             return (
                                 <article
                                     key={album.id}
-                                    className={`tagged-album-card${isAlbumSelectionMode && isSelected ? " is-selected" : ""}`}
+                                    className="group relative w-full cursor-pointer"
                                 >
-                                    {isAlbumSelectionMode ? (
-                                        <span
-                                            className={`tagged-album-card-select-indicator${isSelected ? " is-selected" : ""}`}
-                                            aria-hidden="true"
-                                        >
-                                            <img src="/icons/check.svg" alt="" aria-hidden="true" />
-                                        </span>
-                                    ) : null}
-
                                     <button
                                         type="button"
-                                        className="tagged-album-card-button"
+                                        className="block h-full w-full border-0 bg-transparent p-0 text-left text-inherit shadow-none"
                                         onClick={() => {
                                             if (longPressConsumedAlbumIdRef.current === album.id) {
                                                 longPressConsumedAlbumIdRef.current = null;
@@ -1435,10 +1381,10 @@ export const AlbumPage = () => {
                                         aria-pressed={isAlbumSelectionMode ? isSelected : undefined}
                                         aria-label={`Open album ${albumDisplayName}`}
                                     >
-                                        <div className="tagged-album-card-preview-wrap">
+                                        <div className={`relative aspect-[4/3] overflow-hidden rounded-xl bg-neutral-200 transition-[transform,box-shadow] group-hover:scale-[1.012] dark:bg-neutral-900 ${isSelected ? "ring-2 ring-neutral-950 ring-offset-2 ring-offset-neutral-50 dark:ring-neutral-100 dark:ring-offset-neutral-950" : ""}`}>
                                             {coverUrl ? (
                                                 <img
-                                                    className="tagged-album-card-preview"
+                                                    className="h-full w-full object-cover transition-opacity group-hover:opacity-95"
                                                     src={coverUrl}
                                                     alt={albumDisplayName || "Album cover"}
                                                     onError={(event) => {
@@ -1447,30 +1393,21 @@ export const AlbumPage = () => {
                                                     }}
                                                 />
                                             ) : (
-                                                <div className="tagged-album-card-preview tagged-album-card-preview--empty">
-                                                    <div
-                                                        className="tagged-album-card-cover-fallback"
-                                                        aria-hidden="true"
-                                                    >
-                                                        <img src="/icons/album.svg" alt="" aria-hidden="true" />
-                                                    </div>
+                                                <div className="grid h-full w-full place-items-center text-3xl text-neutral-500" style={getAlbumCoverGradientStyle(album)}>
+                                                    <FontAwesomeIcon icon={faFolderOpen} aria-hidden="true" />
                                                 </div>
                                             )}
-
-                                            {coverUrl ? (
-                                                <div className="tagged-album-card-cover-fallback" aria-hidden="true">
-                                                    <img src="/icons/album.svg" alt="" aria-hidden="true" />
-                                                </div>
-                                            ) : null}
+                                            {isAlbumSelectionMode ? <AlbumSelectionIndicator isSelected={isSelected} /> : null}
                                         </div>
 
-                                        <div className="tagged-album-card-body">
-                                            <div className="tagged-album-card-main-meta">
-                                                <h2 title={albumDisplayName}>{albumDisplayName}</h2>
-                                                {createdLabel ? (
-                                                    <p className="tagged-album-card-date">{createdLabel}</p>
-                                                ) : null}
-                                            </div>
+                                        <div className="px-1 pb-1 pt-3">
+                                            <h2 className="truncate text-base font-bold text-neutral-950 dark:text-neutral-100" title={albumDisplayName}>{albumDisplayName}</h2>
+                                            {createdLabel ? (
+                                                <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                    <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" />
+                                                    {createdLabel}
+                                                </p>
+                                            ) : null}
                                         </div>
                                     </button>
                                 </article>
@@ -1538,54 +1475,24 @@ export const AlbumPage = () => {
             ) : null}
 
             {!loading && !error && albums.length > 0 && visibleAlbums.length === 0 ? (
-                <article className="tagged-app-page-card tagged-album-status-card" aria-live="polite">
-                    <h2>No albums found</h2>
-                    <p>
-                        <button type="button" className="tagged-album-empty-action" onClick={clearAlbumFilters}>
-                            Clear filter
-                        </button>
-                    </p>
-                </article>
+                <EmptyState
+                    title="No albums found"
+                    icon={faMagnifyingGlass}
+                    placement="section"
+                    actionLabel="Clear filter"
+                    onAction={clearAlbumFilters}
+                />
             ) : null}
 
-            {isDeleteConfirmOpen ? (
-                <div
-                    className="tagged-album-confirm-modal"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="tagged-album-delete-confirm-title"
-                    aria-describedby="tagged-album-delete-confirm-description"
-                    onClick={closeDeleteSelectedConfirm}
-                >
-                    <div className="tagged-album-confirm-modal-content" onClick={(event) => event.stopPropagation()}>
-                        <h2 id="tagged-album-delete-confirm-title">
-                            Delete <span className="tagged-album-confirm-count">{selectedAlbumIds.size}</span> album
-                            {selectedAlbumIds.size === 1 ? "" : "s"}
-                        </h2>
-                        <p id="tagged-album-delete-confirm-description">
-                            This action deletes the selected albums and their links, but not your original media files.
-                        </p>
-                        <div className="tagged-album-confirm-actions">
-                            <button
-                                type="button"
-                                className="tagged-album-confirm-continue"
-                                onClick={handleDeleteSelectedAlbums}
-                                disabled={isDeletingSelected}
-                            >
-                                Continue
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-album-confirm-cancel"
-                                onClick={closeDeleteSelectedConfirm}
-                                disabled={isDeletingSelected}
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
+            <DeleteConfirmationModal
+                isOpen={isDeleteConfirmOpen}
+                title={selectedAlbumIds.size === 1 ? "Delete this album?" : "Delete selected albums?"}
+                description="The album links will be removed, but the original media files will remain in your library."
+                confirmLabel={selectedAlbumIds.size === 1 ? "Delete album" : "Delete albums"}
+                isDeleting={isDeletingSelected}
+                onConfirm={handleDeleteSelectedAlbums}
+                onClose={closeDeleteSelectedConfirm}
+            />
 
             <AlbumCreateModal
                 isOpen={isCreateModalOpen}
