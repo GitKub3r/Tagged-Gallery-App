@@ -17,6 +17,7 @@ CREATE TABLE users (
     password VARCHAR(255) NOT NULL, -- hash
     type ENUM('admin', 'basic') NOT NULL DEFAULT 'basic',
     avatar_path VARCHAR(500) NULL,
+    session_version INT UNSIGNED NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

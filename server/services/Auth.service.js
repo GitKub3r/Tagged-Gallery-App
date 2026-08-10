@@ -66,6 +66,7 @@ class AuthService {
                 id: user.id,
                 email: user.email,
                 type: user.type,
+                sessionVersion: Number(user.session_version || 0),
             });
 
             return {
@@ -117,6 +118,7 @@ class AuthService {
      */
     static async logoutAll(userId) {
         try {
+            await UserModel.incrementSessionVersion(userId);
             const deleted = await RefreshTokenModel.deleteByUserId(userId);
 
             return {

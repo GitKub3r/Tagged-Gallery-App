@@ -88,6 +88,17 @@ const authenticate = async (req, res, next) => {
             });
         }
 
+        if (Number(decoded.sessionVersion || 0) !== Number(user.session_version || 0)) {
+            await AuditService.logEvent({
+                actionCode: "AUTH_UNAUTHORIZED",
+                req,
+                statusCode: 401,
+                message: "Session revoked",
+                userId: user.id,
+            });
+            return res.status(401).json({ success: false, message: "Session revoked" });
+        }
+
         // Adjuntar la información del usuario a la petición
         req.user = {
             id: user.id,

@@ -331,6 +331,7 @@ class UserService {
                 id: user.id,
                 email: user.email,
                 type: user.type,
+                sessionVersion: Number(user.session_version || 0),
             });
 
             const refreshToken = generateRefreshToken({

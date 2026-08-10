@@ -43,6 +43,7 @@ apiClient.interceptors.response.use(
                     localStorage.removeItem("user");
                     localStorage.removeItem("accessToken");
                     localStorage.removeItem("refreshToken");
+                    window.dispatchEvent(new Event("tagged:session-invalidated"));
                 }
             }
         }
