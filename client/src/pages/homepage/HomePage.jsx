@@ -176,10 +176,10 @@ export const HomePage = () => {
                     <Footer />
                 </section>
 
-                <section className="relative flex min-h-dvh items-center justify-center overflow-hidden border-t border-neutral-800 bg-neutral-950 p-6 text-neutral-100 sm:p-8 lg:col-span-7 lg:border-l lg:border-t-0 lg:p-12" aria-label="Tagged Gallery preview">
+                <section className="relative flex min-h-dvh items-center justify-center overflow-hidden border-t border-neutral-300 bg-neutral-100 p-6 text-neutral-950 sm:p-8 lg:col-span-7 lg:border-l lg:border-t-0 lg:p-12 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100" aria-label="Tagged Gallery preview">
                     <div className="absolute inset-0 opacity-30" aria-hidden="true">
-                        <div className="tagged-login-orb absolute -right-20 top-10 h-64 w-64 rounded-full bg-neutral-600 blur-3xl" />
-                        <div className="tagged-login-orb tagged-login-orb--reverse absolute -bottom-20 left-0 h-72 w-72 rounded-full bg-neutral-700 blur-3xl" />
+                        <div className="tagged-login-orb absolute -right-20 top-10 h-64 w-64 rounded-full bg-neutral-300 blur-3xl dark:bg-neutral-600" />
+                        <div className="tagged-login-orb tagged-login-orb--reverse absolute -bottom-20 left-0 h-72 w-72 rounded-full bg-neutral-200 blur-3xl dark:bg-neutral-700" />
                     </div>
 
                     <LoginShowcase />
