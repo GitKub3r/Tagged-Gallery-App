@@ -252,7 +252,7 @@ export const MediaCard = ({
                 {!selectionMode ? (
                     <button
                         type="button"
-                        className="tagged-media-card-favourite-button absolute! right-2! top-2! flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! p-0! text-white! disabled:opacity-50!"
+                        className="tagged-media-card-favourite-button absolute! left-2! top-2! flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! p-0! text-white! disabled:opacity-50!"
                         onClick={handleFavouriteClick}
                         aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
                         aria-pressed={isFavourite}
