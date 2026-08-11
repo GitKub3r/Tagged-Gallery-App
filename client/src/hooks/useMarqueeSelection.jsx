@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const DRAG_THRESHOLD_PX = 5;
 
@@ -25,7 +26,10 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
         [getItemId, items],
     );
 
-    useEffect(() => () => removeWindowListenersRef.current(), []);
+    useEffect(() => () => {
+        removeWindowListenersRef.current();
+        document.documentElement.classList.remove("select-none");
+    }, []);
 
     const stopTracking = () => {
         removeWindowListenersRef.current();
@@ -35,29 +39,27 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
     };
 
     const containerProps = {
-        onPointerDown: (event) => {
-            if (event.pointerType !== "mouse" || event.button !== 0) return;
+        onMouseDown: (event) => {
+            if (event.button !== 0) return;
 
             removeWindowListenersRef.current();
             const container = event.currentTarget;
             const drag = {
-                pointerId: event.pointerId,
                 start: { x: event.clientX, y: event.clientY },
                 active: false,
                 baseSelection: event.ctrlKey || event.metaKey ? new Set(selectedIds) : new Set(),
             };
             dragRef.current = drag;
 
-            const handlePointerMove = (pointerEvent) => {
-                if (pointerEvent.pointerId !== drag.pointerId) return;
-
-                const current = { x: pointerEvent.clientX, y: pointerEvent.clientY };
+            const handleMouseMove = (mouseEvent) => {
+                const current = { x: mouseEvent.clientX, y: mouseEvent.clientY };
                 if (!drag.active && Math.hypot(current.x - drag.start.x, current.y - drag.start.y) < DRAG_THRESHOLD_PX) return;
 
                 const isStartingSelection = !drag.active;
                 drag.active = true;
-                pointerEvent.preventDefault();
+                mouseEvent.preventDefault();
                 window.getSelection?.()?.removeAllRanges();
+                document.documentElement.classList.add("select-none");
 
                 const nextRect = buildRect(drag.start, current);
                 const nextSelection = new Set(drag.baseSelection);
@@ -72,25 +74,25 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
                 setSelectionRect(nextRect);
             };
 
-            const handlePointerUp = (pointerEvent) => {
-                if (pointerEvent.pointerId !== drag.pointerId) return;
+            const handleMouseUp = () => {
                 suppressClickRef.current = drag.active;
+                document.documentElement.classList.remove("select-none");
                 stopTracking();
             };
 
-            const handlePointerCancel = (pointerEvent) => {
-                if (pointerEvent.pointerId !== drag.pointerId) return;
+            const handleWindowBlur = () => {
                 suppressClickRef.current = false;
+                document.documentElement.classList.remove("select-none");
                 stopTracking();
             };
 
-            window.addEventListener("pointermove", handlePointerMove, { passive: false });
-            window.addEventListener("pointerup", handlePointerUp);
-            window.addEventListener("pointercancel", handlePointerCancel);
+            window.addEventListener("mousemove", handleMouseMove, { passive: false });
+            window.addEventListener("mouseup", handleMouseUp);
+            window.addEventListener("blur", handleWindowBlur);
             removeWindowListenersRef.current = () => {
-                window.removeEventListener("pointermove", handlePointerMove);
-                window.removeEventListener("pointerup", handlePointerUp);
-                window.removeEventListener("pointercancel", handlePointerCancel);
+                window.removeEventListener("mousemove", handleMouseMove);
+                window.removeEventListener("mouseup", handleMouseUp);
+                window.removeEventListener("blur", handleWindowBlur);
             };
         },
         onClickCapture: (event) => {
@@ -102,9 +104,9 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
         onDragStart: (event) => event.preventDefault(),
     };
 
-    const selectionOverlay = selectionRect ? (
+    const selectionOverlay = selectionRect && typeof document !== "undefined" ? createPortal(
         <div
-            className="pointer-events-none fixed z-[1100] rounded-xl border-2 border-sky-500 bg-sky-500/20 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]"
+            className="pointer-events-none fixed z-[2000] rounded-xl border-2 border-sky-400 bg-sky-400/25 shadow-[0_0_0_1px_rgba(255,255,255,0.7)]"
             style={{
                 left: selectionRect.left,
                 top: selectionRect.top,
@@ -112,7 +114,8 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
                 height: selectionRect.bottom - selectionRect.top,
             }}
             aria-hidden="true"
-        />
+        />,
+        document.body,
     ) : null;
 
     return { containerProps, selectionOverlay };
