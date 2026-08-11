@@ -25,11 +25,14 @@ export const useAppToast = (data, { id, onDismiss, onCancel } = {}) => {
             description: hasProgress ? undefined : data.message,
             onDismiss: () => dismissRef.current?.(),
             onAutoClose: () => dismissRef.current?.(),
-            action: cancelRef.current ? { label: "Cancel", onClick: () => cancelRef.current?.() } : undefined,
+            action: !hasProgress && cancelRef.current ? { label: "Cancel", onClick: () => cancelRef.current?.() } : undefined,
         };
 
         if (hasProgress) {
-            toast.custom(() => <ProgressToast data={data} />, commonOptions);
+            toast.custom(
+                () => <ProgressToast data={data} onCancel={cancelRef.current ? () => cancelRef.current?.() : null} />,
+                commonOptions,
+            );
         } else if (data.status === "error") {
             toast.error(data.title || "Something went wrong", commonOptions);
         } else if (data.status === "success") {

@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const MediaController = require("../../../controllers/Media.controller");
-const { upload } = require("../../../middlewares/upload.middleware");
+const { upload, trackUploadCancellation } = require("../../../middlewares/upload.middleware");
 const { authenticate } = require("../../../middlewares/auth.middleware");
 const AuditService = require("../../../services/Audit.service");
 
@@ -38,10 +38,10 @@ router.delete("/authors", authenticate, MediaController.deleteAuthor);
 router.get("/:id", authenticate, MediaController.getById);
 
 // POST /api/v1/media/upload - Subir un archivo con sus metadatos
-router.post("/upload", authenticate, upload.single("file"), MediaController.uploadSingle);
+router.post("/upload", authenticate, trackUploadCancellation, upload.single("file"), MediaController.uploadSingle);
 
 // POST /api/v1/media/upload/multiple - Subir varios archivos con los mismos metadatos
-router.post("/upload/multiple", authenticate, upload.array("files", 50), MediaController.uploadMany);
+router.post("/upload/multiple", authenticate, trackUploadCancellation, upload.array("files", 50), MediaController.uploadMany);
 
 // PUT /api/v1/media/:id - Actualizar metadatos de un archivo
 router.put("/:id", authenticate, MediaController.update);

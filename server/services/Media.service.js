@@ -505,7 +505,7 @@ class MediaService {
         }
     }
 
-    static async uploadSingle(file, payload, userId) {
+    static async uploadSingle(file, payload, userId, shouldCancel = () => false) {
         if (!file) {
             return {
                 success: false,
@@ -528,8 +528,10 @@ class MediaService {
         let createdMedia = null;
 
         try {
+            if (shouldCancel()) throw new Error("Upload cancelled");
             const mediatype = detectMediaType(file.mimetype, file.originalname || file.filename);
             const thumbnail = await generateThumbnail(file, mediatype);
+            if (shouldCancel()) throw new Error("Upload cancelled");
             const normalizedDisplayName = this.normalizeOptionalText(payload.displayname);
             const normalizedAuthor = this.normalizeOptionalText(payload.author);
 
@@ -546,6 +548,7 @@ class MediaService {
             };
 
             createdMedia = await MediaModel.create(mediaData);
+            if (shouldCancel()) throw new Error("Upload cancelled");
             await this.attachTagsToMedia(createdMedia.id, parsedTagNames.data, userId);
 
             const created = await MediaModel.findById(createdMedia.id);
@@ -569,7 +572,7 @@ class MediaService {
         }
     }
 
-    static async uploadMany(files, payload, userId) {
+    static async uploadMany(files, payload, userId, shouldCancel = () => false) {
         if (!files || files.length === 0) {
             return {
                 success: false,
@@ -593,12 +596,15 @@ class MediaService {
         let createdItems = [];
 
         try {
+            if (shouldCancel()) throw new Error("Upload cancelled");
             const normalizedDisplayName = this.normalizeOptionalText(payload.displayname);
             const normalizedAuthor = this.normalizeOptionalText(payload.author);
 
             for (const file of files) {
+                if (shouldCancel()) throw new Error("Upload cancelled");
                 const mediatype = detectMediaType(file.mimetype, file.originalname || file.filename);
                 const thumbnail = await generateThumbnail(file, mediatype);
+                if (shouldCancel()) throw new Error("Upload cancelled");
 
                 processedFiles.push({
                     user_id: userId,
@@ -614,11 +620,13 @@ class MediaService {
             }
 
             createdItems = await MediaModel.createMany(processedFiles);
+            if (shouldCancel()) throw new Error("Upload cancelled");
 
             if (parsedTagNames.data.length > 0) {
                 const tagIds = await this.getOrCreateTagIdsForUser(parsedTagNames.data, userId);
 
                 for (const mediaItem of createdItems) {
+                    if (shouldCancel()) throw new Error("Upload cancelled");
                     await MediaTagModel.createMany(mediaItem.id, tagIds);
                 }
             }

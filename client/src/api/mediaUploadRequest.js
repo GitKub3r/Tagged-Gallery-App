@@ -25,7 +25,7 @@ export const createMediaUploadRequest = ({ files, displayName = "", author = "",
     };
 };
 
-export const uploadMedia = async ({ files, displayName, author, tags, onUploadProgress }) => {
+export const uploadMedia = async ({ files, displayName, author, tags, onUploadProgress, signal }) => {
     const { endpoint, formData } = createMediaUploadRequest({ files, displayName, author, tags });
     const accessToken = typeof window !== "undefined" ? window.localStorage.getItem("accessToken") : null;
 
@@ -35,6 +35,7 @@ export const uploadMedia = async ({ files, displayName, author, tags, onUploadPr
             ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         onUploadProgress,
+        signal,
     });
 
     return response.data;

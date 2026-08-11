@@ -1,4 +1,4 @@
-export const ProgressToast = ({ data }) => {
+export const ProgressToast = ({ data, onCancel }) => {
     const progress = typeof data.progress === "number" ? Math.max(0, Math.min(100, data.progress)) : null;
 
     return (
@@ -13,9 +13,18 @@ export const ProgressToast = ({ data }) => {
                     style={data.indeterminate ? undefined : { width: `${progress ?? 0}%` }}
                 />
             </div>
-            <div className="flex items-center justify-between gap-3 text-[0.7rem] font-semibold text-neutral-500 dark:text-neutral-400">
+            <div className="flex items-center gap-3 text-[0.7rem] font-semibold text-neutral-500 dark:text-neutral-400">
                 <span>{data.indeterminate ? "Working…" : progress !== null ? `${Math.round(progress)}%` : ""}</span>
-                <span>{data.speedLabel || ""}</span>
+                <span className="ml-auto">{data.speedLabel || ""}</span>
+                {onCancel ? (
+                    <button
+                        type="button"
+                        className="h-7! w-auto! rounded-xl! border! border-neutral-300! bg-transparent! px-2.5! py-0! text-[0.7rem]! font-bold! text-neutral-600! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!"
+                        onClick={onCancel}
+                    >
+                        Cancel
+                    </button>
+                ) : null}
             </div>
         </div>
     );

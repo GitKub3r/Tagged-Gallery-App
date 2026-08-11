@@ -28,9 +28,26 @@ const storage = multer.diskStorage({
         const extension = path.extname(file.originalname || "").toLowerCase();
         const safeExtension = extension || ".bin";
         const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${safeExtension}`;
+        req.pendingUploadPaths ||= [];
+        req.pendingUploadPaths.push(path.join(MEDIA_UPLOAD_DIR, uniqueName));
         cb(null, uniqueName);
     },
 });
+
+const trackUploadCancellation = (req, res, next) => {
+    req.uploadCancelled = false;
+
+    const cancelAndClean = () => {
+        req.uploadCancelled = true;
+        (req.pendingUploadPaths || []).forEach((filePath) => fs.rm(filePath, { force: true }, () => {}));
+    };
+
+    req.once("aborted", cancelAndClean);
+    res.once("close", () => {
+        if (!res.writableEnded) cancelAndClean();
+    });
+    next();
+};
 
 const fileFilter = (req, file, cb) => {
     if (!isSupportedMimeType(file.mimetype)) {
@@ -70,4 +87,5 @@ module.exports = {
     THUMBNAILS_UPLOAD_DIR,
     AVATARS_UPLOAD_DIR,
     avatarUpload,
+    trackUploadCancellation,
 };

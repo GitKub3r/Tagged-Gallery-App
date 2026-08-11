@@ -150,7 +150,7 @@ class MediaController {
 
     static async uploadSingle(req, res) {
         try {
-            const result = await MediaService.uploadSingle(req.file, req.body, req.user.id);
+            const result = await MediaService.uploadSingle(req.file, req.body, req.user.id, () => req.uploadCancelled);
 
             if (!result.success) {
                 await AuditService.logEvent({
@@ -194,7 +194,7 @@ class MediaController {
 
     static async uploadMany(req, res) {
         try {
-            const result = await MediaService.uploadMany(req.files, req.body, req.user.id);
+            const result = await MediaService.uploadMany(req.files, req.body, req.user.id, () => req.uploadCancelled);
 
             if (!result.success) {
                 await AuditService.logEvent({

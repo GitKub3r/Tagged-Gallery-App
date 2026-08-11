@@ -42,6 +42,7 @@ export const UploadMediaModal = ({
     uploadSpeedLabel,
     uploadError,
     onClose,
+    onCancelUpload,
     onChangeFiles,
     onSubmit,
     onDisplayNameChange,
@@ -227,6 +228,13 @@ export const UploadMediaModal = ({
                                 <span>{uploadSpeedLabel || ""}</span>
                             </div>
                         </div>
+                        <button
+                            type="button"
+                            className="h-10! w-auto! rounded-xl! border! border-red-500/40! bg-transparent! px-4! py-2! text-sm! font-semibold! text-red-600! shadow-none! hover:bg-red-500/10! dark:text-red-400! dark:hover:bg-red-500/10!"
+                            onClick={onCancelUpload}
+                        >
+                            Cancel upload
+                        </button>
                     </div>
                 ) : (
                     <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>

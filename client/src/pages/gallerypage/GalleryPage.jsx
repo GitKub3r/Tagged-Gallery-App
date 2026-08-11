@@ -584,6 +584,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
     const [uploadToast, setUploadToast] = useState(null);
     const uploadToastTimeoutRef = useRef(null);
+    const uploadAbortControllerRef = useRef(null);
     const [isUploadToastMode, setIsUploadToastMode] = useState(false);
     const [pageSize, setPageSize] = useState(() => {
         const stored = localStorage.getItem(GALLERY_PAGE_SIZE_STORAGE_KEY);
@@ -1081,9 +1082,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         : !isUploadToastMode
           ? uploadToast
           : null;
+    const cancelUpload = () => uploadAbortControllerRef.current?.abort();
     useAppToast(activeUploadToast, {
         id: "gallery-upload",
         onDismiss: () => isUploadToastMode ? setIsUploadToastMode(false) : hideUploadToast(),
+        onCancel: isUploadToastMode && isUploading ? cancelUpload : undefined,
     });
     useAppToast(selectionActionToast, { id: "gallery-selection-action", onDismiss: hideSelectionActionToast });
     useAppToast(downloadToast, { id: "gallery-download", onDismiss: hideDownloadToast });
@@ -2330,6 +2333,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setUploadRemaining(selectedFiles.length);
         setUploadProgressPercent(0);
         setUploadSpeedLabel(null);
+        const uploadAbortController = new AbortController();
+        uploadAbortControllerRef.current = uploadAbortController;
         // Mostrar toast al iniciar subida si el modal esta cerrado
         if (!isUploadModalOpen) {
             showUploadToast({
@@ -2376,6 +2381,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 displayName: finalDisplayName,
                 author: finalAuthor,
                 tags: selectedTags,
+                signal: uploadAbortController.signal,
                 onUploadProgress: (progressEvent) => {
                     const totalBytes = progressEvent.total || null;
                     const loadedBytes = Number.isFinite(progressEvent.loaded)
@@ -2433,6 +2439,24 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 2200,
             );
         } catch (requestError) {
+            const wasCancelled = uploadAbortController.signal.aborted || requestError?.code === "ERR_CANCELED";
+
+            if (wasCancelled) {
+                setUploadError(null);
+                setIsUploadModalOpen(false);
+                setIsUploadToastMode(false);
+                resetUploadForm();
+                showUploadToast(
+                    {
+                        status: "info",
+                        title: "Upload cancelled",
+                        message: selectedFiles.length === 1 ? "The media upload was cancelled." : "The batch upload was cancelled.",
+                    },
+                    2600,
+                );
+                return;
+            }
+
             const requestMessage = requestError.response?.data?.message || requestError.message || "Error uploading files";
             setUploadError(requestMessage);
             setIsUploadToastMode(false);
@@ -2444,6 +2468,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 speedLabel: null,
             });
         } finally {
+            if (uploadAbortControllerRef.current === uploadAbortController) {
+                uploadAbortControllerRef.current = null;
+            }
             setIsUploading(false);
     };
 
@@ -3236,6 +3263,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     uploadSpeedLabel={uploadSpeedLabel}
                     uploadError={uploadError}
                     onClose={handleCloseUploadModal}
+                    onCancelUpload={cancelUpload}
                     onChangeFiles={openSystemFilePicker}
                     onSubmit={handleUploadSubmit}
                     onDisplayNameChange={(event) => {
