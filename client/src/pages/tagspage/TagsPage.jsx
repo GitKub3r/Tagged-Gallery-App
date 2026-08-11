@@ -154,7 +154,7 @@ export const MetadataPage = () => {
             </header>
 
             <div className="grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]">
-                <nav className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1" aria-label="Metadata categories">
+                <nav className="grid content-start gap-2 self-start sm:grid-cols-3 xl:sticky xl:top-6 xl:grid-cols-1" aria-label="Metadata categories">
                     {Object.entries(MANAGERS).map(([key, manager]) => (
                         <button key={key} type="button" className={`flex! min-h-16! w-full! items-center! gap-3! rounded-xl! border! px-4! py-3! text-left! shadow-none! transition-colors! ${managerType === key ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-200! bg-white/70! text-neutral-700! hover:bg-white! dark:border-neutral-800! dark:bg-neutral-900/70! dark:text-neutral-300! dark:hover:bg-neutral-900!"}`} onClick={() => { setManagerType(key); setSearch(""); }} aria-current={managerType === key ? "page" : undefined}>
                             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-500/10"><FontAwesomeIcon icon={manager.icon} /></span>
