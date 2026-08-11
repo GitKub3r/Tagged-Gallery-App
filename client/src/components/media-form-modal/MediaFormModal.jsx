@@ -114,14 +114,22 @@ export const MediaMetadataFields = ({
         </div>
 
         <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-            <span className="mb-1.5 block">Tags</span>
+            <span className="mb-1.5 flex items-center justify-between gap-3">
+                <span>Tags</span>
+                <span className="font-medium tabular-nums text-neutral-400 dark:text-neutral-500">
+                    {selectedTags.length} selected
+                </span>
+            </span>
             <div className="relative">
                 <input className={mediaFormInputClasses} type="text" value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} />
                 {activeSuggestionField === "tag" ? <MediaSuggestionList items={tagSuggestions} activeIndex={activeSuggestionIndex} onSelect={onAddTag} /> : null}
             </div>
         </label>
 
-        <div className="flex min-h-9 max-h-24 flex-wrap content-start items-center gap-2 overflow-hidden" aria-label="Selected tags">
+        <div
+            className="flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50"
+            aria-label={`Selected tags, ${selectedTags.length} selected`}
+        >
             {selectedTags.map((tag) => (
                 <button key={tag} type="button" className="inline-flex! h-8! w-auto! max-w-36! shrink-0! items-center! gap-2! rounded-xl! border! px-2.5! py-1! text-xs! font-semibold! shadow-none! hover:opacity-80!" style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])} onClick={() => onRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
                     <FontAwesomeIcon icon={tagTypeByName[String(tag).trim().toLowerCase()] === "copyright" ? faCopyright : faTag} aria-hidden="true" />
