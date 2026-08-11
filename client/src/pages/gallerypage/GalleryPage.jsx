@@ -3023,8 +3023,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         </div>
                     </label>
 
-                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Media view mode">
-                            <div className="flex h-12 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950" aria-label="Filter by media type">
+                    <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 lg:flex lg:w-auto lg:flex-wrap lg:items-center" aria-label="Media view mode">
+                            <div className="flex h-12 min-w-0 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950" aria-label="Filter by media type">
                                 {[
                                     { type: "all", label: "All", icon: faTableCellsLarge },
                                     { type: "image", label: "Images", icon: faImage },
@@ -3033,7 +3033,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                     <button
                                         key={filter.type}
                                         type="button"
-                                        className={`inline-flex! h-10! w-auto! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! py-0! text-sm! font-bold! shadow-none! ${mediaTypeFilter === filter.type ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                                        className={`inline-flex! h-10! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-2! py-0! text-sm! font-bold! shadow-none! lg:flex-none! lg:px-3! ${mediaTypeFilter === filter.type ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
                                         onClick={() => setMediaTypeFilter(filter.type)}
                                         aria-pressed={mediaTypeFilter === filter.type}
                                         title={filter.label}
@@ -3043,6 +3043,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                     </button>
                                 ))}
                             </div>
+                            <div className="col-span-2 row-start-2 flex min-w-0 items-center gap-2 [&>button]:flex-1! lg:contents lg:[&>button]:flex-none!">
                             <button
                                 type="button"
                                 className={`${TOOLBAR_BUTTON_CLASSES} ${gridViewMode === "card" ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
@@ -3078,9 +3079,10 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 <FontAwesomeIcon icon={faShuffle} aria-hidden="true" />
                                 <span className="hidden lg:inline">Random</span>
                             </button>
+                            </div>
 
                     {totalFilteredMediaCount > MIN_PAGE_SIZE && (
-                        <label className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 lg:ml-2">
+                        <label className="col-start-2 row-start-1 flex h-12 min-w-14 shrink-0 items-center justify-center gap-2 rounded-xl border border-neutral-300 bg-white px-2 text-sm font-semibold text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 lg:ml-2 lg:px-3">
                             <span className="hidden sm:inline">Per page</span>
                             <select
                                 className="bg-transparent text-sm font-bold text-neutral-950 outline-none dark:text-neutral-100"
