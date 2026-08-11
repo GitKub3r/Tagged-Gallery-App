@@ -5,7 +5,6 @@ import {
     faFilter,
     faFolder,
     faFolderOpen,
-    faMagnifyingGlass,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -14,6 +13,7 @@ import { createPortal } from "react-dom";
 import { IconButton } from "../../../components/icon-button/IconButton";
 import { Skeleton } from "../../../components/loading-skeletons/Skeleton";
 import { ErrorToast } from "../../../components/toast/ErrorToast";
+import { SearchField } from "../../../components/search-field/SearchField";
 
 const PAGE_BUTTON_CLASSES =
     "flex! h-9! w-9! items-center! justify-center! rounded-xl! border! border-neutral-300! bg-white! p-0! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-950! dark:text-neutral-300! dark:hover:bg-neutral-800!";
@@ -32,25 +32,6 @@ const useCompactViewport = () => {
 
     return isCompact;
 };
-
-const SearchField = ({ value, onChange, placeholder, label, disabled = false }) => (
-    <label className="relative block">
-        <span className="sr-only">{label}</span>
-        <FontAwesomeIcon
-            icon={faMagnifyingGlass}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600"
-            aria-hidden="true"
-        />
-        <input
-            type="search"
-            className="h-11 w-full rounded-xl border border-neutral-300 bg-white pl-9 pr-3 text-sm text-neutral-950 outline-none placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            placeholder={placeholder}
-            disabled={disabled}
-        />
-    </label>
-);
 
 const Pagination = ({ page, pageCount, onPrevious, onNext }) => {
     if (pageCount <= 1) return null;

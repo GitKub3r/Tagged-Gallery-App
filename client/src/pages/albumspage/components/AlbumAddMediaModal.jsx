@@ -6,7 +6,6 @@ import {
     faFilter,
     faImage,
     faList,
-    faMagnifyingGlass,
     faMinus,
     faPhotoFilm,
     faPlus,
@@ -20,6 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../../../components/icon-button/IconButton";
 import { MediaFacetSearch } from "../../../components/media-facet-search/MediaFacetSearch";
+import { SearchField } from "../../../components/search-field/SearchField";
 
 const useCompactViewport = () => {
     const [isCompact, setIsCompact] = useState(() =>
@@ -35,14 +35,6 @@ const useCompactViewport = () => {
 
     return isCompact;
 };
-
-const SearchField = ({ value, onChange, placeholder, label, disabled = false }) => (
-    <label className="relative block">
-        <span className="sr-only">{label}</span>
-        <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600" aria-hidden="true" />
-        <input type="search" className="h-11 w-full rounded-xl border border-neutral-300 bg-white pl-9 pr-3 text-sm text-neutral-950 outline-none placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} disabled={disabled} />
-    </label>
-);
 
 const Pagination = ({ page, pageCount, onPrevious, onNext }) => {
     if (pageCount <= 1) return null;
