@@ -17,7 +17,6 @@ import {
     faPlus,
     faRightFromBracket,
     faScroll,
-    faSearch,
     faSun,
     faTags,
     faUser,
@@ -29,6 +28,7 @@ import { sidebarApi } from "../../api/sidebarApi";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useDevTools } from "../../hooks/useDevTools";
+import { SearchField } from "../search-field/SearchField";
 
 const OPEN_UPLOAD_EVENT = "tagged:open-upload";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "tagged:sidebar-collapsed";
@@ -250,17 +250,7 @@ export const Sidebar = () => {
                                 ) : null}
                             </div>
 
-                            <label className="mb-3 flex h-10 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-neutral-500 focus-within:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950">
-                                <FontAwesomeIcon icon={faSearch} className="w-4" aria-hidden="true" />
-                                <input
-                                    type="search"
-                                    className="min-w-0 flex-1 bg-transparent text-sm text-neutral-950 outline-none placeholder:text-neutral-400 dark:text-neutral-100 dark:placeholder:text-neutral-600"
-                                    value={tagPanelSearch}
-                                    onChange={(event) => setTagPanelSearch(event.target.value)}
-                                    placeholder="Search tags"
-                                    aria-label="Search tags to filter"
-                                />
-                            </label>
+                            <SearchField className="mb-3" inputClassName="h-10!" value={tagPanelSearch} onChange={setTagPanelSearch} placeholder="Search tags" label="Search tags to filter" />
 
                             <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Tag filters">
                                 {filteredTagNames.map((tagName) => {

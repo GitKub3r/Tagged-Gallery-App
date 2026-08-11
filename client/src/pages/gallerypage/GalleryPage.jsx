@@ -676,6 +676,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
     const [isRandomOrderEnabled, setIsRandomOrderEnabled] = useState(false);
     const [randomOrderSeed, setRandomOrderSeed] = useState(null);
+    const [isGalleryShuffling, setIsGalleryShuffling] = useState(false);
+    const [galleryShufflePreviewItems, setGalleryShufflePreviewItems] = useState([]);
     const { gridViewMode, setGridViewMode, gridColumns } = useGridView();
     const { selectedIncludeFilterTags, selectedExcludeFilterTags, clearFilterTags } = useTagFilter();
     const hiddenFileInputRef = useRef(null);
@@ -684,6 +686,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const selectionActionToastTimeoutRef = useRef(null);
     const galleryScrollSaveRafRef = useRef(null);
     const isRestoringGalleryScrollRef = useRef(false);
+    const galleryShuffleTimeoutRef = useRef(null);
 
     const galleryScrollStorageKey = `${GALLERY_SCROLL_STORAGE_KEY_PREFIX}:${basePath}`;
 
@@ -1282,10 +1285,21 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     }, []);
 
     const handleRandomizeMediaOrder = () => {
+        if (isGalleryShuffling) return;
+        setGalleryShufflePreviewItems(visibleMediaItems.slice(0, 4));
+        setIsGalleryShuffling(true);
         setIsRandomOrderEnabled(true);
         setRandomOrderSeed(Math.floor(Math.random() * 2147483647));
         setCurrentPage(1);
+        galleryShuffleTimeoutRef.current = window.setTimeout(() => {
+            setIsGalleryShuffling(false);
+            galleryShuffleTimeoutRef.current = null;
+        }, 950);
     };
+
+    useEffect(() => () => {
+        if (galleryShuffleTimeoutRef.current) window.clearTimeout(galleryShuffleTimeoutRef.current);
+    }, []);
 
     useEffect(() => {
         const handleGeneralFilterCommand = (event) => {
@@ -2976,9 +2990,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
                             <button
                                 type="button"
-                                className={`${TOOLBAR_BUTTON_CLASSES} ${isRandomOrderEnabled ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
+                                className={`${TOOLBAR_BUTTON_CLASSES} ${TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
                                 onClick={handleRandomizeMediaOrder}
-                                aria-pressed={isRandomOrderEnabled}
                                 aria-label="Randomize media order"
                                 title="Randomize media order"
                             >
@@ -3004,6 +3017,21 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         </label>
                     )}
                     </>} />
+            ) : null}
+
+            {isGalleryShuffling ? (
+                <div className="tagged-gallery-shuffle-overlay" role="status" aria-live="polite" aria-label="Media order shuffled">
+                    <div className="tagged-gallery-shuffle-stage" aria-hidden="true">
+                        {galleryShufflePreviewItems.map((media, index) => {
+                            const previewUrl = getAssetUrl(media.thumbpath || media.filepath || "");
+                            return (
+                                <span key={media.id} className={`tagged-gallery-shuffle-card tagged-gallery-shuffle-card--${index + 1}`}>
+                                    {previewUrl ? <img src={previewUrl} alt="" /> : <FontAwesomeIcon icon={faImage} />}
+                                </span>
+                            );
+                        })}
+                    </div>
+                </div>
             ) : null}
 
             {loading ? (

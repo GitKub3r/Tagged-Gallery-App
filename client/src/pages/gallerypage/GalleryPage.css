@@ -2680,3 +2680,84 @@
         text-align: center;
     }
 }
+
+.tagged-gallery-shuffle-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(2px);
+    animation: tagged-gallery-shuffle-overlay 950ms ease both;
+}
+
+.tagged-gallery-shuffle-stage {
+    position: relative;
+    width: min(82vw, 30rem);
+    height: min(62vw, 22rem);
+    perspective: 60rem;
+}
+
+.tagged-gallery-shuffle-card {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: clamp(5.5rem, 16vw, 8.5rem);
+    aspect-ratio: 4 / 3;
+    margin: -3.2rem 0 0 -4.25rem;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.72);
+    border-radius: 0.75rem;
+    background: #171717;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.38);
+}
+
+.tagged-gallery-shuffle-card img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+}
+
+.tagged-gallery-shuffle-card--1 { animation: tagged-gallery-shuffle-one 880ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.tagged-gallery-shuffle-card--2 { animation: tagged-gallery-shuffle-two 880ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.tagged-gallery-shuffle-card--3 { animation: tagged-gallery-shuffle-three 880ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.tagged-gallery-shuffle-card--4 { animation: tagged-gallery-shuffle-four 880ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes tagged-gallery-shuffle-overlay {
+    0%, 100% { opacity: 0; }
+    12%, 78% { opacity: 1; }
+}
+
+@keyframes tagged-gallery-shuffle-one {
+    0% { transform: translate3d(-5rem, -1rem, -3rem) rotate(-12deg) scale(0.72); opacity: 0; }
+    42% { transform: translate3d(5rem, 1.8rem, 3rem) rotate(11deg) scale(1.05); opacity: 1; }
+    100% { transform: translate3d(-7rem, -4rem, 0) rotate(-6deg) scale(0.86); opacity: 0; }
+}
+
+@keyframes tagged-gallery-shuffle-two {
+    0% { transform: translate3d(1rem, -4rem, -2rem) rotate(8deg) scale(0.76); opacity: 0; }
+    44% { transform: translate3d(-5.5rem, 2rem, 2rem) rotate(-10deg) scale(1.02); opacity: 1; }
+    100% { transform: translate3d(7rem, -4rem, 0) rotate(6deg) scale(0.86); opacity: 0; }
+}
+
+@keyframes tagged-gallery-shuffle-three {
+    0% { transform: translate3d(5rem, 1rem, -3rem) rotate(13deg) scale(0.72); opacity: 0; }
+    46% { transform: translate3d(-1rem, -3rem, 4rem) rotate(-4deg) scale(1.08); opacity: 1; }
+    100% { transform: translate3d(-7rem, 4rem, 0) rotate(5deg) scale(0.86); opacity: 0; }
+}
+
+@keyframes tagged-gallery-shuffle-four {
+    0% { transform: translate3d(-1rem, 4rem, -2rem) rotate(-7deg) scale(0.75); opacity: 0; }
+    48% { transform: translate3d(5.2rem, -1.5rem, 3rem) rotate(9deg) scale(1.04); opacity: 1; }
+    100% { transform: translate3d(7rem, 4rem, 0) rotate(-5deg) scale(0.86); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tagged-gallery-shuffle-overlay,
+    .tagged-gallery-shuffle-card {
+        animation: none;
+    }
+}
