@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
-import { faArrowLeft, faArrowRight, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faArrowRight, faCheck, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
@@ -775,13 +775,16 @@ export const MediaEditModal = ({
                 <footer className="flex h-16 shrink-0 items-center justify-between gap-2 border-t border-neutral-200 px-3 dark:border-neutral-800 sm:gap-3 sm:px-6">
                     {typeof onCloseOnSaveChange === "function" ? (
                         <label className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-                            <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-neutral-950 dark:accent-neutral-100"
-                                checked={Boolean(closeOnSave)}
-                                onChange={(event) => onCloseOnSaveChange(event.target.checked)}
-                                disabled={isSaving}
-                            />
+                            <span className="relative grid h-4 w-4 shrink-0 place-items-center">
+                                <input
+                                    type="checkbox"
+                                    className="peer h-4 w-4 appearance-none rounded-xl border border-neutral-400 bg-white checked:border-neutral-950 checked:bg-neutral-950 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-950 dark:checked:border-white dark:checked:bg-white"
+                                    checked={Boolean(closeOnSave)}
+                                    onChange={(event) => onCloseOnSaveChange(event.target.checked)}
+                                    disabled={isSaving}
+                                />
+                                <FontAwesomeIcon icon={faCheck} className="pointer-events-none absolute text-[0.55rem] text-white opacity-0 peer-checked:opacity-100 dark:text-black" aria-hidden="true" />
+                            </span>
                             <span>Close on save</span>
                         </label>
                     ) : <span />}
