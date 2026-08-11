@@ -103,7 +103,7 @@ export const AlbumAddMediaModal = ({
 
     const resetMediaPage = () => setMediaPage(0);
     const tabClasses = (active) => `inline-flex! h-9! w-auto! items-center! gap-2! rounded-xl! border-0! px-3! py-1.5! text-xs! font-semibold! shadow-none! ${active ? "bg-neutral-950! text-white! dark:bg-neutral-100! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`;
-    const viewButtonClasses = (active) => `grid! h-10! w-10! place-items-center! rounded-xl! border! p-0! shadow-none! ${active ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-500! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-950! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`;
+    const viewButtonClasses = (active) => `grid! h-11! w-11! shrink-0! place-items-center! rounded-xl! border! p-0! shadow-none! ${active ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-500! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-950! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`;
 
     return createPortal(
         <div className="fixed inset-0 z-[1400] flex items-center justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:p-4" role="dialog" aria-modal="true" aria-labelledby="album-add-media-title" onMouseDown={(event) => { if (event.target === event.currentTarget && !isSaving) onClose(); }}>
@@ -123,7 +123,7 @@ export const AlbumAddMediaModal = ({
 
                 <form id="album-add-media-form" className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_17rem]" onSubmit={onSubmit}>
                     <main className={`${mobileView === "media" ? "flex" : "hidden"} min-h-0 flex-col p-4 sm:p-5 lg:flex lg:border-r lg:border-neutral-200 dark:lg:border-neutral-800`}>
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 items-start gap-2">
                             <div className="min-w-0 flex-1"><MediaFacetSearch value={searchValue} onChange={(value) => { resetMediaPage(); onSearchChange(value); }} mediaItems={availableMediaItems} disabled={isSaving} /></div>
                             <button type="button" className={viewButtonClasses(allVisibleSelected)} onClick={() => onSelectAllVisibleMedia(visibleMedia, allVisibleSelected)} disabled={!visibleMedia.length || isSaving} aria-label="Select all visible media"><FontAwesomeIcon icon={faCheckDouble} /></button>
                             <button type="button" className={viewButtonClasses(mediaViewMode === "card")} onClick={() => { resetMediaPage(); onMediaViewModeChange("card"); }} aria-label="Card view"><FontAwesomeIcon icon={faTableCellsLarge} /></button>
