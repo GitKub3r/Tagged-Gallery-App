@@ -20,6 +20,7 @@ export const useAppToast = (data, { id, onDismiss, onCancel } = {}) => {
         const hasProgress = typeof data.progress === "number" || data.indeterminate || data.speedLabel;
         const commonOptions = {
             id,
+            closeButton: true,
             duration: hasProgress ? Infinity : data.duration,
             description: hasProgress ? undefined : data.message,
             onDismiss: () => dismissRef.current?.(),
