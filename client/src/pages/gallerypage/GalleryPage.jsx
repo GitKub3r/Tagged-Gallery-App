@@ -36,6 +36,7 @@ import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
 import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
+import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
@@ -2642,7 +2643,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             return;
         }
 
-        setLoading(mediaQuery.isLoading || mediaQuery.isFetching);
+        setLoading(mediaQuery.isLoading);
 
         if (mediaQuery.error) {
             setError(mediaQuery.error.message || "Could not load gallery");
@@ -2933,6 +2934,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         <section
             className={`tagged-app-page tagged-gallery-page${gridViewMode === "list" ? " tagged-gallery-page--list-view" : ""}`}
         >
+            <ResultsLoadingIndicator isVisible={mediaQuery.isFetching && !mediaQuery.isLoading && Boolean(mediaQuery.data)} />
             <input
                 ref={hiddenFileInputRef}
                 type="file"

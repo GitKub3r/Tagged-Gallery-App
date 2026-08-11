@@ -31,6 +31,8 @@ import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
+import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
+import { useFilterTransition } from "../../components/results-loading-indicator/useFilterTransition";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { GalleryListItem } from "../gallerypage/GalleryPage";
 import { useAuth } from "../../hooks/useAuth";
@@ -449,6 +451,8 @@ export const AlbumDetailPage = () => {
     const [activeAlbumTagFilter, setActiveAlbumTagFilter] = useState("");
     const [albumMediaSearch, setAlbumMediaSearch] = useState("");
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
+    const albumFilterTransitionKey = JSON.stringify({ albumMediaSearch, activeAlbumTagFilter, mediaTypeFilter, selectedIncludeFilterTags, selectedExcludeFilterTags });
+    const isFilteringAlbumMedia = useFilterTransition(albumFilterTransitionKey);
     const [isAlbumSelectionMode, setIsAlbumSelectionMode] = useState(false);
     const [selectedAlbumMediaIds, setSelectedAlbumMediaIds] = useState(new Set());
     const [albumMediaViewMode, setAlbumMediaViewMode] = useState(() => {
@@ -3200,6 +3204,7 @@ export const AlbumDetailPage = () => {
 
     return (
         <section className="tagged-app-page tagged-album-detail-page">
+            <ResultsLoadingIndicator isVisible={isFilteringAlbumMedia} />
             <header className="tagged-album-detail-hero-v2" aria-label="Album cover header">
                 {isHeroCoverVisible && albumCoverUrl && !isHeroCoverBroken ? (
                     <img

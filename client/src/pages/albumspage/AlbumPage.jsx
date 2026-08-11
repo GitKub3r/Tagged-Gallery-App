@@ -13,6 +13,8 @@ import { DeleteConfirmationModal } from "../../components/delete-confirmation-mo
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
 import { AlbumSearchField } from "./components/AlbumSearchField";
+import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
+import { useFilterTransition } from "../../components/results-loading-indicator/useFilterTransition";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import "./AlbumPage.css";
 
@@ -216,6 +218,7 @@ export const AlbumPage = () => {
         return String(window.localStorage.getItem(ALBUM_SEARCH_STORAGE_KEY) || "");
     });
     const [albumSearchInput, setAlbumSearchInput] = useState(albumSearch);
+    const isFilteringAlbums = useFilterTransition(albumSearch);
     const [albumNameSuggestions, setAlbumNameSuggestions] = useState([]);
     const [albumViewMode, setAlbumViewMode] = useState(() => {
         if (typeof window === "undefined") {
@@ -1144,6 +1147,7 @@ export const AlbumPage = () => {
 
     return (
         <section className="tagged-app-page tagged-album-page">
+            <ResultsLoadingIndicator isVisible={isFilteringAlbums} />
             {!loading && !error && albums.length > 0 ? (
                     <LibraryToolbar maxWidth="max-w-[91.5rem]" searchClassName="lg:max-w-4xl" label="Search albums" search={
                         <AlbumSearchField value={albumSearchInput} suggestions={albumNameSuggestions} onChange={setAlbumSearchInput} onSubmit={(value) => setAlbumSearch(String(value || "").trim())} />
