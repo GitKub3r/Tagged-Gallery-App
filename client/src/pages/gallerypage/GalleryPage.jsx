@@ -60,7 +60,7 @@ const GALLERY_SEARCH_STORAGE_KEY = "tagged:gallery-search-query";
 const GALLERY_SCROLL_STORAGE_KEY_PREFIX = "tagged:gallery-scroll-position";
 const MAX_SUGGESTIONS = 8;
 const PAGINATION_BUTTON_CLASSES =
-    "flex! h-10! w-10! shrink-0! items-center! justify-center! rounded-xl! border! border-neutral-300! bg-white! p-0! text-sm! font-semibold! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:cursor-not-allowed! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!";
+    "flex! h-10! w-10! shrink-0! items-center! justify-center! rounded-xl! border! border-neutral-300! bg-white! p-0! text-sm! font-semibold! leading-none! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:cursor-not-allowed! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800! [&>svg]:block!";
 const TOOLBAR_BUTTON_CLASSES =
     "inline-flex! h-12! w-auto! items-center! gap-2! rounded-xl! border! px-4! py-2! text-sm! font-semibold! shadow-none! transition-colors! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500!";
 const TOOLBAR_BUTTON_ACTIVE_CLASSES =

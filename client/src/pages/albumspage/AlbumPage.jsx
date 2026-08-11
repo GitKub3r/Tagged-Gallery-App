@@ -22,6 +22,8 @@ const ALBUM_POINTER_MOVE_THRESHOLD_PX = 12;
 const ALBUM_VIEW_STORAGE_KEY = "tagged:album-view-mode";
 const ALBUM_SEARCH_STORAGE_KEY = "tagged:album-search-query";
 const DEFAULT_ALBUM_PAGE_SIZE = 10;
+const ALBUM_PAGINATION_BUTTON_CLASSES =
+    "grid! h-10! w-10! shrink-0! place-items-center! rounded-xl! border! border-neutral-300! bg-white! p-0! leading-none! text-neutral-600! shadow-none! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! [&>svg]:block!";
 
 const parseApiResponse = async (response, fallbackMessage) => {
     const clonedResponse = response.clone();
@@ -1346,7 +1348,7 @@ export const AlbumPage = () => {
                 )
             ) : null}
 
-            {!loading && !error && visibleAlbums.length > albumPageSize ? <nav className="mx-auto flex w-full max-w-[91.5rem] items-center justify-end gap-2 pt-2" aria-label="Album pagination"><button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-neutral-300 bg-white text-neutral-600 disabled:opacity-30 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300" onClick={() => setAlbumPage((page) => Math.max(1, page - 1))} disabled={safeAlbumPage <= 1} aria-label="Previous album page"><FontAwesomeIcon icon={faChevronLeft} /></button><span className="min-w-16 text-center text-sm font-bold tabular-nums text-neutral-600 dark:text-neutral-300">{safeAlbumPage} / {totalAlbumPages}</span><button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-neutral-300 bg-white text-neutral-600 disabled:opacity-30 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300" onClick={() => setAlbumPage((page) => Math.min(totalAlbumPages, page + 1))} disabled={safeAlbumPage >= totalAlbumPages} aria-label="Next album page"><FontAwesomeIcon icon={faChevronRight} /></button></nav> : null}
+            {!loading && !error && visibleAlbums.length > albumPageSize ? <nav className="mx-auto flex w-full max-w-[91.5rem] items-center justify-end gap-2 pt-2" aria-label="Album pagination"><button type="button" className={ALBUM_PAGINATION_BUTTON_CLASSES} onClick={() => setAlbumPage((page) => Math.max(1, page - 1))} disabled={safeAlbumPage <= 1} aria-label="Previous album page"><FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" /></button><span className="min-w-16 text-center text-sm font-bold tabular-nums text-neutral-600 dark:text-neutral-300">{safeAlbumPage} / {totalAlbumPages}</span><button type="button" className={ALBUM_PAGINATION_BUTTON_CLASSES} onClick={() => setAlbumPage((page) => Math.min(totalAlbumPages, page + 1))} disabled={safeAlbumPage >= totalAlbumPages} aria-label="Next album page"><FontAwesomeIcon icon={faChevronRight} aria-hidden="true" /></button></nav> : null}
 
             {isAlbumSelectionMode ? (
                 <aside className="tagged-album-selection-toolbar" aria-label="Album selection actions toolbar">
