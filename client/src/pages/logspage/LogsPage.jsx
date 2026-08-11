@@ -14,6 +14,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { UserAvatar } from "../../components/user-avatar/UserAvatar";
+import { useAppToast } from "../../components/toast/useAppToast";
 import { useAuth } from "../../hooks/useAuth";
 import "./LogsPage.css";
 
@@ -437,6 +438,11 @@ export const LogsPage = () => {
             // Best-effort cancellation request to backend.
         });
     };
+    useAppToast(downloadToast, {
+        id: "logs-backup",
+        onDismiss: hideDownloadToast,
+        onCancel: isBackupDownloading ? cancelBackupDownload : undefined,
+    });
 
     const handleDownloadBackup = async () => {
         if (isBackupDownloading) {
@@ -1386,71 +1392,6 @@ export const LogsPage = () => {
                     </div>
                 </article>
             </section>
-
-            {downloadToast ? (
-                <aside
-                    className={`tagged-logs-download-toast tagged-logs-download-toast--${downloadToast.status || "info"}`}
-                    role="status"
-                    aria-live="polite"
-                >
-                    <header className="tagged-logs-download-toast-header">
-                        <strong>{downloadToast.title || "Backup download"}</strong>
-                        <button
-                            type="button"
-                            className="tagged-logs-download-toast-close"
-                            onClick={hideDownloadToast}
-                            aria-label="Close backup download status"
-                        >
-                            <span aria-hidden="true">x</span>
-                        </button>
-                    </header>
-                    <p>{downloadToast.message}</p>
-                    {typeof downloadToast.progress === "number" ||
-                    downloadToast.indeterminate ||
-                    downloadToast.speedLabel ? (
-                        <>
-                            <div
-                                className={`tagged-logs-download-toast-progress${downloadToast.indeterminate ? " is-indeterminate" : ""}`}
-                                aria-hidden="true"
-                            >
-                                <span
-                                    style={
-                                        downloadToast.indeterminate
-                                            ? undefined
-                                            : { width: `${Math.max(0, Math.min(100, downloadToast.progress || 0))}%` }
-                                    }
-                                />
-                            </div>
-                            {typeof downloadToast.progress === "number" ||
-                            downloadToast.indeterminate ||
-                            downloadToast.speedLabel ? (
-                                <div className="tagged-logs-download-toast-meta">
-                                    <small className="tagged-logs-download-toast-percent">
-                                        {downloadToast.indeterminate
-                                            ? "Preparing..."
-                                            : typeof downloadToast.progress === "number"
-                                              ? `${Math.round(downloadToast.progress || 0)}%`
-                                              : ""}
-                                    </small>
-                                    {downloadToast.indeterminate && isBackupDownloading ? (
-                                        <button
-                                            type="button"
-                                            className="tagged-logs-download-toast-cancel"
-                                            onClick={cancelBackupDownload}
-                                        >
-                                            Cancel
-                                        </button>
-                                    ) : (
-                                        <small className="tagged-logs-download-toast-speed">
-                                            {downloadToast.speedLabel || ""}
-                                        </small>
-                                    )}
-                                </div>
-                            ) : null}
-                        </>
-                    ) : null}
-                </aside>
-            ) : null}
 
             {selectedLogEntry ? (
                 <div

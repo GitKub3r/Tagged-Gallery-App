@@ -28,6 +28,7 @@ import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/Co
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
+import { useAppToast } from "../../components/toast/useAppToast";
 import { GalleryListItem } from "../gallerypage/GalleryPage";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
@@ -806,6 +807,7 @@ export const AlbumDetailPage = () => {
         clearDownloadToastTimer();
         setDownloadToast(null);
     };
+    useAppToast(downloadToast, { id: "album-download", onDismiss: hideDownloadToast });
 
     const fetchAllUserMedia = useCallback(async () => {
         const pageSize = 500;
@@ -3394,45 +3396,6 @@ export const AlbumDetailPage = () => {
                 <p className="tagged-album-selection-error" aria-live="assertive">
                     {selectionActionError}
                 </p>
-            ) : null}
-
-            {downloadToast ? (
-                <aside
-                    className={`tagged-gallery-download-toast tagged-gallery-download-toast--${downloadToast.status || "info"}`}
-                    role={downloadToast.status === "error" ? "alert" : "status"}
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    <header className="tagged-gallery-download-toast-header">
-                        <strong>{downloadToast.title}</strong>
-                        <button
-                            type="button"
-                            className="tagged-gallery-download-toast-close"
-                            onClick={hideDownloadToast}
-                            aria-label="Close download status"
-                        >
-                            ×
-                        </button>
-                    </header>
-                    <p>{downloadToast.message}</p>
-                    {typeof downloadToast.progress === "number" ? (
-                        <div className="tagged-gallery-download-toast-progress" aria-hidden="true">
-                            <span style={{ width: `${Math.max(0, Math.min(100, downloadToast.progress))}%` }} />
-                        </div>
-                    ) : null}
-                    {typeof downloadToast.progress === "number" || downloadToast.speedLabel ? (
-                        <div className="tagged-gallery-download-toast-meta">
-                            <small className="tagged-gallery-download-toast-percent">
-                                {typeof downloadToast.progress === "number"
-                                    ? `${Math.max(0, Math.min(100, Math.round(downloadToast.progress)))}%`
-                                    : ""}
-                            </small>
-                            <small className="tagged-gallery-download-toast-speed">
-                                {downloadToast.speedLabel || ""}
-                            </small>
-                        </div>
-                    ) : null}
-                </aside>
             ) : null}
 
             {isMontageSettingsOpen ? (

@@ -34,6 +34,7 @@ import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/Co
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
+import { useAppToast } from "../../components/toast/useAppToast";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
@@ -1087,6 +1088,22 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         clearSelectionActionToastTimer();
         setSelectionActionToast(null);
     };
+    const activeUploadToast = isUploadToastMode && isUploading
+        ? {
+              title: "Uploading…",
+              message: `${uploadedCount} / ${uploadTotal} file${uploadTotal !== 1 ? "s" : ""}`,
+              progress: normalizedUploadProgress,
+              speedLabel: uploadSpeedLabel,
+          }
+        : !isUploadToastMode
+          ? uploadToast
+          : null;
+    useAppToast(activeUploadToast, {
+        id: "gallery-upload",
+        onDismiss: () => isUploadToastMode ? setIsUploadToastMode(false) : hideUploadToast(),
+    });
+    useAppToast(selectionActionToast, { id: "gallery-selection-action", onDismiss: hideSelectionActionToast });
+    useAppToast(downloadToast, { id: "gallery-download", onDismiss: hideDownloadToast });
 
     useEffect(
         () => () => {
@@ -3151,143 +3168,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 <p className="tagged-gallery-selection-error" aria-live="assertive">
                     {selectionActionError}
                 </p>
-            ) : null}
-
-            {/* Upload progress toast -- live while modal is dismissed */}
-            {isUploadToastMode && isUploading ? (
-                <aside
-                    className="tagged-gallery-download-toast tagged-gallery-download-toast--info tagged-gallery-upload-toast"
-                    role="status"
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    <header className="tagged-gallery-download-toast-header">
-                        <strong>Uploading...</strong>
-                        <button
-                            type="button"
-                            className="tagged-gallery-download-toast-close"
-                            onClick={() => setIsUploadToastMode(false)}
-                            aria-label="Dismiss upload status"
-                        >
-                            ×
-                        </button>
-                    </header>
-                    <p>
-                        <strong>{uploadedCount}</strong> / <strong>{uploadTotal}</strong> file{uploadTotal !== 1 ? "s" : ""}
-                    </p>
-                    <div className="tagged-gallery-download-toast-progress" aria-hidden="true">
-                        <span style={{ width: `${normalizedUploadProgress}%` }} />
-                    </div>
-                    <div className="tagged-gallery-download-toast-meta">
-                        <small className="tagged-gallery-download-toast-percent">
-                            {`${Math.round(normalizedUploadProgress)}%`}
-                        </small>
-                        <small className="tagged-gallery-download-toast-speed">
-                            {uploadSpeedLabel || ""}
-                        </small>
-                    </div>
-                </aside>
-            ) : null}
-
-            {/* Upload success / error toast */}
-            {uploadToast && !isUploadToastMode ? (
-                <aside
-                    className={`tagged-gallery-download-toast tagged-gallery-download-toast--${uploadToast.status || "info"} tagged-gallery-upload-toast`}
-                    role={uploadToast.status === "error" ? "alert" : "status"}
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    <header className="tagged-gallery-download-toast-header">
-                        <strong>{uploadToast.title}</strong>
-                        <button
-                            type="button"
-                            className="tagged-gallery-download-toast-close"
-                            onClick={hideUploadToast}
-                            aria-label="Close upload status"
-                        >
-                            ×
-                        </button>
-                    </header>
-                    <p>{uploadToast.message}</p>
-                    {typeof uploadToast.progress === "number" ? (
-                        <div className="tagged-gallery-download-toast-progress" aria-hidden="true">
-                            <span style={{ width: `${Math.max(0, Math.min(100, uploadToast.progress))}%` }} />
-                        </div>
-                    ) : null}
-                    {typeof uploadToast.progress === "number" || uploadToast.speedLabel ? (
-                        <div className="tagged-gallery-download-toast-meta">
-                            <small className="tagged-gallery-download-toast-percent">
-                                {typeof uploadToast.progress === "number"
-                                    ? `${Math.max(0, Math.min(100, Math.round(uploadToast.progress)))}%`
-                                    : ""}
-                            </small>
-                            <small className="tagged-gallery-download-toast-speed">
-                                {uploadToast.speedLabel || ""}
-                            </small>
-                        </div>
-                    ) : null}
-                </aside>
-            ) : null}
-
-            {selectionActionToast ? (
-                <aside
-                    className={`tagged-gallery-download-toast tagged-gallery-download-toast--${selectionActionToast.status || "info"} tagged-gallery-action-toast`}
-                    role={selectionActionToast.status === "error" ? "alert" : "status"}
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    <header className="tagged-gallery-download-toast-header">
-                        <strong>{selectionActionToast.title}</strong>
-                        <button
-                            type="button"
-                            className="tagged-gallery-download-toast-close"
-                            onClick={hideSelectionActionToast}
-                            aria-label="Close selection status"
-                        >
-                            ×
-                        </button>
-                    </header>
-                    <p>{selectionActionToast.message}</p>
-                </aside>
-            ) : null}
-
-            {downloadToast ? (
-                <aside
-                    className={`tagged-gallery-download-toast tagged-gallery-download-toast--${downloadToast.status || "info"}`}
-                    role={downloadToast.status === "error" ? "alert" : "status"}
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    <header className="tagged-gallery-download-toast-header">
-                        <strong>{downloadToast.title}</strong>
-                        <button
-                            type="button"
-                            className="tagged-gallery-download-toast-close"
-                            onClick={hideDownloadToast}
-                            aria-label="Close download status"
-                        >
-                            ×
-                        </button>
-                    </header>
-                    <p>{downloadToast.message}</p>
-                    {typeof downloadToast.progress === "number" ? (
-                        <div className="tagged-gallery-download-toast-progress" aria-hidden="true">
-                            <span style={{ width: `${Math.max(0, Math.min(100, downloadToast.progress))}%` }} />
-                        </div>
-                    ) : null}
-                    {typeof downloadToast.progress === "number" || downloadToast.speedLabel ? (
-                        <div className="tagged-gallery-download-toast-meta">
-                            <small className="tagged-gallery-download-toast-percent">
-                                {typeof downloadToast.progress === "number"
-                                    ? `${Math.max(0, Math.min(100, Math.round(downloadToast.progress)))}%`
-                                    : ""}
-                            </small>
-                            <small className="tagged-gallery-download-toast-speed">
-                                {downloadToast.speedLabel || ""}
-                            </small>
-                        </div>
-                    ) : null}
-                </aside>
             ) : null}
 
             <DeleteConfirmationModal

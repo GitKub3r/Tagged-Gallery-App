@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { useAppToast } from "../../components/toast/useAppToast";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./MediaDetailPage.css";
@@ -495,6 +496,7 @@ export const MediaDetailPage = () => {
         clearActionToastTimer();
         setActionToast(null);
     };
+    useAppToast(actionToast, { id: "media-detail-action", onDismiss: hideActionToast });
 
     useEffect(
         () => () => {
@@ -1878,28 +1880,6 @@ export const MediaDetailPage = () => {
 
     return (
         <section className="tagged-app-page tagged-media-detail-page">
-            {actionToast ? (
-                <aside
-                    className={`tagged-media-detail-toast tagged-media-detail-toast--${actionToast.status || "info"}`}
-                    role={actionToast.status === "error" ? "alert" : "status"}
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    <header className="tagged-media-detail-toast-header">
-                        <strong>{actionToast.title}</strong>
-                        <button
-                            type="button"
-                            className="tagged-media-detail-toast-close"
-                            onClick={hideActionToast}
-                            aria-label="Close media action status"
-                        >
-                            &times;
-                        </button>
-                    </header>
-                    <p>{actionToast.message}</p>
-                </aside>
-            ) : null}
-
             <header className="tagged-media-detail-tools-row" aria-label="Media tools">
                 <div className={`tagged-media-detail-tools${isMediaToolsOpen ? " is-open" : ""}`}>
                     <button
