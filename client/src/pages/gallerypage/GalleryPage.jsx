@@ -3023,7 +3023,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         </div>
                     </label>
 
-                    <div className="flex flex-wrap items-center gap-2" aria-label="Media view mode">
+                    <div className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Media view mode">
                             <div className="flex h-12 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950" aria-label="Filter by media type">
                                 {[
                                     { type: "all", label: "All", icon: faTableCellsLarge },
@@ -3080,7 +3080,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             </button>
 
                     {totalFilteredMediaCount > MIN_PAGE_SIZE && (
-                        <label className="ml-auto flex h-12 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 lg:ml-2">
+                        <label className="ml-auto flex h-12 shrink-0 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 lg:ml-2">
                             <span className="hidden sm:inline">Per page</span>
                             <select
                                 className="bg-transparent text-sm font-bold text-neutral-950 outline-none dark:text-neutral-100"
