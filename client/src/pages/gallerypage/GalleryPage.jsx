@@ -9,6 +9,7 @@ import {
     faCheckDouble,
     faChevronLeft,
     faChevronRight,
+    faCloudArrowUp,
     faDownload,
     faFilm,
     faFolderPlus,
