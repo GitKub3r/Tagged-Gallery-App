@@ -29,6 +29,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { accountApi } from "../../api/accountApi";
 import { authApi } from "../../api/authApi";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
+import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { UserAvatar } from "../../components/user-avatar/UserAvatar";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { toast } from "sonner";
@@ -118,11 +120,12 @@ const ACCESS_BY_ROLE = {
   ],
 };
 
-ACCESS_BY_ROLE.dev = [...ACCESS_BY_ROLE.basic, { label: "Developer", description: "Preview loading states", icon: faShieldHalved, path: "/developer" }];
+ACCESS_BY_ROLE.dev = ACCESS_BY_ROLE.basic;
 
 export const AccountPage = () => {
   const navigate = useNavigate();
   const { user, accessToken, logout, updateCurrentUser } = useAuth();
+  const { forceLoading } = useDevTools();
   const [changingPassword, setChangingPassword] = useState(false);
   const [profileForm, setProfileForm] = useState({
     username: user?.username || "",
@@ -329,6 +332,8 @@ export const AccountPage = () => {
     localStorage.setItem("tagged:theme", nextTheme);
     setIsDark(nextTheme === "dark");
   };
+
+  if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="detail" ariaLabel="Forced account loading preview" /></section>;
 
   return (
     <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">

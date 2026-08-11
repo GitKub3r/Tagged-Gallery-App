@@ -19,6 +19,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { ErrorToast } from "../../components/toast/ErrorToast";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { useDevTools } from "../../hooks/useDevTools";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 
@@ -95,6 +96,7 @@ const MetadataEditor = ({ managerType, item, isSaving, error, onClose, onSave })
 
 export const MetadataPage = () => {
     const { accessToken } = useAuth();
+    const { forceLoading } = useDevTools();
     const queryClient = useQueryClient();
     const [managerType, setManagerType] = useState("tags");
     const [search, setSearch] = useState("");
@@ -142,6 +144,8 @@ export const MetadataPage = () => {
     }, [config.field, managerType, metadataQuery.data, search]);
 
     const openEditor = (item) => { saveMutation.reset(); setEditingItem(item); setIsEditorOpen(true); };
+
+    if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced metadata loading preview" /></section>;
 
     return (
         <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">

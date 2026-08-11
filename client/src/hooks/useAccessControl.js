@@ -4,7 +4,7 @@ import { useAuth } from "./useAuth";
 
 const ADMIN_ROUTES = ["/logs", "/actions", "/users", "/account"];
 const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/dashboard", "/account"];
-const DEV_ROUTES = [...BASIC_ROUTES, "/developer"];
+const DEV_ROUTES = BASIC_ROUTES;
 
 /**
  * Hook to enforce role-based access control
