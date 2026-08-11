@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
-import { faCalendarDays, faCheck, faChevronLeft, faChevronRight, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faTableCellsLarge, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCalendarDays, faCheck, faChevronLeft, faChevronRight, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faTableCellsLarge } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -12,6 +12,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
+import { AlbumSearchField } from "./components/AlbumSearchField";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import "./AlbumPage.css";
 
@@ -212,6 +213,8 @@ export const AlbumPage = () => {
 
         return String(window.localStorage.getItem(ALBUM_SEARCH_STORAGE_KEY) || "");
     });
+    const [albumSearchInput, setAlbumSearchInput] = useState(albumSearch);
+    const [albumNameSuggestions, setAlbumNameSuggestions] = useState([]);
     const [albumViewMode, setAlbumViewMode] = useState(() => {
         if (typeof window === "undefined") {
             return "card";
@@ -378,6 +381,13 @@ export const AlbumPage = () => {
         return Array.isArray(data.data) ? data.data : [];
     };
 
+    const fetchAlbumNames = async () => {
+        const response = await fetchWithAuth(`${API_URL}/albums/names`, { method: "GET" });
+        const data = await parseApiResponse(response, "Could not load album suggestions");
+        if (!response.ok || !data.success) throw new Error(data.message || "Could not load album suggestions");
+        return Array.isArray(data.data) ? data.data : [];
+    };
+
     const fetchMedia = async () => {
         const pageSize = 500;
         const maxPages = 200;
@@ -429,8 +439,9 @@ export const AlbumPage = () => {
     };
 
     const refreshAlbums = async () => {
-        const nextAlbums = await fetchAlbums();
+        const [nextAlbums, nextNames] = await Promise.all([fetchAlbums(), fetchAlbumNames()]);
         setAlbums(nextAlbums);
+        setAlbumNameSuggestions(nextNames);
     };
 
     useEffect(() => {
@@ -463,6 +474,7 @@ export const AlbumPage = () => {
 
                 setAlbums(nextAlbums);
                 setLoading(false);
+                fetchAlbumNames().then((names) => { if (!cancelled) setAlbumNameSuggestions(names); }).catch(() => { if (!cancelled) setAlbumNameSuggestions([]); });
                 setIsLoadingMedia(true);
                 fetchMedia().then((nextMedia) => { if (!cancelled) setMediaItems(nextMedia); }).catch((mediaError) => { if (!cancelled) setCreateError(mediaError.message || "Could not load cover media"); }).finally(() => { if (!cancelled) setIsLoadingMedia(false); });
             } catch (requestError) {
@@ -788,6 +800,7 @@ export const AlbumPage = () => {
 
     const clearAlbumFilters = () => {
         setAlbumSearch("");
+        setAlbumSearchInput("");
     };
 
     const handleClearFiltersFromToolbar = () => {
@@ -1124,31 +1137,8 @@ export const AlbumPage = () => {
     return (
         <section className="tagged-app-page tagged-album-page">
             {!loading && !error && albums.length > 0 ? (
-                <LibraryToolbar maxWidth="max-w-[91.5rem]" label="Search albums" search={
-                        <div className="relative min-w-0">
-                            <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
-                            <input
-                                type="search"
-                                className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-11 pr-11 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600"
-                                value={albumSearch}
-                                onChange={(event) => setAlbumSearch(event.target.value)}
-                                placeholder="Search albums by name or date..."
-                                aria-label="Search albums"
-                            />
-
-                            {hasActiveAlbumFilter ? (
-                                <button
-                                    type="button"
-                                    className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border-0 bg-transparent p-0 text-neutral-400 shadow-none hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onClick={() => setAlbumSearch("")}
-                                    aria-label="Clear search"
-                                    title="Clear search"
-                                >
-                                    <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
-                                </button>
-                            ) : null}
-                        </div>
+                    <LibraryToolbar maxWidth="max-w-[91.5rem]" label="Search albums" search={
+                        <AlbumSearchField value={albumSearchInput} suggestions={albumNameSuggestions} onChange={setAlbumSearchInput} onSubmit={(value) => setAlbumSearch(String(value || "").trim())} />
                     } controls={<><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
                             <button
                                 type="button"
