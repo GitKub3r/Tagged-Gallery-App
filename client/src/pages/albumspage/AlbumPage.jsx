@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
-import { faCalendarDays, faCheck, faChevronLeft, faChevronRight, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faPhotoFilm, faShuffle, faTableCellsLarge } from "@fortawesome/free-solid-svg-icons";
+import { faCalendarDays, faCheck, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faPhotoFilm, faShuffle, faTableCellsLarge } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -14,6 +14,7 @@ import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
 import { AlbumSearchField } from "./components/AlbumSearchField";
 import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
+import { Pagination } from "../../components/pagination/Pagination";
 import { useFilterTransition } from "../../components/results-loading-indicator/useFilterTransition";
 import { ConvergingShuffleOverlay } from "../../components/converging-shuffle-overlay/ConvergingShuffleOverlay";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
@@ -26,8 +27,6 @@ const ALBUM_POINTER_MOVE_THRESHOLD_PX = 12;
 const ALBUM_VIEW_STORAGE_KEY = "tagged:album-view-mode";
 const ALBUM_SEARCH_STORAGE_KEY = "tagged:album-search-query";
 const DEFAULT_ALBUM_PAGE_SIZE = 10;
-const ALBUM_PAGINATION_BUTTON_CLASSES =
-    "grid! h-10! w-10! shrink-0! place-items-center! rounded-xl! border! border-neutral-300! bg-white! p-0! leading-none! text-neutral-600! shadow-none! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! [&>svg]:block!";
 
 const parseApiResponse = async (response, fallbackMessage) => {
     const clonedResponse = response.clone();
@@ -385,6 +384,16 @@ export const AlbumPage = () => {
 
     useEffect(() => { setAlbumPage(1); }, [albumSearch, albumPageSize]);
     useEffect(() => { if (albumPage > totalAlbumPages) setAlbumPage(totalAlbumPages); }, [albumPage, totalAlbumPages]);
+
+    const handleAlbumPageChange = (nextPage) => {
+        const clampedPage = Math.max(1, Math.min(totalAlbumPages, nextPage));
+        if (clampedPage === safeAlbumPage) return;
+
+        setAlbumPage(clampedPage);
+        const shellContent = document.querySelector(".tagged-shell-content");
+        if (shellContent instanceof HTMLElement) shellContent.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    };
 
     const fetchAlbums = async () => {
         const response = await fetchWithAuth(`${API_URL}/albums`, { method: "GET" });
@@ -1391,7 +1400,7 @@ export const AlbumPage = () => {
 
             {albumSelectionOverlay}
 
-            {!loading && !error && visibleAlbums.length > albumPageSize ? <nav className="mx-auto flex w-full max-w-[91.5rem] items-center justify-end gap-2 pt-2" aria-label="Album pagination"><button type="button" className={ALBUM_PAGINATION_BUTTON_CLASSES} onClick={() => setAlbumPage((page) => Math.max(1, page - 1))} disabled={safeAlbumPage <= 1} aria-label="Previous album page"><FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" /></button><span className="min-w-16 text-center text-sm font-bold tabular-nums text-neutral-600 dark:text-neutral-300">{safeAlbumPage} / {totalAlbumPages}</span><button type="button" className={ALBUM_PAGINATION_BUTTON_CLASSES} onClick={() => setAlbumPage((page) => Math.min(totalAlbumPages, page + 1))} disabled={safeAlbumPage >= totalAlbumPages} aria-label="Next album page"><FontAwesomeIcon icon={faChevronRight} aria-hidden="true" /></button></nav> : null}
+            {!loading && !error && visibleAlbums.length > albumPageSize ? <Pagination currentPage={safeAlbumPage} totalPages={totalAlbumPages} onPageChange={handleAlbumPageChange} label="Album pagination" /> : null}
 
             {isAlbumSelectionMode ? (
                 <aside className="tagged-album-selection-toolbar" aria-label="Album selection actions toolbar">

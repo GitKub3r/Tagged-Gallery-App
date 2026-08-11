@@ -3,12 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import JSZip from "jszip";
 import {
-    faAnglesLeft,
-    faAnglesRight,
     faCircleCheck,
     faCheckDouble,
-    faChevronLeft,
-    faChevronRight,
     faCloudArrowUp,
     faDownload,
     faFilm,
@@ -38,6 +34,7 @@ import { DeleteConfirmationModal } from "../../components/delete-confirmation-mo
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
 import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
 import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
+import { Pagination } from "../../components/pagination/Pagination";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
@@ -62,8 +59,6 @@ const MIN_PAGE_SIZE = 10;
 const GALLERY_SEARCH_STORAGE_KEY = "tagged:gallery-search-query";
 const GALLERY_SCROLL_STORAGE_KEY_PREFIX = "tagged:gallery-scroll-position";
 const MAX_SUGGESTIONS = 8;
-const PAGINATION_BUTTON_CLASSES =
-    "flex! h-10! w-10! shrink-0! items-center! justify-center! rounded-xl! border! border-neutral-300! bg-white! p-0! text-sm! font-semibold! leading-none! text-neutral-600! shadow-none! hover:bg-neutral-100! disabled:cursor-not-allowed! disabled:opacity-30! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800! [&>svg]:block!";
 const TOOLBAR_BUTTON_CLASSES =
     "inline-flex! h-12! w-auto! items-center! gap-2! rounded-xl! border! px-4! py-2! text-sm! font-semibold! shadow-none! transition-colors! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500!";
 const TOOLBAR_BUTTON_ACTIVE_CLASSES =
@@ -772,35 +767,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         window.requestAnimationFrame(() => {
             clearGalleryScrollPosition();
-        });
-    };
-
-    const scrollGalleryToBottom = () => {
-        if (typeof window === "undefined") {
-            return;
-        }
-
-        if (galleryScrollSaveRafRef.current !== null) {
-            window.cancelAnimationFrame(galleryScrollSaveRafRef.current);
-            galleryScrollSaveRafRef.current = null;
-        }
-
-        isRestoringGalleryScrollRef.current = false;
-
-        window.requestAnimationFrame(() => {
-            const shellContent = document.querySelector(".tagged-shell-content");
-
-            if (shellContent instanceof HTMLElement) {
-                shellContent.scrollTo({ top: shellContent.scrollHeight, left: 0, behavior: "auto" });
-            }
-
-            window.scrollTo({
-                top: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight),
-                left: 0,
-                behavior: "auto",
-            });
-
-            saveGalleryScrollPosition();
         });
     };
 
@@ -2639,7 +2605,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             scrollGalleryToTop();
         }
     };
-    const handlePageChange = (newPage, { scrollTarget = "top" } = {}) => {
+    const handlePageChange = (newPage) => {
         const clamped = Math.max(1, Math.min(totalPages, newPage));
         if (clamped === currentPage) {
             return;
@@ -2647,11 +2613,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         setCurrentPage(clamped);
         localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, String(clamped));
-        if (scrollTarget === "bottom") {
-            scrollGalleryToBottom();
-        } else {
-            scrollGalleryToTop();
-        }
+        scrollGalleryToTop();
     };
 
     useEffect(() => {
@@ -3461,80 +3423,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 />
             ) : null}
 
-            {/* Pagination bar -- below grid */}
-            {totalPages > 1 && (
-                <nav className="mx-auto flex w-full max-w-[92rem] justify-center pt-2" aria-label="Gallery pagination">
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                            <button
-                                type="button"
-                                className={PAGINATION_BUTTON_CLASSES}
-                                onClick={() => handlePageChange(1)}
-                                disabled={currentPage <= 1}
-                                aria-label="First page"
-                                title="First page"
-                            >
-                                <FontAwesomeIcon icon={faAnglesLeft} aria-hidden="true" />
-                            </button>
-                            <button
-                                type="button"
-                                className={PAGINATION_BUTTON_CLASSES}
-                                onClick={() => handlePageChange(currentPage - 1, { scrollTarget: "bottom" })}
-                                disabled={currentPage <= 1}
-                                aria-label="Previous page"
-                                title="Previous page"
-                            >
-                                <FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" />
-                            </button>
-                            {(() => {
-                                const visibleCount = Math.min(3, totalPages);
-                                let startPage = Math.max(1, currentPage - 1);
-                                let endPage = startPage + visibleCount - 1;
-
-                                if (endPage > totalPages) {
-                                    endPage = totalPages;
-                                    startPage = Math.max(1, endPage - visibleCount + 1);
-                                }
-
-                                const pages = Array.from(
-                                    { length: endPage - startPage + 1 },
-                                    (_, index) => startPage + index,
-                                );
-
-                                return pages.map((pageNumber) => (
-                                    <button
-                                        key={pageNumber}
-                                        type="button"
-                                        className={`${PAGINATION_BUTTON_CLASSES} ${pageNumber === currentPage ? "border-neutral-950! bg-neutral-950! text-white! hover:bg-neutral-800! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white!" : ""}`}
-                                        onClick={() => handlePageChange(pageNumber)}
-                                        aria-current={pageNumber === currentPage ? "page" : undefined}
-                                    >
-                                        {pageNumber}
-                                    </button>
-                                ));
-                            })()}
-                            <button
-                                type="button"
-                                className={PAGINATION_BUTTON_CLASSES}
-                                onClick={() => handlePageChange(currentPage + 1, { scrollTarget: "bottom" })}
-                                disabled={currentPage >= totalPages}
-                                aria-label="Next page"
-                                title="Next page"
-                            >
-                                <FontAwesomeIcon icon={faChevronRight} aria-hidden="true" />
-                            </button>
-                            <button
-                                type="button"
-                                className={PAGINATION_BUTTON_CLASSES}
-                                onClick={() => handlePageChange(totalPages)}
-                                disabled={currentPage >= totalPages}
-                                aria-label="Last page"
-                                title="Last page"
-                            >
-                                <FontAwesomeIcon icon={faAnglesRight} aria-hidden="true" />
-                            </button>
-                    </div>
-                </nav>
-            )}
+            <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={handlePageChange} label="Gallery pagination" />
         </section>
     );
 };
