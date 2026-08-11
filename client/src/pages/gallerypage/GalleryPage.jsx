@@ -1078,6 +1078,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
               message: `${uploadedCount} / ${uploadTotal} file${uploadTotal !== 1 ? "s" : ""}`,
               progress: normalizedUploadProgress,
               speedLabel: uploadSpeedLabel,
+              dismissible: false,
           }
         : !isUploadToastMode
           ? uploadToast
@@ -1090,6 +1091,28 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     });
     useAppToast(selectionActionToast, { id: "gallery-selection-action", onDismiss: hideSelectionActionToast });
     useAppToast(downloadToast, { id: "gallery-download", onDismiss: hideDownloadToast });
+
+    useEffect(() => {
+        if (!isUploading) return undefined;
+
+        const preventRefreshShortcut = (event) => {
+            const isRefreshShortcut = event.key === "F5"
+                || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "r");
+
+            if (isRefreshShortcut) event.preventDefault();
+        };
+        const confirmBeforeLeaving = (event) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+
+        window.addEventListener("keydown", preventRefreshShortcut, true);
+        window.addEventListener("beforeunload", confirmBeforeLeaving);
+        return () => {
+            window.removeEventListener("keydown", preventRefreshShortcut, true);
+            window.removeEventListener("beforeunload", confirmBeforeLeaving);
+        };
+    }, [isUploading]);
 
     useEffect(
         () => () => {
