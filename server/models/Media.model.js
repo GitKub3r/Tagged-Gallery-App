@@ -117,14 +117,14 @@ class MediaModel {
         if (tag) addTagExistsCondition(tag);
         includeTags.forEach((tagName) => addTagExistsCondition(tagName));
         excludeTags.forEach((tagName) => addTagExistsCondition(tagName, true));
-        authorTerms.forEach((term) => {
-            conditions.push("LOWER(COALESCE(m.author, '')) LIKE ?");
-            values.push(`%${String(term).toLowerCase()}%`);
-        });
-        nameTerms.forEach((term) => {
-            conditions.push("LOWER(COALESCE(m.displayname, '')) LIKE ?");
-            values.push(`%${String(term).toLowerCase()}%`);
-        });
+        if (authorTerms.length > 0) {
+            conditions.push(`(${authorTerms.map(() => "LOWER(COALESCE(m.author, '')) = ?").join(" OR ")})`);
+            values.push(...authorTerms.map((term) => String(term).toLowerCase()));
+        }
+        if (nameTerms.length > 0) {
+            conditions.push(`(${nameTerms.map(() => "LOWER(COALESCE(m.displayname, '')) = ?").join(" OR ")})`);
+            values.push(...nameTerms.map((term) => String(term).toLowerCase()));
+        }
         freeTerms.forEach((term) => {
             conditions.push("LOWER(CONCAT(COALESCE(m.displayname, ''), ' ', COALESCE(m.author, ''))) LIKE ?");
             values.push(`%${String(term).toLowerCase()}%`);

@@ -239,11 +239,18 @@ class MediaService {
             const freeTerms = [];
 
             searchTokens.forEach((token) => {
+                const decodeValue = (value) => {
+                    try {
+                        return decodeURIComponent(value);
+                    } catch {
+                        return value;
+                    }
+                };
                 if (token.startsWith("a:") || token.startsWith("author:")) {
-                    const value = token.slice(token.indexOf(":") + 1).trim();
+                    const value = decodeValue(token.slice(token.indexOf(":") + 1)).trim();
                     if (value) authorTerms.push(value);
                 } else if (token.startsWith("n:") || token.startsWith("name:")) {
-                    const value = token.slice(token.indexOf(":") + 1).trim();
+                    const value = decodeValue(token.slice(token.indexOf(":") + 1)).trim();
                     if (value) nameTerms.push(value);
                 } else {
                     freeTerms.push(token);
