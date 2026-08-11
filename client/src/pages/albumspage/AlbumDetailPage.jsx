@@ -26,6 +26,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { toast } from "sonner";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { EmptyState } from "../../components/empty-state/EmptyState";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
@@ -3180,13 +3181,7 @@ export const AlbumDetailPage = () => {
     if (error) {
         return (
             <section className="tagged-app-page tagged-album-page tagged-album-page--centered">
-                <article
-                    className="tagged-app-page-card tagged-album-status-card tagged-album-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error loading album</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load this album" />
             </section>
         );
     }

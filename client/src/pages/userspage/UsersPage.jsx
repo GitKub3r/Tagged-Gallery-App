@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import "./UsersPage.css";
@@ -373,13 +374,7 @@ export const UsersPage = () => {
     if (error) {
         return (
             <section className="tagged-app-page tagged-users-page">
-                <article
-                    className="tagged-app-page-card tagged-users-status-card tagged-users-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error loading users</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load users" />
             </section>
         );
     }

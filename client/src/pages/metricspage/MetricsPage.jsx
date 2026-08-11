@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
@@ -338,13 +339,7 @@ export const DashboardPage = () => {
     if (error) {
         return (
             <section className="tagged-app-page tagged-metrics-page">
-                <article
-                    className="tagged-app-page-card tagged-metrics-status-card tagged-metrics-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error loading dashboard</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load the dashboard" />
             </section>
         );
     }

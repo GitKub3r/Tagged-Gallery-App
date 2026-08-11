@@ -23,6 +23,7 @@ import {
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { EmptyState } from "../../components/empty-state/EmptyState";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { UploadMediaModal } from "../../components/upload-media-modal/UploadMediaModal";
 import { uploadMedia } from "../../api/mediaUploadRequest";
 import { galleryApi } from "../../api/galleryApi";
@@ -3074,13 +3075,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             ) : null}
 
             {!loading && error ? (
-                <article
-                    className="tagged-app-page-card tagged-gallery-empty-card tagged-gallery-empty-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error al cargar</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load your media" onRetry={() => mediaQuery.refetch()} placement="section" />
             ) : null}
 
             {!loading && !error && mediaItems.length === 0 ? (

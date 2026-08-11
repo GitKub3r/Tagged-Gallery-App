@@ -9,6 +9,7 @@ import { useGridView } from "../../context/GridViewContext";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
 import { EmptyState } from "../../components/empty-state/EmptyState";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
@@ -1229,13 +1230,7 @@ export const AlbumPage = () => {
             ) : null}
 
             {!loading && error ? (
-                <article
-                    className="tagged-app-page-card tagged-album-status-card tagged-album-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error loading albums</h2>
-                    <p>Please try again.</p>
-                </article>
+                <LoadErrorState title="Could not load your albums" placement="section" />
             ) : !loading && !error ? (
                 albums.length === 0 ? (
                     <EmptyState

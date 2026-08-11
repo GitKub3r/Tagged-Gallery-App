@@ -19,6 +19,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { ErrorToast } from "../../components/toast/ErrorToast";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
@@ -175,7 +176,7 @@ export const MetadataPage = () => {
                     </div>
 
                     {metadataQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading metadata" /> : null}
-                    {metadataQuery.isError ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-600 dark:text-red-400"><h2 className="font-bold">Could not load metadata</h2><p className="mt-1 text-sm">{metadataQuery.error.message}</p></div> : null}
+                    {metadataQuery.isError ? <LoadErrorState title="Could not load metadata" onRetry={() => metadataQuery.refetch()} placement="section" /> : null}
                     {!metadataQuery.isPending && !metadataQuery.isError && items.length === 0 ? <EmptyState title={search ? `No matching ${config.label.toLowerCase()}` : `No ${config.label.toLowerCase()} yet`} icon={config.icon} placement="section" actionLabel={search ? "Clear search" : config.create} onAction={() => search ? setSearch("") : openEditor(undefined)} /> : null}
                     {items.length > 0 ? (
                         <ul className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3" aria-label={config.label}>

@@ -16,6 +16,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { UserAvatar } from "../../components/user-avatar/UserAvatar";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import "./LogsPage.css";
@@ -803,13 +804,7 @@ export const LogsPage = () => {
     if (error) {
         return (
             <section className="tagged-app-page tagged-logs-page">
-                <article
-                    className="tagged-app-page-card tagged-logs-status-card tagged-logs-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error loading logs</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load logs" />
             </section>
         );
     }

@@ -8,6 +8,7 @@ import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { ConvergingShuffleOverlay } from "../../components/converging-shuffle-overlay/ConvergingShuffleOverlay";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { apiClient } from "../../api/apiClient";
 import { useAuth } from "../../hooks/useAuth";
@@ -1915,10 +1916,7 @@ export const MediaDetailPage = () => {
     if (error) {
         return (
             <section className="tagged-app-page tagged-media-detail-page">
-                <article className="tagged-app-page-card tagged-media-detail-message-card" aria-live="assertive">
-                    <h2>Could not load media</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load this media" />
             </section>
         );
     }

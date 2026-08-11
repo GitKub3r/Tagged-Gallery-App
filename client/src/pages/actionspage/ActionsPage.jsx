@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import "./ActionsPage.css";
@@ -355,13 +356,7 @@ export const ActionsPage = () => {
     if (error) {
         return (
             <section className="tagged-app-page tagged-actions-page">
-                <article
-                    className="tagged-app-page-card tagged-actions-status-card tagged-actions-status-card--error"
-                    aria-live="assertive"
-                >
-                    <h2>Error loading actions</h2>
-                    <p>{error}</p>
-                </article>
+                <LoadErrorState title="Could not load actions" />
             </section>
         );
     }
