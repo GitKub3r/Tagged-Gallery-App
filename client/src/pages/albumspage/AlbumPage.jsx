@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
-import { faCalendarDays, faCheck, faChevronLeft, faChevronRight, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faShuffle, faTableCellsLarge } from "@fortawesome/free-solid-svg-icons";
+import { faCalendarDays, faCheck, faChevronLeft, faChevronRight, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faPhotoFilm, faShuffle, faTableCellsLarge } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -1204,6 +1204,7 @@ export const AlbumPage = () => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
                             const albumDisplayName = album.displayname || album.albumname || "Untitled album";
+                            const mediaCount = Number(album.media_count || 0);
                             const isSelected = selectedAlbumIds.has(album.id);
 
                             return (
@@ -1250,6 +1251,10 @@ export const AlbumPage = () => {
                                                 </span>
                                             ) : null}
                                         </span>
+                                        <span className="ml-auto flex shrink-0 items-center gap-1.5 self-end pb-1 text-xs font-semibold tabular-nums text-neutral-500 dark:text-neutral-400" title={`${mediaCount} media item${mediaCount === 1 ? "" : "s"}`}>
+                                            <FontAwesomeIcon icon={faPhotoFilm} aria-hidden="true" />
+                                            {mediaCount}
+                                        </span>
                                     </button>
                                 </article>
                             );
@@ -1271,6 +1276,7 @@ export const AlbumPage = () => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
                             const albumDisplayName = album.displayname || album.albumname || "Untitled album";
+                            const mediaCount = Number(album.media_count || 0);
                             const isSelected = selectedAlbumIds.has(album.id);
 
                             return (
@@ -1319,12 +1325,18 @@ export const AlbumPage = () => {
 
                                         <div className="px-1 pb-1 pt-3">
                                             <h2 className="truncate text-base font-bold text-neutral-950 dark:text-neutral-100" title={albumDisplayName}>{albumDisplayName}</h2>
-                                            {createdLabel ? (
-                                                <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
-                                                    <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" />
-                                                    {createdLabel}
-                                                </p>
-                                            ) : null}
+                                            <div className="mt-1 flex items-center justify-between gap-3 text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                                                {createdLabel ? (
+                                                    <span className="flex min-w-0 items-center gap-1.5">
+                                                        <FontAwesomeIcon icon={faCalendarDays} aria-hidden="true" />
+                                                        <span className="truncate">{createdLabel}</span>
+                                                    </span>
+                                                ) : <span />}
+                                                <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular-nums" title={`${mediaCount} media item${mediaCount === 1 ? "" : "s"}`}>
+                                                    <FontAwesomeIcon icon={faPhotoFilm} aria-hidden="true" />
+                                                    {mediaCount}
+                                                </span>
+                                            </div>
                                         </div>
                                     </button>
                                 </article>
