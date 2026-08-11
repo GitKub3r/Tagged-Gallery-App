@@ -1,6 +1,6 @@
 import { faCopyright, faTag, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/IconButton";
 import { ErrorToast } from "../toast/ErrorToast";
@@ -93,7 +93,15 @@ export const MediaMetadataFields = ({
     onAddTag,
     onRemoveTag,
     getTagStyle,
-}) => (
+}) => {
+    const selectedTagsContainerRef = useRef(null);
+
+    useEffect(() => {
+        const container = selectedTagsContainerRef.current;
+        if (container) container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }, [selectedTags.length]);
+
+    return (
     <div className="flex min-h-0 flex-col justify-start gap-3">
         <div className="grid grid-cols-2 gap-3">
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
@@ -127,6 +135,7 @@ export const MediaMetadataFields = ({
         </label>
 
         <div
+            ref={selectedTagsContainerRef}
             className="flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50"
             aria-label={`Selected tags, ${selectedTags.length} selected`}
         >
@@ -142,4 +151,5 @@ export const MediaMetadataFields = ({
 
         <ErrorToast message={error} />
     </div>
-);
+    );
+};

@@ -75,8 +75,6 @@ export const UploadMediaModal = ({
     const isPreparingPreview = requiresPreviewConversion && !activePreviewUrl && !failedConversions[safePreviewIndex];
     const isPreviewBroken = Boolean(activePreviewUrl) && brokenPreviewUrl === activePreviewUrl;
     const isVideo = String(activeFile?.type || "").toLowerCase().startsWith("video/");
-    const visibleTags = selectedTags.slice(0, 6);
-    const hiddenTagCount = Math.max(0, selectedTags.length - visibleTags.length);
 
     const fileSummary = useMemo(() => {
         if (totalFiles === 1) {
@@ -239,7 +237,7 @@ export const UploadMediaModal = ({
                                     displayNameInput={displayNameInput}
                                     authorInput={authorInput}
                                     tagInput={tagInput}
-                                    selectedTags={visibleTags}
+                                    selectedTags={selectedTags}
                                     tagColorByName={tagColorByName}
                                     tagTypeByName={tagTypeByName}
                                     activeSuggestionField={activeSuggestionField}
@@ -260,7 +258,6 @@ export const UploadMediaModal = ({
                                     onRemoveTag={onRemoveTag}
                                     getTagStyle={getTagStyle}
                                 />
-                                {hiddenTagCount > 0 ? <span className="mt-1 block text-xs font-semibold text-neutral-500">+{hiddenTagCount} tags</span> : null}
                             </div>
 
                             <div className="relative order-1 min-h-0 overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-950 md:order-2">
