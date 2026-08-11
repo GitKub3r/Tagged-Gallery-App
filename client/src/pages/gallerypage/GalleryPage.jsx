@@ -31,6 +31,7 @@ import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
+import { MediaMontage } from "../../components/media-montage/MediaMontage";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
 import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
@@ -644,6 +645,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [selectedMediaIds, setSelectedMediaIds] = useState(new Set());
+    const [montageMediaItems, setMontageMediaItems] = useState([]);
     const [isDownloadingSelected, setIsDownloadingSelected] = useState(false);
     const [isDeletingSelected, setIsDeletingSelected] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -1368,6 +1370,26 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setAddToAlbumError(null);
         setSelectedAlbumIdsForAdd(new Set());
         setSelectionActionError(null);
+    };
+
+    const openSelectedMediaMontage = () => {
+        const selectedItems = mediaItems.filter((media) => selectedMediaIds.has(media.id));
+        if (selectedItems.length === 0) {
+            setSelectionActionError("No media selected for the montage.");
+            return;
+        }
+        setSelectionActionError(null);
+        setMontageMediaItems(selectedItems);
+    };
+
+    const openMontageMediaDetail = (media, montageIndex, montageItems) => {
+        if (!media?.id) return;
+        setMontageMediaItems([]);
+        clearSelectionMode();
+        saveGalleryScrollPosition();
+        navigate(`/gallery/${media.id}${location.search || ""}`, {
+            state: { mediaItems: montageItems, mediaIndex: montageIndex },
+        });
     };
 
     const closeEditSelectedModal = () => {
@@ -3178,6 +3200,17 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
                     <button
                         type="button"
+                        className="tagged-gallery-selection-icon-button"
+                        disabled={selectedMediaCount === 0}
+                        onClick={openSelectedMediaMontage}
+                        aria-label={`Create montage with ${selectedMediaCount} selected element${selectedMediaCount === 1 ? "" : "s"}`}
+                        title="Montage selected media"
+                    >
+                        <FontAwesomeIcon icon={faFilm} aria-hidden="true" />
+                    </button>
+
+                    <button
+                        type="button"
                         className="tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--download"
                         disabled={selectedMediaCount === 0 || isDownloadingSelected}
                         onClick={handleDownloadSelectedMedia}
@@ -3219,6 +3252,15 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                     </button>
                 </aside>
+            ) : null}
+
+            {montageMediaItems.length > 0 ? (
+                <MediaMontage
+                    items={montageMediaItems}
+                    getAssetUrl={getAssetUrl}
+                    onClose={() => setMontageMediaItems([])}
+                    onOpenMedia={openMontageMediaDetail}
+                />
             ) : null}
 
             {isSelectionMode && selectionActionError ? (
