@@ -8,6 +8,7 @@ const router = express.Router();
 
 // GET    /api/v1/albums       - List all albums
 router.get("/", authenticate, AlbumController.getAll);
+router.get("/names", authenticate, AlbumController.getNames);
 
 // POST   /api/v1/albums       - Create an album
 router.post("/", authenticate, AlbumController.create);

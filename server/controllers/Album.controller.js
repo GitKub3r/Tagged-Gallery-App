@@ -2,6 +2,15 @@ const AlbumService = require("../services/Album.service");
 const AuditService = require("../services/Audit.service");
 
 class AlbumController {
+    static async getNames(req, res) {
+        try {
+            return res.json(await AlbumService.getNames(req.user));
+        } catch (error) {
+            console.error("Error in AlbumController.getNames:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
     static async getAll(req, res) {
         try {
             const result = await AlbumService.getAll(req.user);

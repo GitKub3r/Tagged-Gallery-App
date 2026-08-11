@@ -13,6 +13,11 @@ class AlbumService {
         return { success: true, data: albums };
     }
 
+    static async getNames(requestUser) {
+        const names = await AlbumModel.findDistinctNames(requestUser.type === "admin" ? null : requestUser.id);
+        return { success: true, data: names };
+    }
+
     static async getById(id, requestUser) {
         const album =
             requestUser.type === "admin"

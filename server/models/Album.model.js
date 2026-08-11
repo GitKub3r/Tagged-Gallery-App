@@ -1,6 +1,11 @@
 const { pool } = require("../config/database");
 
 class AlbumModel {
+    static async findDistinctNames(userId = null) {
+        const ownershipCondition = userId === null ? "" : "user_id = ? AND ";
+        const [rows] = await pool.query(`SELECT DISTINCT albumname FROM albums WHERE ${ownershipCondition}albumname IS NOT NULL AND TRIM(albumname) <> '' ORDER BY albumname ASC`, userId === null ? [] : [userId]);
+        return rows.map((row) => row.albumname);
+    }
     static async findAll() {
         const [rows] = await pool.query(
             `SELECT a.id, a.user_id, a.albumname, a.albumcoverpath, a.albumthumbpath, a.cover_position_x, a.cover_position_y, a.cover_zoom, a.created_at,
