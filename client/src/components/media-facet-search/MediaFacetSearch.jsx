@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { faImage, faUser, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { parseMediaFacetFilters, serializeMediaFacetFilters } from "../../utils/mediaFacetFilters";
+import { useSuggestionNavigation } from "../../hooks/useSuggestionNavigation";
 import { SearchField } from "../search-field/SearchField";
 
 const normalizeOptions = (values) => [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
@@ -27,6 +28,8 @@ export const MediaFacetSearch = ({ value, onChange, mediaItems = [], displayName
             .slice(0, 8);
     }, [authors, displayNames, inputValue, mediaItems, selectedFilters]);
 
+    const suggestionsId = useId();
+
     const selectOption = (option) => {
         onChange(serializeMediaFacetFilters([...selectedFilters, option]));
         setInputValue("");
@@ -37,31 +40,36 @@ export const MediaFacetSearch = ({ value, onChange, mediaItems = [], displayName
         onChange(serializeMediaFacetFilters(selectedFilters.filter((filter) => filter !== filterToRemove)));
     };
 
+    const { activeIndex, setActiveIndex, openSuggestions, closeSuggestions, handleKeyDown } = useSuggestionNavigation({
+        items: options,
+        isOpen,
+        onOpen: () => setIsOpen(true),
+        onClose: () => setIsOpen(false),
+        onSelect: selectOption,
+        selectFirstOnEnter: true,
+    });
+
     return (
         <div className="min-w-0">
             <div className="relative">
                 <SearchField
                     label={label}
                     value={inputValue}
-                    onChange={(nextValue) => { setInputValue(nextValue); setIsOpen(Boolean(nextValue.trim())); }}
-                    onFocus={() => setIsOpen(Boolean(inputValue.trim()))}
-                    onBlur={() => setIsOpen(false)}
-                    onKeyDown={(event) => {
-                        if (event.key === "Escape") {
-                            setIsOpen(false);
-                        } else if (event.key === "Enter" && options[0]) {
-                            event.preventDefault();
-                            selectOption(options[0]);
-                        }
-                    }}
+                    onChange={(nextValue) => { setInputValue(nextValue); if (nextValue.trim()) openSuggestions(); else closeSuggestions(); }}
+                    onFocus={() => { if (inputValue.trim()) openSuggestions(); }}
+                    onBlur={closeSuggestions}
+                    onKeyDown={handleKeyDown}
                     placeholder={placeholder}
                     disabled={disabled}
+                    suggestionsId={suggestionsId}
+                    suggestionsExpanded={isOpen && options.length > 0}
+                    activeSuggestionId={activeIndex >= 0 ? `${suggestionsId}-option-${activeIndex}` : undefined}
                 />
                 {isOpen && options.length > 0 ? (
-                    <ul className="absolute inset-x-0 top-[calc(100%+0.35rem)] z-50 grid gap-1 rounded-xl border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-700 dark:bg-neutral-900" role="listbox">
-                        {options.map((option) => (
-                            <li key={`${option.type}-${option.value}`}>
-                                <button type="button" className="flex! min-h-10! w-full! items-center! gap-3! rounded-xl! border-0! bg-transparent! px-3! py-2! text-left! text-sm! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:text-neutral-200! dark:hover:bg-neutral-800!" onMouseDown={(event) => event.preventDefault()} onClick={() => selectOption(option)}>
+                    <ul id={suggestionsId} className="absolute inset-x-0 top-[calc(100%+0.35rem)] z-50 grid gap-1 rounded-xl border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-700 dark:bg-neutral-900" role="listbox">
+                        {options.map((option, index) => (
+                            <li key={`${option.type}-${option.value}`} id={`${suggestionsId}-option-${index}`} role="option" aria-selected={index === activeIndex}>
+                                <button type="button" className={`flex! min-h-10! w-full! items-center! gap-3! rounded-xl! border-0! px-3! py-2! text-left! text-sm! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:text-neutral-200! dark:hover:bg-neutral-800! ${index === activeIndex ? "bg-neutral-100! dark:bg-neutral-800!" : "bg-transparent!"}`} onMouseEnter={() => setActiveIndex(index)} onMouseDown={(event) => event.preventDefault()} onClick={() => selectOption(option)}>
                                     <FontAwesomeIcon icon={option.type === "author" ? faUser : faImage} className="w-4 text-neutral-400 dark:text-neutral-500" aria-hidden="true" />
                                     <span className="min-w-0 flex-1 truncate">{option.value}</span>
                                     <span className="text-[0.65rem] font-bold uppercase tracking-wider text-neutral-400">{option.type === "author" ? "Author" : "Media"}</span>
