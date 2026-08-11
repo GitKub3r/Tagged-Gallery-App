@@ -4,6 +4,7 @@ import { faArrowLeft, faArrowRight, faCheck, faFile, faFloppyDisk, faXmark } fro
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
+import { rankSuggestions } from "../../utils/suggestionRanking";
 
 const MAX_SUGGESTIONS = 8;
 const isVideoLike = (media) => {
@@ -338,63 +339,22 @@ export const MediaEditModal = ({
     };
 
     const visibleDisplayNameSuggestions = useMemo(() => {
-        const currentInput = displayNameInput.trim().toLowerCase();
-
-        return distinctDisplayNames
-            .filter((value) => {
-                const normalized = String(value || "").toLowerCase();
-
-                if (!normalized) {
-                    return false;
-                }
-
-                if (!currentInput) {
-                    return true;
-                }
-
-                return normalized.includes(currentInput);
-            })
+        return rankSuggestions(distinctDisplayNames, displayNameInput)
             .slice(0, MAX_SUGGESTIONS);
     }, [distinctDisplayNames, displayNameInput]);
 
     const visibleAuthorSuggestions = useMemo(() => {
-        const currentInput = authorInput.trim().toLowerCase();
-
-        return distinctAuthors
-            .filter((value) => {
-                const normalized = String(value || "").toLowerCase();
-
-                if (!normalized) {
-                    return false;
-                }
-
-                if (!currentInput) {
-                    return true;
-                }
-
-                return normalized.includes(currentInput);
-            })
+        return rankSuggestions(distinctAuthors, authorInput)
             .slice(0, MAX_SUGGESTIONS);
     }, [distinctAuthors, authorInput]);
 
     const visibleTagSuggestions = useMemo(() => {
-        const currentInput = tagInput.trim().toLowerCase();
         const selectedSet = new Set(selectedTags.map((tag) => tag.toLowerCase()));
 
-        return distinctTagNames
-            .filter((tagName) => {
-                const normalized = String(tagName || "").toLowerCase();
-
-                if (!normalized || selectedSet.has(normalized)) {
-                    return false;
-                }
-
-                if (!currentInput) {
-                    return true;
-                }
-
-                return normalized.includes(currentInput);
-            })
+        return rankSuggestions(
+            distinctTagNames.filter((tagName) => !selectedSet.has(String(tagName || "").toLowerCase())),
+            tagInput,
+        )
             .slice(0, MAX_SUGGESTIONS);
     }, [distinctTagNames, selectedTags, tagInput]);
 

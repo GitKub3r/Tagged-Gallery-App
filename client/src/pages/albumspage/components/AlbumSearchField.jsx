@@ -3,14 +3,15 @@ import { faFolderOpen } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { SearchField } from "../../../components/search-field/SearchField";
 import { useSuggestionNavigation } from "../../../hooks/useSuggestionNavigation";
+import { rankSuggestions } from "../../../utils/suggestionRanking";
 
 export const AlbumSearchField = ({ value, suggestions, onChange, onSubmit }) => {
     const [isOpen, setIsOpen] = useState(false);
     const suggestionsId = useId();
     const options = useMemo(() => {
-        const query = value.trim().toLowerCase();
+        const query = value.trim();
         if (!query) return [];
-        return suggestions.filter((name) => name.toLowerCase().includes(query)).slice(0, 8);
+        return rankSuggestions(suggestions, query).slice(0, 8);
     }, [suggestions, value]);
 
     const selectOption = (name) => { onChange(name); onSubmit(name); setIsOpen(false); };

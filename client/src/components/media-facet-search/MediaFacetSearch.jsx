@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from "react";
 import { faImage, faUser, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { parseMediaFacetFilters, serializeMediaFacetFilters } from "../../utils/mediaFacetFilters";
+import { rankSuggestions } from "../../utils/suggestionRanking";
 import { useSuggestionNavigation } from "../../hooks/useSuggestionNavigation";
 import { SearchField } from "../search-field/SearchField";
 
@@ -14,17 +15,14 @@ export const MediaFacetSearch = ({ value, onChange, mediaItems = [], displayName
     const options = useMemo(() => {
         const nameValues = normalizeOptions([...displayNames, ...mediaItems.map((media) => media?.displayname)]);
         const authorValues = normalizeOptions([...authors, ...mediaItems.map((media) => media?.author)]);
-        const query = inputValue.trim().toLowerCase();
+        const query = inputValue.trim();
 
         if (!query) return [];
 
-        return [
+        return rankSuggestions([
             ...nameValues.map((optionValue) => ({ type: "name", value: optionValue })),
             ...authorValues.map((optionValue) => ({ type: "author", value: optionValue })),
-        ]
-            .filter((option) => option.value.toLowerCase().includes(query))
-            .filter((option) => !selectedFilters.some((filter) => filter.type === option.type && filter.value.toLowerCase() === option.value.toLowerCase()))
-            .sort((a, b) => a.value.localeCompare(b.value, undefined, { sensitivity: "base", numeric: true }))
+        ].filter((option) => !selectedFilters.some((filter) => filter.type === option.type && filter.value.toLowerCase() === option.value.toLowerCase())), query, (option) => option.value)
             .slice(0, 8);
     }, [authors, displayNames, inputValue, mediaItems, selectedFilters]);
 

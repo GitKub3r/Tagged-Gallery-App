@@ -46,6 +46,7 @@ import { useMarqueeSelection } from "../../hooks/useMarqueeSelection";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
+import { rankSuggestions } from "../../utils/suggestionRanking";
 import "./GalleryPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -2152,58 +2153,19 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     }
     const visibleTagSuggestions = useMemo(() => {
         const normalizedSelected = new Set(selectedTags.map((tag) => tag.toLowerCase()));
-        const currentInput = tagInput.trim().toLowerCase();
-
-        return distinctTagNames.filter((tagName) => {
-            const normalized = tagName.toLowerCase();
-
-            if (normalizedSelected.has(normalized)) {
-                return false;
-
-            }
-            if (!currentInput) {
-                return true;
-
-            }
-            return normalized.includes(currentInput);
-        });
+        return rankSuggestions(
+            distinctTagNames.filter((tagName) => !normalizedSelected.has(tagName.toLowerCase())),
+            tagInput,
+        );
     }, [distinctTagNames, selectedTags, tagInput]);
 
     const visibleDisplayNameSuggestions = useMemo(() => {
-        const currentInput = displayNameInput.trim().toLowerCase();
-
-        return distinctDisplayNames
-            .filter((value) => {
-                const normalized = String(value || "").toLowerCase();
-                if (!normalized) {
-                    return false;
-
-                }
-                if (!currentInput) {
-                    return true;
-
-                }
-                return normalized.includes(currentInput);
-            })
+        return rankSuggestions(distinctDisplayNames, displayNameInput)
             .slice(0, MAX_SUGGESTIONS);
     }, [distinctDisplayNames, displayNameInput]);
 
     const visibleAuthorSuggestions = useMemo(() => {
-        const currentInput = authorInput.trim().toLowerCase();
-
-        return distinctAuthors
-            .filter((value) => {
-                const normalized = String(value || "").toLowerCase();
-                if (!normalized) {
-                    return false;
-
-                }
-                if (!currentInput) {
-                    return true;
-
-                }
-                return normalized.includes(currentInput);
-            })
+        return rankSuggestions(distinctAuthors, authorInput)
             .slice(0, MAX_SUGGESTIONS);
     }, [distinctAuthors, authorInput]);
 
