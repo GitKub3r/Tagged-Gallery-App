@@ -1,6 +1,16 @@
 import React, { createContext, useState, useEffect, useRef } from "react";
 import { authApi } from "../api/authApi";
 import { storeMediaNameMatchMode } from "../utils/mediaFacetFilters";
+import { toast } from "sonner";
+
+const isTokenExpired = (token) => {
+    try {
+        const payload = JSON.parse(window.atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+        return !payload.exp || payload.exp * 1000 <= Date.now() + 5000;
+    } catch {
+        return true;
+    }
+};
 
 const defaultContextValue = {
     user: null,
@@ -33,20 +43,40 @@ export const AuthProvider = ({ children }) => {
 
     // Cargar tokens del localStorage al iniciar
     useEffect(() => {
+        let isActive = true;
         const storedAccessToken = localStorage.getItem("accessToken");
         const storedRefreshToken = localStorage.getItem("refreshToken");
         const storedUser = localStorage.getItem("user");
 
-        if (storedAccessToken && storedRefreshToken && storedUser) {
-            accessTokenRef.current = storedAccessToken;
-            refreshTokenRef.current = storedRefreshToken;
-            setAccessToken(storedAccessToken);
-            setRefreshToken(storedRefreshToken);
-            setUser(JSON.parse(storedUser));
-            storeMediaNameMatchMode(JSON.parse(storedUser)?.media_name_match_mode);
-        }
-
-        setLoading(false);
+        const restoreSession = async () => {
+            if (storedAccessToken && storedRefreshToken && storedUser) {
+                try {
+                    const parsedUser = JSON.parse(storedUser);
+                    let validAccessToken = storedAccessToken;
+                    if (isTokenExpired(storedAccessToken)) {
+                        const refreshResult = await authApi.refresh(storedRefreshToken, { skipErrorToast: true });
+                        validAccessToken = refreshResult.data?.accessToken;
+                        if (!refreshResult.success || !validAccessToken) throw new Error(refreshResult.message || "Could not refresh the session");
+                        localStorage.setItem("accessToken", validAccessToken);
+                    }
+                    if (!isActive) return;
+                    accessTokenRef.current = validAccessToken;
+                    refreshTokenRef.current = storedRefreshToken;
+                    setAccessToken(validAccessToken);
+                    setRefreshToken(storedRefreshToken);
+                    setUser(parsedUser);
+                    storeMediaNameMatchMode(parsedUser?.media_name_match_mode);
+                } catch (restoreError) {
+                    localStorage.removeItem("user");
+                    localStorage.removeItem("accessToken");
+                    localStorage.removeItem("refreshToken");
+                    if (isActive) toast.error(restoreError.message || "Could not restore the session", { id: "session-refresh-error" });
+                }
+            }
+            if (isActive) setLoading(false);
+        };
+        restoreSession();
+        return () => { isActive = false; };
     }, []);
 
     useEffect(() => {

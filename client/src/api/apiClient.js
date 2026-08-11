@@ -43,11 +43,15 @@ apiClient.interceptors.response.use(
                         request.headers.Authorization = `Bearer ${accessToken}`;
                         return apiClient.request(request);
                     }
-                } catch {
+                } catch (refreshError) {
                     localStorage.removeItem("user");
                     localStorage.removeItem("accessToken");
                     localStorage.removeItem("refreshToken");
                     window.dispatchEvent(new Event("tagged:session-invalidated"));
+                    if (!request?._skipErrorToast) {
+                        toast.error(refreshError.response?.data?.message || refreshError.message || "Could not refresh the session", { id: "session-refresh-error" });
+                    }
+                    return Promise.reject(refreshError);
                 }
             }
         }

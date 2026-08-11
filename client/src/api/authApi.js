@@ -22,8 +22,8 @@ export const authApi = {
         }
     },
 
-    async refresh(refreshToken) {
-        const { data } = await apiClient.post("/auth/refresh", { refreshToken });
+    async refresh(refreshToken, { skipErrorToast = false } = {}) {
+        const { data } = await apiClient.post("/auth/refresh", { refreshToken }, { _skipErrorToast: skipErrorToast });
         return data;
     },
 
