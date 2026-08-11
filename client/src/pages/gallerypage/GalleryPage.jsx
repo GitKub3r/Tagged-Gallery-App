@@ -35,7 +35,6 @@ import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
-import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
@@ -730,7 +729,13 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         }
         return String(window.localStorage.getItem(GALLERY_SEARCH_STORAGE_KEY) || "");
     });
-    const debouncedGallerySearchQuery = useDebouncedValue(gallerySearchQuery, 400);
+    const [submittedGallerySearchQuery, setSubmittedGallerySearchQuery] = useState(() => {
+        if (typeof window === "undefined") {
+            return "";
+        }
+
+        return String(window.localStorage.getItem(GALLERY_SEARCH_STORAGE_KEY) || "");
+    });
     const [gallerySuggestionOpen, setGallerySuggestionOpen] = useState(false);
     const [gallerySuggestionIndex, setGallerySuggestionIndex] = useState(0);
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
@@ -999,7 +1004,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const filteredMediaItems = useMemo(() => {
         const normalizedFilter = activeTagFilter.toLowerCase();
         const normalizedAuthorFilter = activeAuthorFilter.toLowerCase();
-        const scopedSearch = parseScopedMediaSearchQuery(gallerySearchQuery);
+        const scopedSearch = parseScopedMediaSearchQuery(submittedGallerySearchQuery);
         const normalizedIncludedTags = selectedIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludedTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
 
@@ -1092,7 +1097,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         activeTagFilter,
         activeAuthorFilter,
         onlyFavourites,
-        gallerySearchQuery,
+        submittedGallerySearchQuery,
         selectedIncludeFilterTags,
         selectedExcludeFilterTags,
         mediaTypeFilter,
@@ -1102,7 +1107,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const totalPages = Math.max(1, Math.ceil(totalFilteredMediaCount / pageSize));
     const visibleMediaItems = filteredMediaItems;
 
-    const hasActiveSearch = gallerySearchQuery.trim().length > 0;
+    const hasActiveSearch = submittedGallerySearchQuery.trim().length > 0;
+    const hasSearchInput = gallerySearchQuery.trim().length > 0;
     const hasActiveFilterTags = selectedIncludeFilterTags.length > 0 || selectedExcludeFilterTags.length > 0;
     const hasVisibleMediaItems = visibleMediaItems.length > 0;
     const areAllVisibleMediaSelected =
@@ -1282,9 +1288,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            window.localStorage.setItem(GALLERY_SEARCH_STORAGE_KEY, gallerySearchQuery);
+            window.localStorage.setItem(GALLERY_SEARCH_STORAGE_KEY, submittedGallerySearchQuery);
         }
-    }, [gallerySearchQuery]);
+    }, [submittedGallerySearchQuery]);
     useEffect(() => {
         return () => {
             window.dispatchEvent(
@@ -1299,10 +1305,26 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         };
     }, []);
 
-    const clearGalleryFilters = () => {
+    const submitGallerySearch = (value = gallerySearchQuery) => {
+        const normalizedValue = String(value || "").trim();
+        setGallerySearchQuery(normalizedValue);
+        setSubmittedGallerySearchQuery(normalizedValue);
+        setGallerySuggestionOpen(false);
+        setCurrentPage(1);
+        localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
+    };
+
+    const clearGallerySearch = () => {
         setGallerySearchQuery("");
+        setSubmittedGallerySearchQuery("");
         setGallerySuggestionOpen(false);
         setGallerySuggestionIndex(0);
+        setCurrentPage(1);
+        localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
+    };
+
+    const clearGalleryFilters = () => {
+        clearGallerySearch();
         setMediaTypeFilter("all");
         setIsRandomOrderEnabled(false);
         setRandomOrderSeed(null);
@@ -2292,7 +2314,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 tag: activeTagFilter || undefined,
                 includeTag: selectedIncludeFilterTags,
                 excludeTag: selectedExcludeFilterTags,
-                search: debouncedGallerySearchQuery.trim() || undefined,
+                search: submittedGallerySearchQuery.trim() || undefined,
                 randomSeed: isRandomOrderEnabled ? randomOrderSeed : undefined,
             },
             accessToken,
@@ -2623,7 +2645,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             activeTagFilter,
             selectedIncludeFilterTags,
             selectedExcludeFilterTags,
-            debouncedGallerySearchQuery,
+            submittedGallerySearchQuery,
             isRandomOrderEnabled,
             randomOrderSeed,
         ],
@@ -2978,24 +3000,23 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                         gallerySearchSuggestions.length > 0
                                     ) {
                                         event.preventDefault();
-                                        setGallerySearchQuery(gallerySearchSuggestions[gallerySuggestionIndex] || "");
-                                        setGallerySuggestionOpen(false);
+                                        submitGallerySearch(gallerySearchSuggestions[gallerySuggestionIndex] || "");
                                     } else if (event.key === "Escape") {
                                         setGallerySuggestionOpen(false);
                                     } else if (event.key === "Enter") {
-                                        setGallerySuggestionOpen(false);
+                                        submitGallerySearch();
                                 }}
                 }
                                 placeholder="Search by media, a:author or n:name"
                                 aria-label="Search media by name or author. Supports a:author and n:name."
                             />
 
-                            {hasActiveSearch ? (
+                            {hasSearchInput || hasActiveSearch ? (
                                 <button
                                     type="button"
                                     className="absolute! right-2! top-1/2! flex! h-8! w-8! -translate-y-1/2! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-400! shadow-none! hover:bg-neutral-100! hover:text-neutral-700! dark:hover:bg-neutral-800! dark:hover:text-neutral-200!"
                                     onMouseDown={(event) => event.preventDefault()}
-                                    onClick={() => setGallerySearchQuery("")}
+                                    onClick={clearGallerySearch}
                                     aria-label="Clear search"
                                     title="Clear search"
                                 >
@@ -3012,8 +3033,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                                 className={`min-h-9! w-full! rounded-xl! border-0! bg-transparent! px-3! py-1.5! text-left! text-sm! font-medium! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:text-neutral-200! dark:hover:bg-neutral-800! ${index === gallerySuggestionIndex ? "bg-neutral-100! dark:bg-neutral-800!" : ""}`}
                                                 onMouseDown={(event) => event.preventDefault()}
                                                 onClick={() => {
-                                                    setGallerySearchQuery(value);
-                                                    setGallerySuggestionOpen(false);
+                                                    submitGallerySearch(value);
                                                 }}
                                             >
                                                 {value}
@@ -3160,7 +3180,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     }
                     onAction={
                         hasActiveSearch
-                            ? () => setGallerySearchQuery("")
+                            ? clearGallerySearch
                             : hasActiveFilterTags
                               ? clearFilterTags
                               : activeTagFilter || activeAuthorFilter
