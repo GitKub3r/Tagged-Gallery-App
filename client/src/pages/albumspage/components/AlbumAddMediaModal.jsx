@@ -19,6 +19,7 @@ import { ErrorToast } from "../../../components/toast/ErrorToast";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../../../components/icon-button/IconButton";
+import { MediaFacetSearch } from "../../../components/media-facet-search/MediaFacetSearch";
 
 const useCompactViewport = () => {
     const [isCompact, setIsCompact] = useState(() =>
@@ -131,7 +132,7 @@ export const AlbumAddMediaModal = ({
                 <form id="album-add-media-form" className="grid min-h-0 flex-1 lg:grid-cols-[minmax(0,1fr)_17rem]" onSubmit={onSubmit}>
                     <main className={`${mobileView === "media" ? "flex" : "hidden"} min-h-0 flex-col p-4 sm:p-5 lg:flex lg:border-r lg:border-neutral-200 dark:lg:border-neutral-800`}>
                         <div className="flex shrink-0 items-center gap-2">
-                            <div className="min-w-0 flex-1"><SearchField value={searchValue} onChange={(value) => { resetMediaPage(); onSearchChange(value); }} placeholder="Search by media, a:author or n:name" label="Search media" disabled={isSaving} /></div>
+                            <div className="min-w-0 flex-1"><MediaFacetSearch value={searchValue} onChange={(value) => { resetMediaPage(); onSearchChange(value); }} mediaItems={availableMediaItems} disabled={isSaving} /></div>
                             <button type="button" className={viewButtonClasses(allVisibleSelected)} onClick={() => onSelectAllVisibleMedia(visibleMedia, allVisibleSelected)} disabled={!visibleMedia.length || isSaving} aria-label="Select all visible media"><FontAwesomeIcon icon={faCheckDouble} /></button>
                             <button type="button" className={viewButtonClasses(mediaViewMode === "card")} onClick={() => { resetMediaPage(); onMediaViewModeChange("card"); }} aria-label="Card view"><FontAwesomeIcon icon={faTableCellsLarge} /></button>
                             <button type="button" className={viewButtonClasses(mediaViewMode === "list")} onClick={() => { resetMediaPage(); onMediaViewModeChange("list"); }} aria-label="List view"><FontAwesomeIcon icon={faList} /></button>

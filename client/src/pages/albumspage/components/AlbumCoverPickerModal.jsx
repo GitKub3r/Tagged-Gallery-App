@@ -18,6 +18,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../../components/icon-button/IconButton";
 import { MediaCard } from "../../../components/media-card/MediaCard";
+import { MediaFacetSearch } from "../../../components/media-facet-search/MediaFacetSearch";
 
 const LAPTOP_MEDIA_PAGE_SIZE = 8;
 const DESKTOP_MEDIA_PAGE_SIZE = 10;
@@ -247,30 +248,10 @@ export const AlbumCoverPickerModal = ({
                                     />
                                 </label>
 
-                                <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                                <div className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                                     <span className="mb-1.5 block">Find a cover</span>
-                                    <span className="relative block">
-                                        <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
-                                        <input
-                                            className="h-11 w-full rounded-xl border border-neutral-300 bg-white pl-9 pr-9 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600"
-                                            type="text"
-                                            value={coverSearch}
-                                            onChange={(event) => handleCoverSearchChange(event.target.value)}
-                                            placeholder="Search by name or a:author"
-                                            disabled={isSaving}
-                                        />
-                                        {coverSearch.trim() ? (
-                                            <button
-                                                type="button"
-                                                className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl border-0 bg-transparent p-0 text-neutral-400 shadow-none hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800 dark:hover:text-neutral-200"
-                                                onClick={() => handleCoverSearchChange("")}
-                                                aria-label="Clear cover search"
-                                            >
-                                                <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
-                                            </button>
-                                        ) : null}
-                                    </span>
-                                </label>
+                                    <MediaFacetSearch value={coverSearch} onChange={handleCoverSearchChange} mediaItems={mediaItems} disabled={isSaving} label="Find a cover" />
+                                </div>
                             </div>
 
                             <div className="flex shrink-0 items-center justify-between gap-2">

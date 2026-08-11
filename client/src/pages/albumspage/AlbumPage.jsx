@@ -10,6 +10,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
+import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import "./AlbumPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -187,49 +188,6 @@ const applyIncludeExcludeTagFilters = (mediaList, includeTags, excludeTags) => {
     });
 };
 
-const parseScopedCoverSearchQuery = (rawQuery) => {
-    const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
-
-    if (!normalizedRaw) {
-        return {
-            authorTerms: [],
-            nameTerms: [],
-            freeTerms: [],
-        };
-    }
-
-    const tokens = normalizedRaw.split(/\s+/).filter(Boolean);
-    const authorTerms = [];
-    const nameTerms = [];
-    const freeTerms = [];
-
-    tokens.forEach((token) => {
-        if (token.startsWith("a:") || token.startsWith("author:")) {
-            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
-            if (value) {
-                authorTerms.push(value);
-            }
-            return;
-        }
-
-        if (token.startsWith("n:") || token.startsWith("name:")) {
-            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
-            if (value) {
-                nameTerms.push(value);
-            }
-            return;
-        }
-
-        freeTerms.push(token);
-    });
-
-    return {
-        authorTerms,
-        nameTerms,
-        freeTerms,
-    };
-};
-
 export const AlbumPage = () => {
     const navigate = useNavigate();
     const { user, fetchWithAuth } = useAuth();
@@ -356,60 +314,12 @@ export const AlbumPage = () => {
             selectedCreateIncludeFilterTags,
             selectedCreateExcludeFilterTags,
         );
-        const scopedSearch = parseScopedCoverSearchQuery(coverSearch);
-        const hasScopedSearch =
-            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
-
-        if (!hasScopedSearch) {
-            return filteredByTags;
-        }
-
-        return filteredByTags.filter((media) => {
-            const displayName = String(media?.displayname || media?.filename || "").toLowerCase();
-            const authorName = String(media?.author || "").toLowerCase();
-            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
-
-            const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
-            if (!matchesAuthorTerms) {
-                return false;
-            }
-
-            const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
-            if (!matchesNameTerms) {
-                return false;
-            }
-
-            return scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
-        });
+        return filteredByTags.filter((media) => matchesMediaFacetFilters(media, coverSearch));
     }, [createCoverMediaItems, selectedCreateIncludeFilterTags, selectedCreateExcludeFilterTags, coverSearch]);
 
     const filteredEditImageMediaItems = useMemo(() => {
         const filteredByTags = filterMediaByTagMode(imageMediaItems, selectedEditFilterTags, editTagFilterMode);
-        const scopedSearch = parseScopedCoverSearchQuery(editCoverSearch);
-        const hasScopedSearch =
-            scopedSearch.authorTerms.length > 0 || scopedSearch.nameTerms.length > 0 || scopedSearch.freeTerms.length > 0;
-
-        if (!hasScopedSearch) {
-            return filteredByTags;
-        }
-
-        return filteredByTags.filter((media) => {
-            const displayName = String(media?.displayname || media?.filename || "").toLowerCase();
-            const authorName = String(media?.author || "").toLowerCase();
-            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
-
-            const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
-            if (!matchesAuthorTerms) {
-                return false;
-            }
-
-            const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
-            if (!matchesNameTerms) {
-                return false;
-            }
-
-            return scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
-        });
+        return filteredByTags.filter((media) => matchesMediaFacetFilters(media, editCoverSearch));
     }, [imageMediaItems, selectedEditFilterTags, editTagFilterMode, editCoverSearch]);
 
     const hasActiveAlbumFilter = albumSearch.trim().length > 0;

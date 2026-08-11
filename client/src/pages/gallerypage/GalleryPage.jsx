@@ -33,11 +33,13 @@ import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
+import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import "./GalleryPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -216,49 +218,6 @@ const getRelativeLuminance = ({ r, g, b }) => {
     };
 
     return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-};
-
-const parseScopedMediaSearchQuery = (rawQuery) => {
-    const normalizedRaw = String(rawQuery || "").trim().toLowerCase();
-
-    if (!normalizedRaw) {
-        return {
-            authorTerms: [],
-            nameTerms: [],
-            freeTerms: [],
-        };
-    }
-
-    const tokens = normalizedRaw.split(/\s+/).filter(Boolean);
-    const authorTerms = [];
-    const nameTerms = [];
-    const freeTerms = [];
-
-    tokens.forEach((token) => {
-        if (token.startsWith("a:") || token.startsWith("author:")) {
-            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
-            if (value) {
-                authorTerms.push(value);
-            }
-            return;
-        }
-
-        if (token.startsWith("n:") || token.startsWith("name:")) {
-            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
-            if (value) {
-                nameTerms.push(value);
-            }
-            return;
-        }
-
-        freeTerms.push(token);
-    });
-
-    return {
-        authorTerms,
-        nameTerms,
-        freeTerms,
-    };
 };
 
 const toHexChannel = (value) => Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
@@ -722,13 +681,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [albumSelectionTagFilterMode, setAlbumSelectionTagFilterMode] = useState("include");
     const [selectedAlbumFilterTags, setSelectedAlbumFilterTags] = useState([]);
     const [selectedAlbumIdsForAdd, setSelectedAlbumIdsForAdd] = useState(new Set());
-    const [gallerySearchQuery, setGallerySearchQuery] = useState(() => {
-        if (typeof window === "undefined") {
-            return "";
-
-        }
-        return String(window.localStorage.getItem(GALLERY_SEARCH_STORAGE_KEY) || "");
-    });
     const [submittedGallerySearchQuery, setSubmittedGallerySearchQuery] = useState(() => {
         if (typeof window === "undefined") {
             return "";
@@ -736,8 +688,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         return String(window.localStorage.getItem(GALLERY_SEARCH_STORAGE_KEY) || "");
     });
-    const [gallerySuggestionOpen, setGallerySuggestionOpen] = useState(false);
-    const [gallerySuggestionIndex, setGallerySuggestionIndex] = useState(0);
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
     const [isRandomOrderEnabled, setIsRandomOrderEnabled] = useState(false);
     const [randomOrderSeed, setRandomOrderSeed] = useState(null);
@@ -1004,7 +954,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const filteredMediaItems = useMemo(() => {
         const normalizedFilter = activeTagFilter.toLowerCase();
         const normalizedAuthorFilter = activeAuthorFilter.toLowerCase();
-        const scopedSearch = parseScopedMediaSearchQuery(submittedGallerySearchQuery);
         const normalizedIncludedTags = selectedIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludedTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
 
@@ -1068,29 +1017,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 return mediaTagNames.includes(normalizedFilter);
 
             }
-            if (
-                scopedSearch.authorTerms.length === 0 &&
-                scopedSearch.nameTerms.length === 0 &&
-                scopedSearch.freeTerms.length === 0
-            ) {
-                return true;
-
-            }
-            const displayName = String(media.displayname || "").toLowerCase();
-            const authorName = String(media.author || "").toLowerCase();
-            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
-
-            const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
-            if (!matchesAuthorTerms) {
-                return false;
-            }
-
-            const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
-            if (!matchesNameTerms) {
-                return false;
-            }
-
-            return scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
+            return matchesMediaFacetFilters(media, submittedGallerySearchQuery);
         });
     }, [
         orderedMediaItems,
@@ -1108,7 +1035,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const visibleMediaItems = filteredMediaItems;
 
     const hasActiveSearch = submittedGallerySearchQuery.trim().length > 0;
-    const hasSearchInput = gallerySearchQuery.trim().length > 0;
     const hasActiveFilterTags = selectedIncludeFilterTags.length > 0 || selectedExcludeFilterTags.length > 0;
     const hasVisibleMediaItems = visibleMediaItems.length > 0;
     const areAllVisibleMediaSelected =
@@ -1239,20 +1165,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         });
     }, [albumCandidates, albumSelectionSearch, selectedAlbumFilterTags, albumSelectionTagFilterMode]);
 
-    const gallerySearchSuggestions = useMemo(() => {
-        const currentInput = gallerySearchQuery.trim().toLowerCase();
-        const nameMatches = distinctDisplayNames.filter((name) => {
-            const normalized = String(name || "").toLowerCase();
-            return normalized && (currentInput ? normalized.includes(currentInput) : true);
-        });
-        const authorMatches = distinctAuthors.filter((name) => {
-            const normalized = String(name || "").toLowerCase();
-            return normalized && currentInput && normalized.includes(currentInput);
-        });
-        const combined = [...new Set([...nameMatches, ...authorMatches])];
-        return combined.slice(0, MAX_SUGGESTIONS);
-    }, [distinctDisplayNames, distinctAuthors, gallerySearchQuery]);
-
     const applyTagFilter = (rawTag) => {
         const selectedTag = String(rawTag || "").trim();
 
@@ -1305,20 +1217,15 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         };
     }, []);
 
-    const submitGallerySearch = (value = gallerySearchQuery) => {
+    const submitGallerySearch = (value) => {
         const normalizedValue = String(value || "").trim();
-        setGallerySearchQuery(normalizedValue);
         setSubmittedGallerySearchQuery(normalizedValue);
-        setGallerySuggestionOpen(false);
         setCurrentPage(1);
         localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
     };
 
     const clearGallerySearch = () => {
-        setGallerySearchQuery("");
         setSubmittedGallerySearchQuery("");
-        setGallerySuggestionOpen(false);
-        setGallerySuggestionIndex(0);
         setCurrentPage(1);
         localStorage.setItem(GALLERY_CURRENT_PAGE_STORAGE_KEY, "1");
     };
@@ -2961,89 +2868,10 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
             {!loading && !error && !showFavouritesNoResultsState ? (
                 <div className="mx-auto flex w-full max-w-[92rem] flex-col gap-3 lg:flex-row lg:items-end" aria-label="Search media">
-                    <label className="min-w-0 flex-1 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+                    <div className="min-w-0 flex-1 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
                         <span className="mb-2 block">Search media</span>
-                        <div className="relative">
-                            <FontAwesomeIcon
-                                icon={faMagnifyingGlass}
-                                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600"
-                                aria-hidden="true"
-                            />
-                            <input
-                                type="text"
-                                inputMode="search"
-                                enterKeyHint="search"
-                                className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-11 pr-11 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600 dark:focus:border-neutral-500"
-                                value={gallerySearchQuery}
-                                onChange={(event) => {
-                                    setGallerySearchQuery(event.target.value);
-                                    setGallerySuggestionOpen(true);
-                                    setGallerySuggestionIndex(0);
-                                }}
-                                onFocus={() => {
-                                    setGallerySuggestionOpen(true);
-                                    setGallerySuggestionIndex(0);
-                                }}
-                                onBlur={() => setGallerySuggestionOpen(false)}
-                                onKeyDown={(event) => {
-                                    if (event.key === "ArrowDown") {
-                                        event.preventDefault();
-                                        setGallerySuggestionIndex((prev) =>
-                                            Math.min(prev + 1, gallerySearchSuggestions.length - 1),
-                                        );
-                                    } else if (event.key === "ArrowUp") {
-                                        event.preventDefault();
-                                        setGallerySuggestionIndex((prev) => Math.max(prev - 1, 0));
-                                    } else if (
-                                        event.key === "Enter" &&
-                                        gallerySuggestionOpen &&
-                                        gallerySearchSuggestions.length > 0
-                                    ) {
-                                        event.preventDefault();
-                                        submitGallerySearch(gallerySearchSuggestions[gallerySuggestionIndex] || "");
-                                    } else if (event.key === "Escape") {
-                                        setGallerySuggestionOpen(false);
-                                    } else if (event.key === "Enter") {
-                                        submitGallerySearch();
-                                }}
-                }
-                                placeholder="Search by media, a:author or n:name"
-                                aria-label="Search media by name or author. Supports a:author and n:name."
-                            />
-
-                            {hasSearchInput || hasActiveSearch ? (
-                                <button
-                                    type="button"
-                                    className="absolute! right-2! top-1/2! flex! h-8! w-8! -translate-y-1/2! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-400! shadow-none! hover:bg-neutral-100! hover:text-neutral-700! dark:hover:bg-neutral-800! dark:hover:text-neutral-200!"
-                                    onMouseDown={(event) => event.preventDefault()}
-                                    onClick={clearGallerySearch}
-                                    aria-label="Clear search"
-                                    title="Clear search"
-                                >
-                                    <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
-                                </button>
-                            ) : null}
-
-                            {gallerySuggestionOpen && gallerySearchSuggestions.length > 0 ? (
-                                <ul className="absolute inset-x-0 top-[calc(100%+0.4rem)] z-30 grid gap-1 rounded-xl border border-neutral-300 bg-white p-1 shadow-xl dark:border-neutral-700 dark:bg-neutral-900" role="listbox">
-                                    {gallerySearchSuggestions.map((value, index) => (
-                                        <li key={value}>
-                                            <button
-                                                type="button"
-                                                className={`min-h-9! w-full! rounded-xl! border-0! bg-transparent! px-3! py-1.5! text-left! text-sm! font-medium! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:text-neutral-200! dark:hover:bg-neutral-800! ${index === gallerySuggestionIndex ? "bg-neutral-100! dark:bg-neutral-800!" : ""}`}
-                                                onMouseDown={(event) => event.preventDefault()}
-                                                onClick={() => {
-                                                    submitGallerySearch(value);
-                                                }}
-                                            >
-                                                {value}
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : null}
-                        </div>
-                    </label>
+                        <MediaFacetSearch value={submittedGallerySearchQuery} onChange={submitGallerySearch} mediaItems={mediaItems} displayNames={distinctDisplayNames} authors={distinctAuthors} />
+                    </div>
 
                     <div className="flex w-full min-w-0 items-center gap-1.5 lg:w-auto lg:flex-wrap lg:gap-2" aria-label="Media view mode">
                             <div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Filter by media type">

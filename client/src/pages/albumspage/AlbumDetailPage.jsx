@@ -13,7 +13,6 @@ import {
     faImage,
     faImages,
     faList,
-    faMagnifyingGlass,
     faPen,
     faPlay,
     faPlus,
@@ -28,11 +27,13 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
 import { GalleryListItem } from "../gallerypage/GalleryPage";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
+import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { AlbumAddMediaModal } from "./components/AlbumAddMediaModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
 import "./AlbumPage.css";
@@ -411,51 +412,6 @@ const formatDownloadSpeed = (bytesPerSecond) => {
     return `${value.toFixed(decimals)} ${units[unitIndex]}`;
 };
 
-const parseScopedMediaSearchQuery = (rawQuery) => {
-    const normalizedRaw = String(rawQuery || "")
-        .trim()
-        .toLowerCase();
-
-    if (!normalizedRaw) {
-        return {
-            authorTerms: [],
-            nameTerms: [],
-            freeTerms: [],
-        };
-    }
-
-    const tokens = normalizedRaw.split(/\s+/).filter(Boolean);
-    const authorTerms = [];
-    const nameTerms = [];
-    const freeTerms = [];
-
-    tokens.forEach((token) => {
-        if (token.startsWith("a:") || token.startsWith("author:")) {
-            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
-            if (value) {
-                authorTerms.push(value);
-            }
-            return;
-        }
-
-        if (token.startsWith("n:") || token.startsWith("name:")) {
-            const value = token.includes(":") ? token.slice(token.indexOf(":") + 1).trim() : "";
-            if (value) {
-                nameTerms.push(value);
-            }
-            return;
-        }
-
-        freeTerms.push(token);
-    });
-
-    return {
-        authorTerms,
-        nameTerms,
-        freeTerms,
-    };
-};
-
 export const AlbumDetailPage = () => {
     const { albumId } = useParams();
     const navigate = useNavigate();
@@ -649,11 +605,6 @@ export const AlbumDetailPage = () => {
     }, [albumMediaItems]);
 
     const activeAlbumMediaItems = useMemo(() => {
-        const scopedSearch = parseScopedMediaSearchQuery(albumMediaSearch);
-        const hasScopedSearch =
-            scopedSearch.authorTerms.length > 0 ||
-            scopedSearch.nameTerms.length > 0 ||
-            scopedSearch.freeTerms.length > 0;
         const normalizedFilter = activeAlbumTagFilter.trim().toLowerCase();
         const normalizedIncludedSidebarTags = selectedIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludedSidebarTags = selectedExcludeFilterTags.map((tag) => tag.toLowerCase());
@@ -693,28 +644,7 @@ export const AlbumDetailPage = () => {
                 return false;
             }
 
-            if (hasScopedSearch) {
-                const displayName = String(media.displayname || media.filename || "").toLowerCase();
-                const authorName = String(media.author || "").toLowerCase();
-                const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
-
-                const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
-                if (!matchesAuthorTerms) {
-                    return false;
-                }
-
-                const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
-                if (!matchesNameTerms) {
-                    return false;
-                }
-
-                const matchesFreeTerms = scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
-                if (!matchesFreeTerms) {
-                    return false;
-                }
-            }
-
-            return true;
+            return matchesMediaFacetFilters(media, albumMediaSearch);
         });
     }, [
         albumMediaItems,
@@ -730,7 +660,6 @@ export const AlbumDetailPage = () => {
         Boolean(activeAlbumTagFilter) ||
         selectedIncludeFilterTags.length > 0 ||
         selectedExcludeFilterTags.length > 0;
-    const hasActiveAlbumMediaSearch = albumMediaSearch.trim().length > 0;
 
     useEffect(() => {
         window.dispatchEvent(
@@ -1037,66 +966,12 @@ export const AlbumDetailPage = () => {
     }, [libraryMediaItems, albumMediaItems]);
 
     const filteredAvailableMediaItems = useMemo(() => {
-        const scopedSearch = parseScopedMediaSearchQuery(addMediaSearch);
         const normalizedIncludeTags = selectedAddMediaIncludeFilterTags.map((tag) => tag.toLowerCase());
         const normalizedExcludeTags = selectedAddMediaExcludeFilterTags.map((tag) => tag.toLowerCase());
 
-        if (
-            scopedSearch.authorTerms.length === 0 &&
-            scopedSearch.nameTerms.length === 0 &&
-            scopedSearch.freeTerms.length === 0
-        ) {
-            return availableMediaItems.filter((item) => {
-                const mediaTagNames = mapTagsFromMedia(item).map((tagName) => tagName.toLowerCase());
-
-                if (normalizedIncludeTags.length > 0) {
-                    const hasAllIncludedTags = normalizedIncludeTags.every((filterTag) =>
-                        mediaTagNames.includes(filterTag),
-                    );
-                    if (!hasAllIncludedTags) {
-                        return false;
-                    }
-                }
-
-                if (normalizedExcludeTags.length > 0) {
-                    const hasAnyExcludedTag = normalizedExcludeTags.some((filterTag) =>
-                        mediaTagNames.includes(filterTag),
-                    );
-                    if (hasAnyExcludedTag) {
-                        return false;
-                    }
-                }
-
-                return true;
-            });
-        }
-
         return availableMediaItems.filter((item) => {
             const mediaTagNames = mapTagsFromMedia(item).map((tagName) => tagName.toLowerCase());
-            const displayName = String(item.displayname || item.filename || "").toLowerCase();
-            const authorName = String(item.author || "").toLowerCase();
-            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
-
-            if (scopedSearch.authorTerms.length > 0) {
-                const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
-                if (!matchesAuthorTerms) {
-                    return false;
-                }
-            }
-
-            if (scopedSearch.nameTerms.length > 0) {
-                const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
-                if (!matchesNameTerms) {
-                    return false;
-                }
-            }
-
-            if (scopedSearch.freeTerms.length > 0) {
-                const matchesFreeTerms = scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
-                if (!matchesFreeTerms) {
-                    return false;
-                }
-            }
+            if (!matchesMediaFacetFilters(item, addMediaSearch)) return false;
 
             if (normalizedIncludeTags.length > 0) {
                 const hasAllIncludedTags = normalizedIncludeTags.every((filterTag) =>
@@ -1224,34 +1099,10 @@ export const AlbumDetailPage = () => {
     );
 
     const filteredCoverCandidates = useMemo(() => {
-        const scopedSearch = parseScopedMediaSearchQuery(coverSearch);
         const normalizedFilterTags = selectedEditFilterTags.map((tag) => tag.toLowerCase());
-        const hasScopedSearch =
-            scopedSearch.authorTerms.length > 0 ||
-            scopedSearch.nameTerms.length > 0 ||
-            scopedSearch.freeTerms.length > 0;
 
         return imageLibraryMediaItems.filter((item) => {
-            const displayName = String(item.displayname || item.filename || "").toLowerCase();
-            const authorName = String(item.author || "").toLowerCase();
-            const combinedSearchHaystack = `${displayName} ${authorName}`.trim();
-
-            if (hasScopedSearch) {
-                const matchesAuthorTerms = scopedSearch.authorTerms.every((term) => authorName.includes(term));
-                if (!matchesAuthorTerms) {
-                    return false;
-                }
-
-                const matchesNameTerms = scopedSearch.nameTerms.every((term) => displayName.includes(term));
-                if (!matchesNameTerms) {
-                    return false;
-                }
-
-                const matchesFreeTerms = scopedSearch.freeTerms.every((term) => combinedSearchHaystack.includes(term));
-                if (!matchesFreeTerms) {
-                    return false;
-                }
-            }
+            if (!matchesMediaFacetFilters(item, coverSearch)) return false;
 
             if (normalizedFilterTags.length > 0) {
                 const mediaTagNames = mapTagsFromMedia(item).map((tagName) => tagName.toLowerCase());
@@ -3402,15 +3253,7 @@ export const AlbumDetailPage = () => {
 
             <div className="tagged-album-detail-controls-v2" aria-label="Album media controls">
                 {albumMediaItems.length > 0 ? (
-                    <label className="relative min-w-0 flex-1" aria-label="Search album media">
-                        <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600" aria-hidden="true" />
-                        <input type="search" inputMode="search" enterKeyHint="search" className="h-12 w-full rounded-xl border border-neutral-300 bg-white pl-11 pr-11 text-sm text-neutral-950 outline-none placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600" value={albumMediaSearch} onChange={(event) => setAlbumMediaSearch(event.target.value)} placeholder="Search by media, a:author or n:name" aria-label="Search media by name or author. Supports a:author and n:name." />
-                        {hasActiveAlbumMediaSearch ? (
-                            <button type="button" className="absolute! right-1.5! top-1/2! grid! h-9! w-9! -translate-y-1/2! place-items-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-500! shadow-none! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!" onClick={() => setAlbumMediaSearch("")} aria-label="Clear search">
-                                <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
-                            </button>
-                        ) : null}
-                    </label>
+                    <div className="min-w-0 flex-1"><MediaFacetSearch value={albumMediaSearch} onChange={setAlbumMediaSearch} mediaItems={albumMediaItems} /></div>
                 ) : (
                     <div className="flex-1" aria-hidden="true" />
                 )}
