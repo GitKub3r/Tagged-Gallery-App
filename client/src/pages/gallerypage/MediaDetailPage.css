@@ -190,20 +190,53 @@
     animation: tagged-shuffle-card-three 820ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.tagged-media-detail-shuffle-badge {
-    position: relative;
-    z-index: 4;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 0.75rem;
-    background: rgba(10, 10, 10, 0.88);
-    color: #ffffff;
-    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.34);
-    animation: tagged-shuffle-badge 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+.tagged-media-detail-shuffle-particles {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    z-index: 5;
+    width: 0;
+    height: 0;
 }
+
+.tagged-media-detail-shuffle-particles i {
+    --particle-x: 0rem;
+    --particle-y: -6rem;
+    position: absolute;
+    left: -0.24rem;
+    top: -0.24rem;
+    width: 0.48rem;
+    height: 0.48rem;
+    border-radius: 9999px;
+    background: #ffffff;
+    box-shadow: 0 0 1rem rgba(255, 255, 255, 0.8);
+    opacity: 0;
+    animation: tagged-shuffle-particle-burst 760ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both;
+}
+
+.tagged-media-detail-shuffle-particles i:nth-child(2n) {
+    width: 0.3rem;
+    height: 0.3rem;
+    background: #a3a3a3;
+}
+
+.tagged-media-detail-shuffle-particles i:nth-child(3n) {
+    width: 0.65rem;
+    height: 0.18rem;
+    border-radius: 9999px;
+}
+
+.tagged-media-detail-shuffle-particles i:nth-child(1) { --particle-x: 0rem; --particle-y: -7rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(2) { --particle-x: 3.7rem; --particle-y: -5.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(3) { --particle-x: 6.8rem; --particle-y: -2.4rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(4) { --particle-x: 7.2rem; --particle-y: 1.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(5) { --particle-x: 4.2rem; --particle-y: 5.5rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(6) { --particle-x: 0.6rem; --particle-y: 7rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(7) { --particle-x: -3.5rem; --particle-y: 5.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(8) { --particle-x: -6.7rem; --particle-y: 3rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(9) { --particle-x: -7.2rem; --particle-y: -1.5rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(10) { --particle-x: -4.8rem; --particle-y: -5.2rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(11) { --particle-x: 2.2rem; --particle-y: -4.4rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(12) { --particle-x: 4.8rem; --particle-y: 3.2rem; }
 
 @keyframes tagged-shuffle-overlay {
     0%, 100% { opacity: 0; }
@@ -213,31 +246,34 @@
 @keyframes tagged-shuffle-card-one {
     0% { transform: translate3d(-7rem, 1rem, -4rem) rotate(-14deg) scale(0.72); opacity: 0; }
     42% { transform: translate3d(5.6rem, -1.7rem, 2rem) rotate(12deg) scale(1.04); opacity: 1; }
-    100% { transform: translate3d(-5.8rem, 0.4rem, 0) rotate(-8deg) scale(0.9); opacity: 0; }
+    70% { transform: translate3d(0, 0, 2rem) rotate(0) scale(0.72); opacity: 1; }
+    100% { transform: translate3d(0, 0, -2rem) rotate(0) scale(0.35); opacity: 0; }
 }
 
 @keyframes tagged-shuffle-card-two {
     0% { transform: translate3d(0, -3rem, -2rem) rotate(5deg) scale(0.75); opacity: 0; }
     44% { transform: translate3d(-5.4rem, 1.6rem, 1rem) rotate(-11deg) scale(1); opacity: 1; }
-    100% { transform: translate3d(0, -0.8rem, 1rem) rotate(3deg) scale(0.94); opacity: 0; }
+    70% { transform: translate3d(0, 0, 3rem) rotate(0) scale(0.76); opacity: 1; }
+    100% { transform: translate3d(0, 0, -1rem) rotate(0) scale(0.35); opacity: 0; }
 }
 
 @keyframes tagged-shuffle-card-three {
     0% { transform: translate3d(7rem, 1rem, -4rem) rotate(14deg) scale(0.72); opacity: 0; }
     46% { transform: translate3d(0, -2rem, 3rem) rotate(-3deg) scale(1.08); opacity: 1; }
-    100% { transform: translate3d(5.8rem, 0.4rem, 0) rotate(8deg) scale(0.9); opacity: 0; }
+    70% { transform: translate3d(0, 0, 4rem) rotate(0) scale(0.8); opacity: 1; }
+    100% { transform: translate3d(0, 0, 0) rotate(0) scale(0.35); opacity: 0; }
 }
 
-@keyframes tagged-shuffle-badge {
-    0%, 38% { transform: scale(0.72); opacity: 0; }
-    52%, 78% { transform: scale(1); opacity: 1; }
-    100% { transform: scale(0.92); opacity: 0; }
+@keyframes tagged-shuffle-particle-burst {
+    0%, 18% { transform: translate(0, 0) scale(0); opacity: 0; }
+    28% { transform: translate(0, 0) scale(1.35); opacity: 1; }
+    100% { transform: translate(var(--particle-x), var(--particle-y)) scale(0); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .tagged-media-detail-shuffle-overlay,
     .tagged-media-detail-shuffle-card,
-    .tagged-media-detail-shuffle-badge {
+    .tagged-media-detail-shuffle-particles i {
         animation: none;
     }
 }

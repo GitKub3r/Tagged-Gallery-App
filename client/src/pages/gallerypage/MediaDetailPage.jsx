@@ -2083,9 +2083,8 @@ export const MediaDetailPage = () => {
                                 </span>
                             );
                         })}
-                        <span className="tagged-media-detail-shuffle-badge">
-                            <FontAwesomeIcon icon={faShuffle} />
-                            <strong>Shuffled</strong>
+                        <span className="tagged-media-detail-shuffle-particles">
+                            {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
                         </span>
                     </div>
                 </div>
