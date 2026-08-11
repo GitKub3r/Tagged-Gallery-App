@@ -21,6 +21,24 @@ const ensureAdmin = (req, res) => {
 };
 
 class UserController {
+    static async updateMediaSearchPreference(req, res) {
+        try {
+            const result = await UserService.updateMediaSearchPreference(req.user.id, req.body?.matchMode);
+            const statusCode = result.success ? 200 : 400;
+            await AuditService.logEvent({
+                actionCode: "PROFILE_UPDATE",
+                req,
+                statusCode,
+                message: result.success ? "Media search preference updated successfully" : "Media search preference update failed",
+                metadata: { changedFields: ["media_name_match_mode"] },
+            });
+            return res.status(statusCode).json(result);
+        } catch (error) {
+            console.error("Error in UserController.updateMediaSearchPreference:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
     static async resetAvatar(req, res) {
         try {
             const result = await UserService.resetAvatar(req.user.id);

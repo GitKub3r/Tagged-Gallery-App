@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useRef } from "react";
 import { authApi } from "../api/authApi";
+import { storeMediaNameMatchMode } from "../utils/mediaFacetFilters";
 
 const defaultContextValue = {
     user: null,
@@ -42,6 +43,7 @@ export const AuthProvider = ({ children }) => {
             setAccessToken(storedAccessToken);
             setRefreshToken(storedRefreshToken);
             setUser(JSON.parse(storedUser));
+            storeMediaNameMatchMode(JSON.parse(storedUser)?.media_name_match_mode);
         }
 
         setLoading(false);
@@ -101,6 +103,7 @@ export const AuthProvider = ({ children }) => {
             accessTokenRef.current = newAccessToken;
             refreshTokenRef.current = newRefreshToken;
             setUser(userData);
+            storeMediaNameMatchMode(userData?.media_name_match_mode);
             setAccessToken(newAccessToken);
             setRefreshToken(newRefreshToken);
 
@@ -187,6 +190,7 @@ export const AuthProvider = ({ children }) => {
 
     const updateCurrentUser = (nextUser) => {
         setUser(nextUser);
+        storeMediaNameMatchMode(nextUser?.media_name_match_mode);
         localStorage.setItem("user", JSON.stringify(nextUser));
     };
 

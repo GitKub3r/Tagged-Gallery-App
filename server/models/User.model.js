@@ -5,7 +5,7 @@ class UserModel {
      * Obtener todos los usuarios
      */
     static async findAll() {
-        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, session_version, created_at FROM users");
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, media_name_match_mode, session_version, created_at FROM users");
         return rows;
     }
 
@@ -13,12 +13,12 @@ class UserModel {
      * Buscar usuario por ID
      */
     static async findById(id) {
-        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, session_version, created_at FROM users WHERE id = ?", [id]);
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, media_name_match_mode, session_version, created_at FROM users WHERE id = ?", [id]);
         return rows[0];
     }
 
     static async findByIdWithPassword(id) {
-        const [rows] = await pool.query("SELECT id, username, email, password, type, avatar_path, session_version, created_at FROM users WHERE id = ?", [id]);
+        const [rows] = await pool.query("SELECT id, username, email, password, type, avatar_path, media_name_match_mode, session_version, created_at FROM users WHERE id = ?", [id]);
         return rows[0];
     }
 
@@ -86,6 +86,10 @@ class UserModel {
             fields.push("avatar_path = ?");
             values.push(userData.avatar_path);
         }
+        if (userData.media_name_match_mode !== undefined) {
+            fields.push("media_name_match_mode = ?");
+            values.push(userData.media_name_match_mode);
+        }
 
         if (fields.length === 0) {
             return null;
@@ -133,6 +137,13 @@ class UserModel {
         const [columns] = await pool.query("SHOW COLUMNS FROM users LIKE 'session_version'");
         if (columns.length === 0) {
             await pool.query("ALTER TABLE users ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER avatar_path");
+        }
+    }
+
+    static async ensureMediaNameMatchModeColumn() {
+        const [columns] = await pool.query("SHOW COLUMNS FROM users LIKE 'media_name_match_mode'");
+        if (columns.length === 0) {
+            await pool.query("ALTER TABLE users ADD COLUMN media_name_match_mode VARCHAR(10) NOT NULL DEFAULT 'normal' AFTER avatar_path");
         }
     }
 

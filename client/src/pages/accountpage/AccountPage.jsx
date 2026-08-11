@@ -11,6 +11,7 @@ import {
   faImages,
   faListCheck,
   faMoon,
+  faMagnifyingGlass,
   faMinus,
   faPlus,
   faRightFromBracket,
@@ -139,6 +140,7 @@ export const AccountPage = () => {
   const [isDark, setIsDark] = useState(
     () => document.documentElement.getAttribute("data-theme") !== "light",
   );
+  const mediaNameMatchMode = user?.media_name_match_mode === "strict" ? "strict" : "normal";
 
   const account = useMemo(() => {
     const username = String(user?.username || "").trim() || "Unnamed user";
@@ -185,6 +187,14 @@ export const AccountPage = () => {
       });
       setChangingPassword(false);
       toast.success("Password updated.");
+    },
+  });
+
+  const mediaSearchPreferenceMutation = useMutation({
+    mutationFn: (matchMode) => accountApi.updateMediaSearchPreference(matchMode, accessToken),
+    onSuccess: ({ data }) => {
+      updateCurrentUser(data);
+      toast.success("Media search preference updated.");
     },
   });
 
@@ -533,6 +543,31 @@ export const AccountPage = () => {
                 <FontAwesomeIcon icon={isDark ? faSun : faMoon} />
                 <span>{isDark ? "Use light mode" : "Use dark mode"}</span>
               </button>
+            </div>
+            <div className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <FontAwesomeIcon icon={faMagnifyingGlass} className="mt-1 text-neutral-400" aria-hidden="true" />
+                <div>
+                  <h3 className="text-sm font-bold">Media name matching</h3>
+                  <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                    Normal includes partial names. Strict only returns exact names.
+                  </p>
+                </div>
+              </div>
+              <div className="grid shrink-0 grid-cols-2 rounded-xl border border-neutral-300 bg-neutral-100 p-1 dark:border-neutral-700 dark:bg-neutral-900" aria-label="Media name matching mode">
+                {["normal", "strict"].map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    className={`h-9! w-auto! rounded-xl! border-0! px-3! py-0! text-xs! font-bold! capitalize! shadow-none! ${mediaNameMatchMode === mode ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-200! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                    onClick={() => mediaSearchPreferenceMutation.mutate(mode)}
+                    disabled={mediaSearchPreferenceMutation.isPending || mediaNameMatchMode === mode}
+                    aria-pressed={mediaNameMatchMode === mode}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="py-4">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

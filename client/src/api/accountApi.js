@@ -20,6 +20,14 @@ export const accountApi = {
             throw new Error(message(error, "Unable to change password"));
         }
     },
+    async updateMediaSearchPreference(matchMode, accessToken) {
+        try {
+            const { data } = await apiClient.put("/users/me/preferences/media-search", { matchMode }, authConfig(accessToken));
+            return data;
+        } catch (error) {
+            throw new Error(message(error, "Unable to update media search preference"));
+        }
+    },
     async updateAvatar(file, accessToken) {
         try {
             const formData = new FormData();

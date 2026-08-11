@@ -269,6 +269,7 @@ class MediaService {
                 excludeTags: toArray(filters.excludeTag),
                 authorTerms,
                 nameTerms,
+                nameMatchMode: filters.nameMatchMode === "strict" ? "strict" : "normal",
                 freeTerms,
                 randomSeed: filters.randomSeed,
             });

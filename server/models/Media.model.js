@@ -84,6 +84,7 @@ class MediaModel {
         excludeTags = [],
         authorTerms = [],
         nameTerms = [],
+        nameMatchMode = "normal",
         freeTerms = [],
         randomSeed = null,
     } = {}) {
@@ -122,8 +123,12 @@ class MediaModel {
             values.push(...authorTerms.map((term) => String(term).toLowerCase()));
         }
         if (nameTerms.length > 0) {
-            conditions.push(`(${nameTerms.map(() => "LOWER(COALESCE(m.displayname, '')) = ?").join(" OR ")})`);
-            values.push(...nameTerms.map((term) => String(term).toLowerCase()));
+            const isStrictNameMatch = nameMatchMode === "strict";
+            conditions.push(`(${nameTerms.map(() => `LOWER(COALESCE(m.displayname, '')) ${isStrictNameMatch ? "=" : "LIKE"} ?`).join(" OR ")})`);
+            values.push(...nameTerms.map((term) => {
+                const normalized = String(term).toLowerCase();
+                return isStrictNameMatch ? normalized : `%${normalized}%`;
+            }));
         }
         freeTerms.forEach((term) => {
             conditions.push("LOWER(CONCAT(COALESCE(m.displayname, ''), ' ', COALESCE(m.author, ''))) LIKE ?");

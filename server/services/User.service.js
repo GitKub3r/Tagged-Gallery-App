@@ -25,6 +25,18 @@ class UserService {
         return this.updateUser(id, validation.data);
     }
 
+    static async updateMediaSearchPreference(id, matchMode) {
+        const normalizedMode = matchMode === "strict" ? "strict" : matchMode === "normal" ? "normal" : null;
+        if (!normalizedMode) return { success: false, message: "Search match mode must be normal or strict" };
+
+        await UserModel.update(id, { media_name_match_mode: normalizedMode });
+        return {
+            success: true,
+            data: await UserModel.findById(id),
+            message: "Media search preference updated",
+        };
+    }
+
     static async changeOwnPassword(id, currentPassword, newPassword) {
         if (!currentPassword || !newPassword) {
             return { success: false, message: "Current and new password are required" };

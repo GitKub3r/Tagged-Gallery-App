@@ -16,6 +16,7 @@ router.post("/", UserController.create);
 router.get("/", authenticate, UserController.getAll);
 
 router.put("/me", authenticate, UserController.updateMe);
+router.put("/me/preferences/media-search", authenticate, UserController.updateMediaSearchPreference);
 router.put("/me/password", authenticate, UserController.changeOwnPassword);
 router.put("/me/avatar", authenticate, avatarUpload.single("avatar"), UserController.updateAvatar);
 router.delete("/me/avatar", authenticate, UserController.resetAvatar);
