@@ -26,6 +26,9 @@ const EDIT_MODAL_CLOSE_ON_SAVE_STORAGE_KEY = "tagged.mediaDetail.closeEditModalO
 const MEDIA_DETAIL_AUTOPLAY_STORAGE_KEY = "tagged.mediaDetail.autoplay";
 const MEDIA_DETAIL_LOOP_STORAGE_KEY = "tagged.mediaDetail.loop";
 const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
+const MEDIA_DETAIL_PRELOAD_DISTANCE = 2;
+const MEDIA_DETAIL_PRELOAD_CACHE_LIMIT = 12;
+const mediaDetailPreloadCache = new Map();
 const DETAIL_OVERLAY_ACTION_CLASSES =
     "pointer-events-auto! flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! bg-neutral-950! p-0! text-white! shadow-lg! transition-[transform,background-color]! duration-180! ease-out! hover:scale-[1.08]! hover:bg-neutral-800! hover:text-white! active:scale-[0.96]! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-white! disabled:scale-100! disabled:opacity-40!";
 const MOBILE_DETAIL_ACTION_CLASSES =
@@ -250,6 +253,54 @@ const getThumbnailUrl = (media) => {
     return `${UPLOADS_BASE_URL}${thumbnailPath}`;
 };
 
+const rememberPreloadedMedia = (key, resource) => {
+    if (mediaDetailPreloadCache.has(key)) return;
+    mediaDetailPreloadCache.set(key, resource);
+
+    while (mediaDetailPreloadCache.size > MEDIA_DETAIL_PRELOAD_CACHE_LIMIT) {
+        const [oldestKey, oldestResource] = mediaDetailPreloadCache.entries().next().value;
+        if (oldestResource instanceof HTMLVideoElement) {
+            oldestResource.removeAttribute("src");
+            oldestResource.load();
+        }
+        mediaDetailPreloadCache.delete(oldestKey);
+    }
+};
+
+const preloadMediaForNavigation = (media, distance) => {
+    const mediaUrl = getMediaUrl(media);
+    const thumbnailUrl = getThumbnailUrl(media);
+    const isVideo = String(media?.mediatype || "").toLowerCase().includes("video");
+    const previewUrl = isVideo ? mediaUrl : thumbnailUrl || mediaUrl;
+
+    if (!previewUrl || mediaDetailPreloadCache.has(previewUrl)) return;
+
+    if (isVideo) {
+        if (thumbnailUrl && !mediaDetailPreloadCache.has(thumbnailUrl)) {
+            const poster = new Image();
+            poster.decoding = "async";
+            poster.fetchPriority = "low";
+            poster.src = thumbnailUrl;
+            rememberPreloadedMedia(thumbnailUrl, poster);
+        }
+
+        const video = document.createElement("video");
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = distance === 1 ? "auto" : "metadata";
+        video.src = mediaUrl;
+        video.load();
+        rememberPreloadedMedia(previewUrl, video);
+        return;
+    }
+
+    const image = new Image();
+    image.decoding = "async";
+    image.fetchPriority = "low";
+    image.src = previewUrl;
+    rememberPreloadedMedia(previewUrl, image);
+};
+
 const isHeicMedia = (media) => {
     const fileReference = String(media?.filepath || media?.filename || "");
     return /\.hei[cf](?:$|[?#])/i.test(fileReference);
@@ -421,6 +472,7 @@ export const MediaDetailPage = () => {
         return storedValue === "true";
     });
     const [isOriginalLoaded, setIsOriginalLoaded] = useState(false);
+    const [isCurrentMediaReady, setIsCurrentMediaReady] = useState(false);
     const [expandedDesktopDefaultTags, setExpandedDesktopDefaultTags] = useState(false);
     const [expandedDesktopCopyrightTags, setExpandedDesktopCopyrightTags] = useState(false);
 
@@ -688,6 +740,7 @@ export const MediaDetailPage = () => {
             return;
         }
         computeAndSetFit();
+        setIsCurrentMediaReady(true);
     };
 
     const handleVideoMetadata = (event) => {
@@ -832,7 +885,29 @@ export const MediaDetailPage = () => {
 
     useEffect(() => {
         setIsOriginalLoaded(false);
+        setIsCurrentMediaReady(false);
     }, [mediaId]);
+
+    useEffect(() => {
+        if (!isCurrentMediaReady || currentIndex < 0 || filteredMediaItems.length < 2) return;
+
+        const preloadNeighbors = () => {
+            for (let distance = 1; distance <= MEDIA_DETAIL_PRELOAD_DISTANCE; distance += 1) {
+                [currentIndex + distance, currentIndex - distance].forEach((index) => {
+                    const media = filteredMediaItems[index];
+                    if (media) preloadMediaForNavigation(media, distance);
+                });
+            }
+        };
+
+        if (typeof window.requestIdleCallback === "function") {
+            const idleId = window.requestIdleCallback(preloadNeighbors, { timeout: 1200 });
+            return () => window.cancelIdleCallback(idleId);
+        }
+
+        const timeoutId = window.setTimeout(preloadNeighbors, 250);
+        return () => window.clearTimeout(timeoutId);
+    }, [currentIndex, filteredMediaItems, isCurrentMediaReady]);
 
     useEffect(() => {
         if (!viewerUrl || viewerIsVideo) {
@@ -1953,9 +2028,10 @@ export const MediaDetailPage = () => {
                                         controls={false}
                                         muted
                                         playsInline
-                                        preload="metadata"
+                                        preload="auto"
                                         poster={thumbnailUrl || undefined}
                                         onLoadedMetadata={handleVideoMetadata}
+                                        onCanPlay={() => setIsCurrentMediaReady(true)}
                                         onPlay={() => setIsDetailVideoPlaying(true)}
                                         onPause={() => setIsDetailVideoPlaying(false)}
                                         onEnded={() => setIsDetailVideoPlaying(false)}
@@ -1971,6 +2047,8 @@ export const MediaDetailPage = () => {
                                         src={viewerUrl}
                                         alt={currentMedia.displayname || currentMedia.filename || "Media"}
                                         onLoad={handleImageLoad}
+                                        fetchPriority="high"
+                                        decoding="async"
                                         style={{ objectFit: "contain" }}
                                     />
                                 )
