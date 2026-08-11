@@ -62,6 +62,7 @@ const startServer = async () => {
         await UserModel.ensureAvatarColumn();
         await UserModel.ensureMediaNameMatchModeColumn();
         await UserModel.ensureSessionVersionColumn();
+        await UserModel.ensureDevRole();
         await AlbumModel.ensureCoverAdjustmentColumns();
 
         // Si la conexión fue exitosa, iniciar el servidor

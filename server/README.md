@@ -165,7 +165,7 @@ CREATE TABLE users (
   username    VARCHAR(50)  NOT NULL UNIQUE,
   email       VARCHAR(255) NOT NULL UNIQUE,
   password    VARCHAR(255) NOT NULL,
-  type        ENUM('basic','admin') NOT NULL DEFAULT 'basic',
+  type        ENUM('basic','admin','dev') NOT NULL DEFAULT 'basic',
   created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

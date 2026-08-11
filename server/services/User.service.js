@@ -129,6 +129,10 @@ class UserService {
     static async createUser(userData) {
         try {
             const { username, email, password, type } = userData;
+            const normalizedType = type || "basic";
+            if (!["basic", "admin", "dev"].includes(normalizedType)) {
+                return { success: false, message: "Invalid user role" };
+            }
 
             // Validaciones
             if (!username || !email || !password) {
@@ -190,7 +194,7 @@ class UserService {
                 username,
                 email,
                 password: hashedPassword,
-                type: type || "basic",
+                type: normalizedType,
             });
 
             return {
@@ -209,6 +213,9 @@ class UserService {
      */
     static async updateUser(id, userData) {
         try {
+            if (userData.type !== undefined && !["basic", "admin", "dev"].includes(userData.type)) {
+                return { success: false, message: "Invalid user role" };
+            }
             // Verificar que el usuario existe
             const existingUser = await UserModel.findById(id);
             if (!existingUser) {

@@ -1,6 +1,14 @@
 const { pool } = require("../config/database");
 
 class UserModel {
+    static async ensureDevRole() {
+        const [rows] = await pool.query("SHOW COLUMNS FROM users LIKE 'type'");
+        const typeDefinition = String(rows[0]?.Type || "").toLowerCase();
+        if (!typeDefinition.includes("'dev'")) {
+            await pool.query("ALTER TABLE users MODIFY COLUMN type ENUM('admin', 'basic', 'dev') NOT NULL DEFAULT 'basic'");
+        }
+    }
+
     /**
      * Obtener todos los usuarios
      */
