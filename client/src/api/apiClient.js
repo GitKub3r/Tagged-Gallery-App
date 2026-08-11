@@ -13,10 +13,8 @@ export const apiClient = axios.create({
 let refreshPromise = null;
 
 apiClient.interceptors.request.use((config) => {
-    if (config.headers?.Authorization) {
-        const latestAccessToken = localStorage.getItem("accessToken");
-        if (latestAccessToken) config.headers.Authorization = `Bearer ${latestAccessToken}`;
-    }
+    const latestAccessToken = localStorage.getItem("accessToken");
+    if (!config._skipAuth && latestAccessToken) config.headers.Authorization = `Bearer ${latestAccessToken}`;
     return config;
 });
 

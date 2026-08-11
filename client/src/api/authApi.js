@@ -6,7 +6,7 @@ const getErrorMessage = (error, fallback) =>
 export const authApi = {
     async login(credentials) {
         try {
-            const { data } = await apiClient.post("/users/login", credentials);
+            const { data } = await apiClient.post("/users/login", credentials, { _skipAuth: true });
             return data;
         } catch (error) {
             throw new Error(getErrorMessage(error, "Unable to sign in"));
@@ -15,7 +15,7 @@ export const authApi = {
 
     async register(user) {
         try {
-            const { data } = await apiClient.post("/users", { ...user, type: "basic" });
+            const { data } = await apiClient.post("/users", { ...user, type: "basic" }, { _skipAuth: true });
             return data;
         } catch (error) {
             throw new Error(getErrorMessage(error, "Unable to register user"));
@@ -23,7 +23,7 @@ export const authApi = {
     },
 
     async refresh(refreshToken, { skipErrorToast = false } = {}) {
-        const { data } = await apiClient.post("/auth/refresh", { refreshToken }, { _skipErrorToast: skipErrorToast });
+        const { data } = await apiClient.post("/auth/refresh", { refreshToken }, { _skipAuth: true, _skipErrorToast: skipErrorToast });
         return data;
     },
 
