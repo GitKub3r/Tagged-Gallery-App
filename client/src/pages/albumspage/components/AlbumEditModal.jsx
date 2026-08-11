@@ -26,6 +26,7 @@ export const AlbumEditModal = ({
     visibleEditTagFilterCandidates,
     onToggleEditFilterTag,
     error,
+    isLoadingMedia = false,
     modalContentClassName = "",
 }) => {
     const isIncludeMode = editTagFilterMode !== "exclude";
@@ -86,6 +87,7 @@ export const AlbumEditModal = ({
             onTagFilterSearchChange={onEditTagFilterSearchChange}
             visibleTagFilterCandidates={visibleEditTagFilterCandidates}
             error={error}
+            isLoadingMedia={isLoadingMedia}
             modalContentClassName={modalContentClassName}
         />
     );

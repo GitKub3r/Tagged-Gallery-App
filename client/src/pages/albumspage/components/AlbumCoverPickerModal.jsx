@@ -19,6 +19,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../../components/icon-button/IconButton";
 import { MediaCard } from "../../../components/media-card/MediaCard";
 import { MediaFacetSearch } from "../../../components/media-facet-search/MediaFacetSearch";
+import { CollectionLoadingSkeleton } from "../../../components/loading-skeletons/CollectionLoadingSkeleton";
 
 const LAPTOP_MEDIA_PAGE_SIZE = 8;
 const DESKTOP_MEDIA_PAGE_SIZE = 10;
@@ -83,6 +84,7 @@ export const AlbumCoverPickerModal = ({
     onTagFilterSearchChange,
     visibleTagFilterCandidates,
     error,
+    isLoadingMedia = false,
     modalContentClassName = "",
 }) => {
     const [currentPage, setCurrentPage] = useState(1);
@@ -295,7 +297,9 @@ export const AlbumCoverPickerModal = ({
                             </div>
 
                             <div className="min-h-0 flex-1">
-                                {mediaItems.length === 0 ? (
+                                {isLoadingMedia ? (
+                                    <CollectionLoadingSkeleton itemType="media" viewMode={mediaViewMode} gridColumns={isCompactViewport ? 2 : 4} ariaLabel="Loading cover media" />
+                                ) : mediaItems.length === 0 ? (
                                     <div className="flex h-full min-h-44 flex-col items-center justify-center gap-3 text-center text-neutral-500 dark:text-neutral-400">
                                         <FontAwesomeIcon icon={faImage} className="text-4xl" aria-hidden="true" />
                                         <p className="max-w-sm text-sm font-semibold">Upload an image before creating an album.</p>

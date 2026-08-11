@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
-import { faCalendarDays, faCheck, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faTableCellsLarge, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCalendarDays, faCheck, faChevronLeft, faChevronRight, faFolderOpen, faFolderPlus, faList, faMagnifyingGlass, faTableCellsLarge, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
@@ -20,6 +20,7 @@ const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
 const ALBUM_POINTER_MOVE_THRESHOLD_PX = 12;
 const ALBUM_VIEW_STORAGE_KEY = "tagged:album-view-mode";
 const ALBUM_SEARCH_STORAGE_KEY = "tagged:album-search-query";
+const DEFAULT_ALBUM_PAGE_SIZE = 10;
 
 const parseApiResponse = async (response, fallbackMessage) => {
     const clonedResponse = response.clone();
@@ -199,7 +200,10 @@ export const AlbumPage = () => {
     const [albums, setAlbums] = useState([]);
     const [mediaItems, setMediaItems] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isLoadingMedia, setIsLoadingMedia] = useState(false);
     const [error, setError] = useState(null);
+    const [albumPage, setAlbumPage] = useState(1);
+    const [albumPageSize, setAlbumPageSize] = useState(DEFAULT_ALBUM_PAGE_SIZE);
 
     const [albumSearch, setAlbumSearch] = useState(() => {
         if (typeof window === "undefined") {
@@ -353,6 +357,16 @@ export const AlbumPage = () => {
         });
     }, [albums, albumSearch]);
 
+    const totalAlbumPages = Math.max(1, Math.ceil(visibleAlbums.length / albumPageSize));
+    const safeAlbumPage = Math.min(albumPage, totalAlbumPages);
+    const paginatedAlbums = useMemo(() => {
+        const start = (safeAlbumPage - 1) * albumPageSize;
+        return visibleAlbums.slice(start, start + albumPageSize);
+    }, [albumPageSize, safeAlbumPage, visibleAlbums]);
+
+    useEffect(() => { setAlbumPage(1); }, [albumSearch, albumPageSize]);
+    useEffect(() => { if (albumPage > totalAlbumPages) setAlbumPage(totalAlbumPages); }, [albumPage, totalAlbumPages]);
+
     const fetchAlbums = async () => {
         const response = await fetchWithAuth(`${API_URL}/albums`, { method: "GET" });
         const data = await parseApiResponse(response, "Could not load albums");
@@ -441,14 +455,16 @@ export const AlbumPage = () => {
                 setLoading(true);
                 setError(null);
 
-                const [nextAlbums, nextMedia] = await Promise.all([fetchAlbums(), fetchMedia()]);
+                const nextAlbums = await fetchAlbums();
 
                 if (cancelled) {
                     return;
                 }
 
                 setAlbums(nextAlbums);
-                setMediaItems(nextMedia);
+                setLoading(false);
+                setIsLoadingMedia(true);
+                fetchMedia().then((nextMedia) => { if (!cancelled) setMediaItems(nextMedia); }).catch((mediaError) => { if (!cancelled) setCreateError(mediaError.message || "Could not load cover media"); }).finally(() => { if (!cancelled) setIsLoadingMedia(false); });
             } catch (requestError) {
                 if (!cancelled) {
                     setError(requestError.message || "Could not load albums");
@@ -1133,7 +1149,7 @@ export const AlbumPage = () => {
                                 </button>
                             ) : null}
                         </div>
-                    } controls={<div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
+                    } controls={<><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
                             <button
                                 type="button"
                                 className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-0 px-3 text-sm font-bold shadow-none lg:h-10 lg:flex-none ${albumViewMode === "card" ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
@@ -1157,7 +1173,8 @@ export const AlbumPage = () => {
                                 <FontAwesomeIcon icon={faList} aria-hidden="true" />
                                 <span className="hidden sm:inline">List</span>
                             </button>
-                        </div>} />
+                        </div>
+                        {visibleAlbums.length > 10 ? <label className="flex h-11 shrink-0 items-center gap-2 rounded-xl border border-neutral-300 bg-white px-3 text-sm font-semibold text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 lg:h-12"><span className="hidden sm:inline">Per page</span><select className="bg-transparent font-bold text-neutral-950 outline-none dark:text-neutral-100" value={albumPageSize} onChange={(event) => setAlbumPageSize(Number(event.target.value))}>{[10, 20, 40].map((size) => <option key={size} value={size}>{size}</option>)}</select></label> : null}</>} />
             ) : null}
 
             {loading ? (
@@ -1182,8 +1199,8 @@ export const AlbumPage = () => {
                     <EmptyState
                         title="No albums yet"
                         icon={faFolderOpen}
-                        actionLabel={mediaItems.length === 0 ? "Go to gallery" : "Create album"}
-                        onAction={mediaItems.length === 0 ? () => navigate("/gallery") : handleOpenCreateModal}
+                        actionLabel="Create album"
+                        onAction={handleOpenCreateModal}
                     />
                 ) : albumViewMode === "list" ? (
                     <div className="mx-auto grid w-full max-w-[91.5rem] gap-1" aria-label="Albums list">
@@ -1197,7 +1214,7 @@ export const AlbumPage = () => {
                             <span className="font-bold">Add new album</span>
                         </button>
 
-                        {visibleAlbums.map((album) => {
+                        {paginatedAlbums.map((album) => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
                             const albumDisplayName = album.displayname || album.albumname || "Untitled album";
@@ -1264,7 +1281,7 @@ export const AlbumPage = () => {
                             <span className="text-sm font-bold">Add new album</span>
                         </button>
 
-                        {visibleAlbums.map((album) => {
+                        {paginatedAlbums.map((album) => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
                             const albumDisplayName = album.displayname || album.albumname || "Untitled album";
@@ -1330,6 +1347,8 @@ export const AlbumPage = () => {
                     </div>
                 )
             ) : null}
+
+            {!loading && !error && visibleAlbums.length > albumPageSize ? <nav className="mx-auto flex w-full max-w-[91.5rem] items-center justify-end gap-2 pt-2" aria-label="Album pagination"><button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-neutral-300 bg-white text-neutral-600 disabled:opacity-30 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300" onClick={() => setAlbumPage((page) => Math.max(1, page - 1))} disabled={safeAlbumPage <= 1} aria-label="Previous album page"><FontAwesomeIcon icon={faChevronLeft} /></button><span className="min-w-16 text-center text-sm font-bold tabular-nums text-neutral-600 dark:text-neutral-300">{safeAlbumPage} / {totalAlbumPages}</span><button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-neutral-300 bg-white text-neutral-600 disabled:opacity-30 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300" onClick={() => setAlbumPage((page) => Math.min(totalAlbumPages, page + 1))} disabled={safeAlbumPage >= totalAlbumPages} aria-label="Next album page"><FontAwesomeIcon icon={faChevronRight} /></button></nav> : null}
 
             {isAlbumSelectionMode ? (
                 <aside className="tagged-album-selection-toolbar" aria-label="Album selection actions toolbar">
@@ -1434,6 +1453,7 @@ export const AlbumPage = () => {
                 onTagFilterSearchChange={setCreateTagFilterSearch}
                 visibleTagFilterCandidates={createTagFilterCandidates}
                 error={createError}
+                isLoadingMedia={isLoadingMedia}
             />
 
             <AlbumEditModal
@@ -1464,6 +1484,7 @@ export const AlbumPage = () => {
                 visibleEditTagFilterCandidates={visibleEditTagFilterCandidates}
                 onToggleEditFilterTag={toggleEditFilterTag}
                 error={editError}
+                isLoadingMedia={isLoadingMedia}
             />
         </section>
     );

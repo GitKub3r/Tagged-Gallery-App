@@ -26,6 +26,7 @@ export const AlbumCreateModal = ({
     onTagFilterSearchChange,
     visibleTagFilterCandidates,
     error,
+    isLoadingMedia = false,
 }) => {
     return (
         <AlbumCoverPickerModal
@@ -55,6 +56,7 @@ export const AlbumCreateModal = ({
             onTagFilterSearchChange={onTagFilterSearchChange}
             visibleTagFilterCandidates={visibleTagFilterCandidates}
             error={error}
+            isLoadingMedia={isLoadingMedia}
         />
     );
 };
