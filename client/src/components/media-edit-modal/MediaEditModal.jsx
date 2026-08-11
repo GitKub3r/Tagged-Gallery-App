@@ -231,7 +231,8 @@ export const MediaEditModal = ({
                 const thumbPath = String(media?.thumbpath || "").trim();
                 const filePath = String(media?.filepath || "").trim();
                 const mediaIsVideo = isVideoLike(media);
-                const previewPath = mediaIsVideo ? filePath || thumbPath : thumbPath || filePath;
+                const mediaIsHeic = /\.hei[cf](?:$|[?#])/i.test(filePath);
+                const previewPath = mediaIsHeic ? thumbPath || filePath : filePath || thumbPath;
                 if (!previewPath) {
                     return null;
                 }
@@ -661,7 +662,7 @@ export const MediaEditModal = ({
                 preload="metadata"
             />
         ) : (
-            <img className={mediaClassName} src={activePreviewItem.url} alt={activePreviewItem.label} />
+            <img className={mediaClassName} src={activePreviewItem.url} alt={activePreviewItem.label} loading="eager" decoding="async" />
         );
     };
 

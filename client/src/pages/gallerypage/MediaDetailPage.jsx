@@ -276,7 +276,7 @@ const preloadMediaForNavigation = (media, distance) => {
     const mediaUrl = getMediaUrl(media);
     const thumbnailUrl = getThumbnailUrl(media);
     const isVideo = String(media?.mediatype || "").toLowerCase().includes("video");
-    const previewUrl = isVideo ? mediaUrl : thumbnailUrl || mediaUrl;
+    const previewUrl = mediaUrl;
 
     if (!previewUrl || mediaDetailPreloadCache.has(previewUrl)) return;
 
@@ -298,6 +298,8 @@ const preloadMediaForNavigation = (media, distance) => {
         rememberPreloadedMedia(previewUrl, video);
         return;
     }
+
+    if (distance > 1) return;
 
     const image = new Image();
     image.decoding = "async";
@@ -480,7 +482,6 @@ export const MediaDetailPage = () => {
 
         return storedValue === "true";
     });
-    const [isOriginalLoaded, setIsOriginalLoaded] = useState(false);
     const [isCurrentMediaReady, setIsCurrentMediaReady] = useState(false);
     const [expandedDesktopDefaultTags, setExpandedDesktopDefaultTags] = useState(false);
     const [expandedDesktopCopyrightTags, setExpandedDesktopCopyrightTags] = useState(false);
@@ -897,12 +898,10 @@ export const MediaDetailPage = () => {
     const isVideo = String(currentMedia?.mediatype || "")
         .toLowerCase()
         .includes("video");
-    const hasSeparateThumbnail = Boolean(thumbnailUrl) && thumbnailUrl !== mediaUrl;
-    const shouldUseOriginalInViewer = isVideo || (!isHeic && (isOriginalLoaded || !hasSeparateThumbnail));
-    const viewerUrl = shouldUseOriginalInViewer ? mediaUrl : thumbnailUrl;
+    const viewerUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
     const lightboxMediaUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
-    const viewerIsVideo = isVideo && shouldUseOriginalInViewer;
-    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : viewerUrl;
+    const viewerIsVideo = isVideo;
+    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : mediaUrl;
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < filteredMediaItems.length - 1;
     const shouldShowCounter = filteredMediaItems.length > 1;
@@ -910,7 +909,6 @@ export const MediaDetailPage = () => {
     const galleryProgress = filteredMediaItems.length > 0 ? ((currentIndex + 1) / filteredMediaItems.length) * 100 : 0;
 
     useEffect(() => {
-        setIsOriginalLoaded(false);
         setIsCurrentMediaReady(false);
     }, [mediaId]);
 
@@ -1339,10 +1337,6 @@ export const MediaDetailPage = () => {
     const handleOpenLightbox = () => {
         if (!currentMedia) {
             return;
-        }
-
-        if (!isHeic && !shouldUseOriginalInViewer && hasSeparateThumbnail) {
-            setIsOriginalLoaded(true);
         }
 
         if (isVideo) {
@@ -2145,6 +2139,7 @@ export const MediaDetailPage = () => {
                                         alt={currentMedia.displayname || currentMedia.filename || "Media"}
                                         onLoad={handleImageLoad}
                                         fetchPriority="high"
+                                        loading="eager"
                                         decoding="async"
                                         style={{ objectFit: "contain" }}
                                     />

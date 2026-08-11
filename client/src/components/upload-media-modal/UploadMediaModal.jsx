@@ -102,7 +102,7 @@ export const UploadMediaModal = ({
         let isCancelled = false;
 
         import("heic2any")
-            .then(({ default: convertHeic }) => convertHeic({ blob: activeFile, toType: "image/jpeg", quality: 0.88 }))
+            .then(({ default: convertHeic }) => convertHeic({ blob: activeFile, toType: "image/jpeg", quality: 1 }))
             .then((conversionResult) => {
                 const previewBlob = Array.isArray(conversionResult) ? conversionResult[0] : conversionResult;
                 const convertedUrl = URL.createObjectURL(previewBlob);
@@ -199,6 +199,8 @@ export const UploadMediaModal = ({
                 className={mediaClasses}
                 src={activePreviewUrl}
                 alt={getFileLabel(activeFile, safePreviewIndex)}
+                loading="eager"
+                decoding="async"
                 onError={() => setBrokenPreviewUrl(activePreviewUrl)}
             />
         );
