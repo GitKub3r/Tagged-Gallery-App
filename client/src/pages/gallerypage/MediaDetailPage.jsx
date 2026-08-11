@@ -444,6 +444,7 @@ export const MediaDetailPage = () => {
     });
     const [isMediaToolsOpen, setIsMediaToolsOpen] = useState(true);
     const [isShufflingMedia, setIsShufflingMedia] = useState(false);
+    const [shufflePreviewItems, setShufflePreviewItems] = useState([]);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [isLightboxImageZoomed, setIsLightboxImageZoomed] = useState(false);
     const [lightboxImageScale, setLightboxImageScale] = useState(LIGHTBOX_MIN_ZOOM);
@@ -1103,6 +1104,10 @@ export const MediaDetailPage = () => {
         }
 
         setMediaItems(shuffledMediaItems);
+        const navigableMediaIds = new Set(filteredMediaItems.map((media) => String(media.id)));
+        setShufflePreviewItems(
+            shuffledMediaItems.filter((media) => navigableMediaIds.has(String(media.id))).slice(0, 3),
+        );
         navigate(`${location.pathname}${location.search || ""}`, {
             replace: true,
             state: { ...location.state, mediaItems: shuffledMediaItems },
@@ -1113,7 +1118,7 @@ export const MediaDetailPage = () => {
         shuffleFeedbackTimeoutRef.current = window.setTimeout(() => {
             setIsShufflingMedia(false);
             shuffleFeedbackTimeoutRef.current = null;
-        }, 480);
+        }, 900);
     };
 
     keyboardMediaNavigationRef.current = {
@@ -2032,7 +2037,7 @@ export const MediaDetailPage = () => {
                         <span className="tagged-media-detail-tools-separator" aria-hidden="true" />
                         <button
                             type="button"
-                            className={`tagged-media-detail-tool-action${isShufflingMedia ? " is-shuffling" : ""}`}
+                            className="tagged-media-detail-tool-action"
                             onClick={handleShuffleMedia}
                             disabled={filteredMediaItems.length < 2}
                             tabIndex={isMediaToolsOpen ? 0 : -1}
@@ -2066,6 +2071,25 @@ export const MediaDetailPage = () => {
                     </div>
                 </div>
             </header>
+
+            {isShufflingMedia ? (
+                <div className="tagged-media-detail-shuffle-overlay" role="status" aria-live="polite" aria-label="Media order shuffled">
+                    <div className="tagged-media-detail-shuffle-stage" aria-hidden="true">
+                        {shufflePreviewItems.map((media, index) => {
+                            const previewUrl = getThumbnailUrl(media) || getMediaUrl(media);
+                            return (
+                                <span key={media.id} className={`tagged-media-detail-shuffle-card tagged-media-detail-shuffle-card--${index + 1}`}>
+                                    {previewUrl ? <img src={previewUrl} alt="" /> : <FontAwesomeIcon icon={faImage} />}
+                                </span>
+                            );
+                        })}
+                        <span className="tagged-media-detail-shuffle-badge">
+                            <FontAwesomeIcon icon={faShuffle} />
+                            <strong>Shuffled</strong>
+                        </span>
+                    </div>
+                </div>
+            ) : null}
 
             <div className="tagged-media-detail-shell">
                 <div
