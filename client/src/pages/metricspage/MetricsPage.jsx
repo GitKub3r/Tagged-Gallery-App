@@ -6,6 +6,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./MetricsPage.css";
 
@@ -112,6 +113,7 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 export const DashboardPage = () => {
     const { fetchWithAuth, user } = useAuth();
+    const { forceLoading } = useDevTools();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -325,7 +327,7 @@ export const DashboardPage = () => {
         }
     };
 
-    if (loading) {
+    if (loading || forceLoading) {
         return (
             <section className="tagged-app-page tagged-metrics-page">
                 <PageLoadingSkeleton variant="dashboard" ariaLabel="Loading dashboard" />

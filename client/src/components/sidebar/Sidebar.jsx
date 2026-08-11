@@ -7,6 +7,7 @@ import {
     faBars,
     faChartColumn,
     faCloudArrowUp,
+    faCode,
     faFolderOpen,
     faHeart,
     faImages,
@@ -178,7 +179,7 @@ export const Sidebar = () => {
                         </span>
                         <div className={`min-w-0 ${isCollapsed ? "xl:hidden" : ""}`}>
                             <p className="truncate text-base font-black tracking-tight text-neutral-950 dark:text-neutral-100">Tagged</p>
-                            <p className="truncate text-xs text-neutral-500">{user?.type === "admin" ? "Admin workspace" : "Media library"}</p>
+                            <p className="truncate text-xs text-neutral-500">{user?.type === "admin" ? "Admin workspace" : user?.type === "dev" ? "Developer library" : "Media library"}</p>
                         </div>
                     </div>
                     <button
@@ -224,6 +225,16 @@ export const Sidebar = () => {
                             </li>
                         ))}
                     </ul>
+
+                    {user?.type === "dev" ? (
+                        <section className="border-t border-neutral-200 pt-3 dark:border-neutral-800" aria-label="Developer navigation">
+                            <p className={`mb-2 px-3 text-[0.68rem] font-black uppercase tracking-widest text-neutral-500 ${isCollapsed ? "xl:hidden" : ""}`}>Developer</p>
+                            <NavLink to="/developer" className={({ isActive }) => navItemClassName(isActive, isCollapsed)} onClick={closeMobileSidebar} title={isCollapsed ? "Loading states" : undefined}>
+                                <FontAwesomeIcon icon={faCode} className="w-5 shrink-0" aria-hidden="true" />
+                                <SidebarLabel isCollapsed={isCollapsed}>Loading states</SidebarLabel>
+                            </NavLink>
+                        </section>
+                    ) : null}
 
                     {user?.type !== "admin" && shouldShowTagPanel && allTagNames.length > 0 ? (
                         <section className={`flex min-h-52 flex-1 flex-col border-t border-neutral-200 pt-4 dark:border-neutral-800 ${compactOnlyClass}`} aria-label="Tag filters">

@@ -5,6 +5,7 @@ import { useAccessControl } from "../../hooks/useAccessControl";
 import { TagFilterProvider } from "../../context/TagFilterContext";
 import { GridViewProvider } from "../../context/GridViewContext";
 import { Skeleton } from "../loading-skeletons/Skeleton";
+import { DevToolsProvider } from "../../context/DevToolsProvider";
 
 export const ProtectedLayout = () => {
     const { loading, isAuthenticated } = useAuth();
@@ -23,12 +24,9 @@ export const ProtectedLayout = () => {
     return (
         <TagFilterProvider>
             <GridViewProvider>
-                <div className="flex min-h-dvh bg-neutral-100 dark:bg-neutral-950">
-                    <Sidebar />
-                    <main className="tagged-shell-content min-w-0 flex-1 px-4 pb-4 pt-20 xl:p-8">
-                        <Outlet />
-                    </main>
-                </div>
+                <DevToolsProvider><div className="flex min-h-dvh bg-neutral-100 dark:bg-neutral-950">
+                    <Sidebar /><main className="tagged-shell-content min-w-0 flex-1 px-4 pb-4 pt-20 xl:p-8"><Outlet /></main>
+                </div></DevToolsProvider>
             </GridViewProvider>
         </TagFilterProvider>
     );

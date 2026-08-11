@@ -10,6 +10,7 @@ import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoad
 import { useAppToast } from "../../components/toast/useAppToast";
 import { apiClient } from "../../api/apiClient";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import "./MediaDetailPage.css";
@@ -417,6 +418,7 @@ export const MediaDetailPage = () => {
     const location = useLocation();
     const { mediaId } = useParams();
     const { user, fetchWithAuth } = useAuth();
+    const { forceLoading } = useDevTools();
     const [mediaItems, setMediaItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -1849,7 +1851,7 @@ export const MediaDetailPage = () => {
         );
     }
 
-    if (loading) {
+    if (loading || forceLoading) {
         return (
             <section className="tagged-app-page tagged-media-detail-page">
                 <PageLoadingSkeleton variant="detail" ariaLabel="Loading media detail" />

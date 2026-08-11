@@ -17,6 +17,7 @@ import { UserAvatar } from "../../components/user-avatar/UserAvatar";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import "./LogsPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -325,6 +326,7 @@ export const LogsPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, fetchWithAuth } = useAuth();
+    const { forceLoading } = useDevTools();
     const [actions, setActions] = useState([]);
     const [logs, setLogs] = useState([]);
     const [pagination, setPagination] = useState({
@@ -790,7 +792,7 @@ export const LogsPage = () => {
         );
     }
 
-    if (loading && !hasLoadedOnce) {
+    if (forceLoading || (loading && !hasLoadedOnce)) {
         return (
             <section className="tagged-app-page tagged-logs-page">
                 <PageLoadingSkeleton variant="dashboard" ariaLabel="Loading logs dashboard" />

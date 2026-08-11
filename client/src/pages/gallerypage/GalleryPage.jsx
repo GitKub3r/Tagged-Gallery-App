@@ -39,6 +39,7 @@ import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar"
 import { useAppToast } from "../../components/toast/useAppToast";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
@@ -572,6 +573,7 @@ const LazyViewportItem = ({
 
 export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) => {
     const { user, fetchWithAuth, accessToken } = useAuth();
+    const { forceLoading } = useDevTools();
     const navigate = useNavigate();
     const location = useLocation();
     const [mediaItems, setMediaItems] = useState([]);
@@ -2909,6 +2911,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             </section>
         );
 
+    }
+    if (forceLoading) {
+        return <section className="tagged-app-page tagged-gallery-page"><CollectionLoadingSkeleton itemType="media" viewMode={gridViewMode} gridColumns={gridColumns} ariaLabel="Forced gallery loading preview" /></section>;
     }
     return (
         <section

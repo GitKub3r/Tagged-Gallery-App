@@ -6,6 +6,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import "./UsersPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -66,6 +67,7 @@ const getRoleBadgeData = (type) => {
             toneClass: "tagged-user-role-badge--admin",
         };
     }
+    if (normalizedType === "dev") return { label: "D", title: "Dev", toneClass: "tagged-user-role-badge--dev" };
 
     return {
         label: "B",
@@ -99,6 +101,7 @@ const UserActionButtons = ({ listedUser, isCurrentUser, isBusy, onEdit, onDelete
 
 export const UsersPage = () => {
     const { user, fetchWithAuth } = useAuth();
+    const { forceLoading } = useDevTools();
     const location = useLocation();
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
@@ -137,7 +140,7 @@ export const UsersPage = () => {
         const params = new URLSearchParams(location.search);
         const role = String(params.get("role") || "").toLowerCase();
 
-        if (role === "admin" || role === "basic") {
+        if (["admin", "basic", "dev"].includes(role)) {
             return role;
         }
 
@@ -359,7 +362,7 @@ export const UsersPage = () => {
         );
     }
 
-    if (loading) {
+    if (loading || forceLoading) {
         return (
             <section className="tagged-app-page tagged-users-page">
                 <PageLoadingSkeleton ariaLabel="Loading users" />
@@ -401,7 +404,7 @@ export const UsersPage = () => {
                 <div className="flex w-full shrink-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:justify-end">
                     <p>{filteredUsers.length} accounts found</p>
                     <div className="flex items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-900" role="group" aria-label="Filter users by role">
-                        {["all", "basic", "admin"].map((role) => (
+                        {["all", "basic", "dev", "admin"].map((role) => (
                             <button
                                 key={role}
                                 type="button"
@@ -587,6 +590,7 @@ export const UsersPage = () => {
                                     }
                                 >
                                     <option value="basic">Basic</option>
+                                    <option value="dev">Dev</option>
                                     <option value="admin">Admin</option>
                                 </select>
                             </label>

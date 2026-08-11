@@ -34,6 +34,7 @@ import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacet
 import { useAppToast } from "../../components/toast/useAppToast";
 import { GalleryListItem } from "../gallerypage/GalleryPage";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
@@ -423,6 +424,7 @@ export const AlbumDetailPage = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user, fetchWithAuth } = useAuth();
+    const { forceLoading } = useDevTools();
     const { selectedIncludeFilterTags, selectedExcludeFilterTags, clearFilterTags } = useTagFilter();
     const { gridColumns } = useGridView();
 
@@ -3149,7 +3151,7 @@ export const AlbumDetailPage = () => {
         );
     }
 
-    if (loading) {
+    if (loading || forceLoading) {
         return (
             <section className="tagged-app-page tagged-album-detail-page" aria-label="Loading album detail">
                 <header className="relative min-h-[18rem] overflow-hidden rounded-xl border border-neutral-200 bg-white/60 sm:min-h-[22rem] lg:min-h-[26rem] dark:border-neutral-800 dark:bg-neutral-900/60" aria-hidden="true">

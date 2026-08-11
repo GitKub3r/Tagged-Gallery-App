@@ -118,6 +118,8 @@ const ACCESS_BY_ROLE = {
   ],
 };
 
+ACCESS_BY_ROLE.dev = [...ACCESS_BY_ROLE.basic, { label: "Developer", description: "Preview loading states", icon: faShieldHalved, path: "/developer" }];
+
 export const AccountPage = () => {
   const navigate = useNavigate();
   const { user, accessToken, logout, updateCurrentUser } = useAuth();
@@ -145,10 +147,8 @@ export const AccountPage = () => {
   const account = useMemo(() => {
     const username = String(user?.username || "").trim() || "Unnamed user";
     const email = String(user?.email || "").trim() || "No email available";
-    const roleKey =
-      String(user?.type || "basic").toLowerCase() === "admin"
-        ? "admin"
-        : "basic";
+    const normalizedRole = String(user?.type || "basic").toLowerCase();
+    const roleKey = ["admin", "dev"].includes(normalizedRole) ? normalizedRole : "basic";
 
     return {
       username,

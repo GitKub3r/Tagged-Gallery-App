@@ -4,6 +4,7 @@ import { faCalendarDays, faCheck, faFolderOpen, faFolderPlus, faList, faMagnifyi
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import { useGridView } from "../../context/GridViewContext";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
@@ -192,6 +193,7 @@ const applyIncludeExcludeTagFilters = (mediaList, includeTags, excludeTags) => {
 export const AlbumPage = () => {
     const navigate = useNavigate();
     const { user, fetchWithAuth } = useAuth();
+    const { forceLoading } = useDevTools();
     const { gridColumns } = useGridView();
 
     const [albums, setAlbums] = useState([]);
@@ -1097,6 +1099,10 @@ export const AlbumPage = () => {
                 </article>
             </section>
         );
+    }
+
+    if (forceLoading) {
+        return <section className="tagged-app-page tagged-album-page"><CollectionLoadingSkeleton itemType="album" viewMode={albumViewMode} gridColumns={gridColumns} ariaLabel="Forced album loading preview" /></section>;
     }
 
     return (

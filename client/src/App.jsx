@@ -14,6 +14,7 @@ import { UsersPage } from "./pages/userspage/UsersPage";
 import { LogsPage } from "./pages/logspage/LogsPage";
 import { ActionsPage } from "./pages/actionspage/ActionsPage";
 import { Toaster } from "sonner";
+import { DeveloperPage } from "./pages/developerpage/DeveloperPage";
 
 function App() {
     return (
@@ -51,6 +52,7 @@ function App() {
                         <Route path="/logs" element={<LogsPage />} />
                         <Route path="/actions" element={<ActionsPage />} />
                         <Route path="/account" element={<AccountPage />} />
+                        <Route path="/developer" element={<DeveloperPage />} />
                     </Route>
 
                     <Route path="*" element={<Navigate to="/" replace />} />

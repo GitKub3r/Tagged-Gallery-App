@@ -4,6 +4,7 @@ import { useAuth } from "./useAuth";
 
 const ADMIN_ROUTES = ["/logs", "/actions", "/users", "/account"];
 const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/dashboard", "/account"];
+const DEV_ROUTES = [...BASIC_ROUTES, "/developer"];
 
 /**
  * Hook to enforce role-based access control
@@ -36,21 +37,21 @@ export const useAccessControl = () => {
                 console.error("Error recording unauthorized access:", error);
             }
         },
-        [fetchWithAuth, user?.type],
+        [fetchWithAuth, user],
     );
 
     useLayoutEffect(() => {
         if (!user) return;
 
         const currentPath = location.pathname;
-        const allowedRoutes = user.type === "admin" ? ADMIN_ROUTES : BASIC_ROUTES;
+        const allowedRoutes = user.type === "admin" ? ADMIN_ROUTES : user.type === "dev" ? DEV_ROUTES : BASIC_ROUTES;
 
         // Check if current path starts with any allowed route
         const hasAccess = allowedRoutes.some((route) => currentPath === route || currentPath.startsWith(route + "/"));
 
         if (!hasAccess) {
             recordUnauthorizedAccess(currentPath);
-            navigate("/logs", { replace: true });
+            navigate(user.type === "admin" ? "/logs" : "/gallery", { replace: true });
         }
     }, [user, location.pathname, navigate, recordUnauthorizedAccess]);
 };

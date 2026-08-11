@@ -219,6 +219,13 @@
     color: #9d174d;
 }
 
+.tagged-user-role-badge--dev {
+    background: rgba(115, 115, 115, 0.18);
+    color: #404040;
+}
+
+[data-theme="dark"] .tagged-user-role-badge--dev { color: #e5e5e5; }
+
 .tagged-user-card-footer {
     display: flex;
     align-items: flex-end;

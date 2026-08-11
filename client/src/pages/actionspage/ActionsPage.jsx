@@ -6,6 +6,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
+import { useDevTools } from "../../hooks/useDevTools";
 import "./ActionsPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -61,6 +62,7 @@ export const ActionsPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, fetchWithAuth } = useAuth();
+    const { forceLoading } = useDevTools();
 
     const [actions, setActions] = useState([]);
     const [searchQuery, setSearchQuery] = useState("");
@@ -342,7 +344,7 @@ export const ActionsPage = () => {
         );
     }
 
-    if (loading) {
+    if (loading || forceLoading) {
         return (
             <section className="tagged-app-page tagged-actions-page">
                 <PageLoadingSkeleton ariaLabel="Loading actions" />
