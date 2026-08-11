@@ -7,8 +7,10 @@ import { IconButton } from "../../components/icon-button/IconButton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useAppToast } from "../../components/toast/useAppToast";
+import { apiClient } from "../../api/apiClient";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
+import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import "./MediaDetailPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -446,6 +448,7 @@ export const MediaDetailPage = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [isDeletingMedia, setIsDeletingMedia] = useState(false);
+    const [isDownloadingMedia, setIsDownloadingMedia] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
     const [isMediaChanging, setIsMediaChanging] = useState(false);
     const [mediaTransitionSnapshot, setMediaTransitionSnapshot] = useState(null);
@@ -1308,7 +1311,7 @@ export const MediaDetailPage = () => {
     };
 
     const handleDownloadMedia = async () => {
-        if (!mediaUrl || !currentMedia) {
+        if (!mediaUrl || !currentMedia || isDownloadingMedia) {
             return;
         }
 
@@ -1317,53 +1320,67 @@ export const MediaDetailPage = () => {
             currentMedia.filename || currentMedia.displayname || `media${inferredExtension}`,
         ).trim();
 
-        const userAgent = navigator.userAgent || "";
-        const platform = navigator.platform || "";
-        const isIOSDevice =
-            /iPad|iPhone|iPod/i.test(userAgent) || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-        if (isIOSDevice && isVideo) {
-            if (typeof navigator.share === "function") {
-                try {
-                    const response = await fetch(mediaUrl);
-
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        const fileType = blob.type || "video/mp4";
-                        const shareFile = new File([blob], filename, { type: fileType });
-
-                        if (typeof navigator.canShare === "function" && navigator.canShare({ files: [shareFile] })) {
-                            await navigator.share({ files: [shareFile], title: filename });
-                            return;
-                        }
-                    }
-                } catch {
-                    // Fall through to URL share/open for browsers that block file sharing.
-                }
-
-                try {
-                    await navigator.share({ title: filename, url: mediaUrl });
-                    return;
-                } catch {
-                    // Fall through to opening the media URL.
-                }
-            }
-
-            window.open(mediaUrl, "_blank", "noopener,noreferrer");
-            return;
-        }
-
         try {
-            const response = await fetch(mediaUrl);
+            setIsDownloadingMedia(true);
+            let sampledBytes = 0;
+            let sampledAt = performance.now();
+            let latestSpeedLabel = null;
 
-            if (!response.ok) {
-                throw new Error("Could not download media file");
-            }
+            showActionToast({
+                status: "info",
+                title: "Downloading media",
+                message: filename,
+                progress: 0,
+                speedLabel: null,
+            });
 
-            const blob = await response.blob();
+            const response = await apiClient.get(mediaUrl, {
+                responseType: "blob",
+                _skipErrorToast: true,
+                onDownloadProgress: ({ loaded, total, progress }) => {
+                    const now = performance.now();
+                    const elapsedSeconds = (now - sampledAt) / 1000;
+
+                    if (elapsedSeconds >= 0.18) {
+                        latestSpeedLabel = formatDownloadSpeed((loaded - sampledBytes) / elapsedSeconds);
+                        sampledBytes = loaded;
+                        sampledAt = now;
+                    }
+
+                    const percent = Number.isFinite(progress)
+                        ? Math.round(progress * 100)
+                        : Number.isFinite(total) && total > 0
+                            ? Math.round((loaded / total) * 100)
+                            : null;
+
+                    showActionToast({
+                        status: "info",
+                        title: "Downloading media",
+                        message: filename,
+                        progress: percent,
+                        indeterminate: percent === null,
+                        speedLabel: latestSpeedLabel,
+                    });
+                },
+            });
+            const blob = response.data;
 
             if (!(blob instanceof Blob) || blob.size <= 0) {
                 throw new Error("Downloaded file is empty or invalid.");
+            }
+
+            const userAgent = navigator.userAgent || "";
+            const platform = navigator.platform || "";
+            const isIOSDevice = /iPad|iPhone|iPod/i.test(userAgent)
+                || (platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+            if (isIOSDevice && isVideo && typeof navigator.share === "function") {
+                const shareFile = new File([blob], filename, { type: blob.type || "video/mp4" });
+                if (typeof navigator.canShare !== "function" || navigator.canShare({ files: [shareFile] })) {
+                    await navigator.share({ files: [shareFile], title: filename });
+                    showActionToast({ status: "success", title: "Media ready", message: "The share sheet has opened.", progress: 100 }, 2200);
+                    return;
+                }
             }
 
             const tempUrl = URL.createObjectURL(blob);
@@ -1378,8 +1395,16 @@ export const MediaDetailPage = () => {
             window.setTimeout(() => {
                 URL.revokeObjectURL(tempUrl);
             }, 60_000);
-        } catch {
-            window.open(mediaUrl, "_blank", "noopener,noreferrer");
+
+            showActionToast({ status: "success", title: "Download ready", message: "The file download has started.", progress: 100 }, 2200);
+        } catch (downloadError) {
+            showActionToast({
+                status: "error",
+                title: "Download failed",
+                message: downloadError?.message || "Could not download media file.",
+            }, 4200);
+        } finally {
+            setIsDownloadingMedia(false);
         }
     };
 
@@ -2159,7 +2184,7 @@ export const MediaDetailPage = () => {
                                             onClick={handleDownloadMedia}
                                             aria-label="Download media"
                                             title="Download media"
-                                            disabled={!mediaUrl || !currentMedia}
+                                            disabled={!mediaUrl || !currentMedia || isDownloadingMedia}
                                         >
                                             <FontAwesomeIcon icon={faDownload} aria-hidden="true" />
                                         </button>
@@ -2374,7 +2399,7 @@ export const MediaDetailPage = () => {
                             <FontAwesomeIcon icon={faPen} className="text-base" aria-hidden="true" />
                             <span>Edit</span>
                         </button>
-                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleDownloadMedia} disabled={!mediaUrl || !currentMedia}>
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleDownloadMedia} disabled={!mediaUrl || !currentMedia || isDownloadingMedia}>
                             <FontAwesomeIcon icon={faDownload} className="text-base" aria-hidden="true" />
                             <span>Download</span>
                         </button>
