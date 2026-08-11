@@ -511,6 +511,7 @@ export const MediaDetailPage = () => {
     const lastKeyboardRepeatNavigationRef = useRef(0);
     const actionToastTimeoutRef = useRef(null);
     const shuffleFeedbackTimeoutRef = useRef(null);
+    const shuffleNavigationTimeoutRef = useRef(null);
 
     const clampLightboxScale = (scale) =>
         Math.min(LIGHTBOX_MAX_ZOOM, Math.max(LIGHTBOX_MIN_ZOOM, Number(scale) || LIGHTBOX_MIN_ZOOM));
@@ -574,6 +575,11 @@ export const MediaDetailPage = () => {
             if (shuffleFeedbackTimeoutRef.current) {
                 window.clearTimeout(shuffleFeedbackTimeoutRef.current);
                 shuffleFeedbackTimeoutRef.current = null;
+            }
+
+            if (shuffleNavigationTimeoutRef.current) {
+                window.clearTimeout(shuffleNavigationTimeoutRef.current);
+                shuffleNavigationTimeoutRef.current = null;
             }
         },
         [],
@@ -1091,7 +1097,7 @@ export const MediaDetailPage = () => {
     };
 
     const handleShuffleMedia = () => {
-        if (mediaItems.length < 2 || !currentMedia?.id) return;
+        if (mediaItems.length < 2 || !currentMedia?.id || isShufflingMedia) return;
 
         const shuffledMediaItems = [...mediaItems];
         for (let index = shuffledMediaItems.length - 1; index > 0; index -= 1) {
@@ -1107,18 +1113,26 @@ export const MediaDetailPage = () => {
         const navigableMediaIds = new Set(filteredMediaItems.map((media) => String(media.id)));
         const shuffledNavigableItems = shuffledMediaItems.filter((media) => navigableMediaIds.has(String(media.id)));
         const nextCurrentMedia = shuffledNavigableItems.find((media) => String(media.id) !== String(currentMedia?.id));
-        setShufflePreviewItems(shuffledNavigableItems.slice(0, 3));
-        navigate(`/gallery/${nextCurrentMedia?.id || currentMedia.id}${location.search || ""}`, {
-            replace: true,
-            state: { ...location.state, mediaItems: shuffledMediaItems },
-        });
+        if (!nextCurrentMedia) return;
+        const supportingPreviewItems = shuffledNavigableItems
+            .filter((media) => String(media.id) !== String(nextCurrentMedia.id))
+            .slice(0, 2);
+        setShufflePreviewItems([...supportingPreviewItems, nextCurrentMedia]);
 
         if (shuffleFeedbackTimeoutRef.current) window.clearTimeout(shuffleFeedbackTimeoutRef.current);
+        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
         setIsShufflingMedia(true);
+        shuffleNavigationTimeoutRef.current = window.setTimeout(() => {
+            navigate(`/gallery/${nextCurrentMedia.id}${location.search || ""}`, {
+                replace: true,
+                state: { ...location.state, mediaItems: shuffledMediaItems },
+            });
+            shuffleNavigationTimeoutRef.current = null;
+        }, prefersReducedMotion ? 0 : 950);
         shuffleFeedbackTimeoutRef.current = window.setTimeout(() => {
             setIsShufflingMedia(false);
             shuffleFeedbackTimeoutRef.current = null;
-        }, 1200);
+        }, prefersReducedMotion ? 250 : 1200);
     };
 
     keyboardMediaNavigationRef.current = {
@@ -2039,7 +2053,7 @@ export const MediaDetailPage = () => {
                             type="button"
                             className="tagged-media-detail-tool-action"
                             onClick={handleShuffleMedia}
-                            disabled={filteredMediaItems.length < 2}
+                            disabled={filteredMediaItems.length < 2 || isShufflingMedia}
                             tabIndex={isMediaToolsOpen ? 0 : -1}
                             aria-label={isShufflingMedia ? "Media shuffled" : "Shuffle media"}
                         >
@@ -2077,17 +2091,16 @@ export const MediaDetailPage = () => {
                     <div className="tagged-media-detail-shuffle-stage" aria-hidden="true">
                         {shufflePreviewItems.map((media, index) => {
                             const previewUrl = getThumbnailUrl(media) || getMediaUrl(media);
+                            const animationSlot = index === shufflePreviewItems.length - 1 ? 3 : index + 1;
                             return (
-                                <span key={media.id} className={`tagged-media-detail-shuffle-card tagged-media-detail-shuffle-card--${index + 1}`}>
+                                <span key={media.id} className={`tagged-media-detail-shuffle-card tagged-media-detail-shuffle-card--${animationSlot}`}>
                                     {previewUrl ? <img src={previewUrl} alt="" /> : <FontAwesomeIcon icon={faImage} />}
                                 </span>
                             );
                         })}
-                        {shufflePreviewItems.map((media, index) => (
-                            <span key={`particles-${media.id}`} className={`tagged-media-detail-shuffle-particles tagged-media-detail-shuffle-particles--${index + 1}`}>
-                                {Array.from({ length: 8 }, (_, particleIndex) => <i key={particleIndex} />)}
-                            </span>
-                        ))}
+                        <span className="tagged-media-detail-shuffle-particles">
+                            {Array.from({ length: 12 }, (_, particleIndex) => <i key={particleIndex} />)}
+                        </span>
                     </div>
                 </div>
             ) : null}
