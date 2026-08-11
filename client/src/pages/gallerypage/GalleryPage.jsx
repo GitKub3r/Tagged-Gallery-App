@@ -44,6 +44,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
+import { useMarqueeSelection } from "../../hooks/useMarqueeSelection";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
@@ -522,6 +523,7 @@ const LazyViewportItem = ({
     placeholderClassName = "",
     minHeight = "0",
     rootMargin = "180px 0px",
+    selectionId,
 }) => {
     const hostRef = useRef(null);
     const [hasBeenVisible, setHasBeenVisible] = useState(false);
@@ -562,6 +564,7 @@ const LazyViewportItem = ({
     return (
         <div
             ref={hostRef}
+            data-marquee-selection-id={selectionId}
             className={`tagged-gallery-lazy-item ${className}${hasBeenVisible ? " is-mounted" : ""}${isInView ? " is-visible" : ""}`}
         >
             {hasBeenVisible ? (
@@ -1353,6 +1356,13 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             return next;
         });
     };
+
+    const { containerProps: mediaMarqueeProps, selectionOverlay: mediaSelectionOverlay } = useMarqueeSelection({
+        items: visibleMediaItems,
+        selectedIds: selectedMediaIds,
+        onSelectionChange: setSelectedMediaIds,
+        onActivate: () => activateSelectionMode(),
+    });
 
     const selectAllVisibleMedia = () => {
         if (!hasVisibleMediaItems) {
@@ -3160,10 +3170,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
             {!loading && !error && visibleMediaItems.length > 0 ? (
                 gridViewMode === "list" ? (
-                    <div className="mx-auto grid w-full max-w-[92rem]" aria-label="User media compact list">
+                    <div className="mx-auto grid w-full max-w-[92rem] select-none [&_img]:[-webkit-user-drag:none]" aria-label="User media compact list" {...mediaMarqueeProps}>
                         {visibleMediaItems.map((media) => (
                             <LazyViewportItem
                                 key={media.id}
+                                selectionId={media.id}
                                 className="tagged-gallery-lazy-item--list"
                                 placeholderClassName="tagged-gallery-lazy-placeholder--list"
                                 minHeight="5.1rem"
@@ -3183,10 +3194,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         ))}
                     </div>
                 ) : (
-                    <div className="tagged-gallery-grid" aria-label="User media gallery" style={{ "--tagged-grid-columns": gridColumns }}>
+                    <div className="tagged-gallery-grid select-none [&_img]:[-webkit-user-drag:none]" aria-label="User media gallery" style={{ "--tagged-grid-columns": gridColumns }} {...mediaMarqueeProps}>
                         {visibleMediaItems.map((media) => (
                             <LazyViewportItem
                                 key={media.id}
+                                selectionId={media.id}
                                 className="tagged-gallery-lazy-item--card"
                                 placeholderClassName="tagged-gallery-lazy-placeholder--card"
                                 minHeight="0"
@@ -3208,6 +3220,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     </div>
                 )
             ) : null}
+
+            {mediaSelectionOverlay}
 
             {isSelectionMode ? (
                 <aside className="tagged-gallery-selection-toolbar" aria-label="Selection actions toolbar">

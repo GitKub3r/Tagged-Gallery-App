@@ -17,6 +17,7 @@ import { ResultsLoadingIndicator } from "../../components/results-loading-indica
 import { useFilterTransition } from "../../components/results-loading-indicator/useFilterTransition";
 import { ConvergingShuffleOverlay } from "../../components/converging-shuffle-overlay/ConvergingShuffleOverlay";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
+import { useMarqueeSelection } from "../../hooks/useMarqueeSelection";
 import "./AlbumPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -806,6 +807,13 @@ export const AlbumPage = () => {
         });
     };
 
+    const { containerProps: albumMarqueeProps, selectionOverlay: albumSelectionOverlay } = useMarqueeSelection({
+        items: paginatedAlbums,
+        selectedIds: selectedAlbumIds,
+        onSelectionChange: setSelectedAlbumIds,
+        onActivate: () => activateAlbumSelectionMode(),
+    });
+
     const clearAlbumSelectionMode = () => {
         setIsAlbumSelectionMode(false);
         setSelectedAlbumIds(new Set());
@@ -1228,7 +1236,7 @@ export const AlbumPage = () => {
                         onAction={handleOpenCreateModal}
                     />
                 ) : albumViewMode === "list" ? (
-                    <div className="tagged-album-list-v2 mx-auto grid w-full max-w-[91.5rem] gap-1" aria-label="Albums list">
+                    <div className="tagged-album-list-v2 mx-auto grid w-full max-w-[91.5rem] select-none gap-1 [&_img]:[-webkit-user-drag:none]" aria-label="Albums list" {...albumMarqueeProps}>
                         <button type="button" className="tagged-album-list-row-v2 flex min-h-20 w-full items-center gap-4 border-0 border-b border-dashed border-neutral-400 bg-transparent px-1 py-3 text-left text-neutral-600 shadow-none hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:text-neutral-100" onClick={handleOpenCreateModal} aria-label="Add new album">
                             <span className="tagged-album-list-preview-v2 grid h-16 w-24 shrink-0 place-items-center rounded-xl border border-dashed border-neutral-400 sm:h-20 sm:w-28"><FontAwesomeIcon icon={faFolderPlus} aria-hidden="true" /></span>
                             <span className="text-sm font-bold sm:text-base">Add new album</span>
@@ -1243,6 +1251,7 @@ export const AlbumPage = () => {
                             return (
                                 <article
                                     key={album.id}
+                                    data-marquee-selection-id={album.id}
                                     className={`tagged-album-list-row-v2 group relative flex min-h-20 w-full cursor-pointer items-center gap-4 border-b border-neutral-200 px-1 py-3 transition-colors dark:border-neutral-800 ${isSelected ? "bg-neutral-100/70 dark:bg-neutral-800/50" : ""}`}
                                 >
                                     <button
@@ -1294,7 +1303,7 @@ export const AlbumPage = () => {
                         })}
                     </div>
                 ) : (
-                    <div className="tagged-album-grid-v2" aria-label="Albums grid" style={{ "--tagged-grid-columns": gridColumns }}>
+                    <div className="tagged-album-grid-v2 select-none [&_img]:[-webkit-user-drag:none]" aria-label="Albums grid" style={{ "--tagged-grid-columns": gridColumns }} {...albumMarqueeProps}>
                         <button
                             type="button"
                             className="tagged-album-create-tile-v2 group flex h-full min-h-56 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-400 bg-transparent p-5 text-neutral-600 shadow-none transition-[transform,border-color,color] hover:scale-[1.015] hover:border-neutral-950 hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-100 dark:hover:text-neutral-100"
@@ -1315,6 +1324,7 @@ export const AlbumPage = () => {
                             return (
                                 <article
                                     key={album.id}
+                                    data-marquee-selection-id={album.id}
                                     className="group relative w-full cursor-pointer"
                                 >
                                     <button
@@ -1378,6 +1388,8 @@ export const AlbumPage = () => {
                     </div>
                 )
             ) : null}
+
+            {albumSelectionOverlay}
 
             {!loading && !error && visibleAlbums.length > albumPageSize ? <nav className="mx-auto flex w-full max-w-[91.5rem] items-center justify-end gap-2 pt-2" aria-label="Album pagination"><button type="button" className={ALBUM_PAGINATION_BUTTON_CLASSES} onClick={() => setAlbumPage((page) => Math.max(1, page - 1))} disabled={safeAlbumPage <= 1} aria-label="Previous album page"><FontAwesomeIcon icon={faChevronLeft} aria-hidden="true" /></button><span className="min-w-16 text-center text-sm font-bold tabular-nums text-neutral-600 dark:text-neutral-300">{safeAlbumPage} / {totalAlbumPages}</span><button type="button" className={ALBUM_PAGINATION_BUTTON_CLASSES} onClick={() => setAlbumPage((page) => Math.min(totalAlbumPages, page + 1))} disabled={safeAlbumPage >= totalAlbumPages} aria-label="Next album page"><FontAwesomeIcon icon={faChevronRight} aria-hidden="true" /></button></nav> : null}
 
