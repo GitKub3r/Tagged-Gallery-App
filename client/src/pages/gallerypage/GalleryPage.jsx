@@ -34,6 +34,7 @@ import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/Co
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
+import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
@@ -2926,13 +2927,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             />
 
             {!loading && !error && !showFavouritesNoResultsState ? (
-                <div className="mx-auto flex w-full max-w-[92rem] flex-col gap-3 lg:flex-row lg:items-end" aria-label="Search media">
-                    <div className="min-w-0 flex-1 text-sm font-semibold text-neutral-700 dark:text-neutral-300">
-                        <span className="mb-2 block">Search media</span>
-                        <MediaFacetSearch value={submittedGallerySearchQuery} onChange={submitGallerySearch} mediaItems={mediaItems} displayNames={distinctDisplayNames} authors={distinctAuthors} />
-                    </div>
-
-                    <div className="flex w-full min-w-0 items-center gap-1.5 lg:w-auto lg:flex-wrap lg:gap-2" aria-label="Media view mode">
+                <LibraryToolbar label="Search media" search={<MediaFacetSearch value={submittedGallerySearchQuery} onChange={submitGallerySearch} mediaItems={mediaItems} displayNames={distinctDisplayNames} authors={distinctAuthors} />} controls={<>
                             <div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Filter by media type">
                                 {[
                                     { type: "all", label: "All", icon: faTableCellsLarge },
@@ -3006,8 +3001,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                             </select>
                         </label>
                     )}
-                    </div>
-                </div>
+                    </>} />
             ) : null}
 
             {loading ? (

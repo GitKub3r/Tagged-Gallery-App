@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useGridView } from "../../context/GridViewContext";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
+import { LibraryToolbar } from "../../components/library-toolbar/LibraryToolbar";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AlbumCreateModal } from "./components/AlbumCreateModal";
@@ -1101,10 +1102,8 @@ export const AlbumPage = () => {
     return (
         <section className="tagged-app-page tagged-album-page">
             {!loading && !error && albums.length > 0 ? (
-                <div className="mx-auto w-full max-w-[91.5rem]" aria-label="Search albums">
-                    <span className="mb-1.5 block text-xs font-semibold text-neutral-600 dark:text-neutral-300">Search albums</span>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <div className="relative min-w-0 flex-1 basis-72">
+                <LibraryToolbar maxWidth="max-w-[91.5rem]" label="Search albums" search={
+                        <div className="relative min-w-0">
                             <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400" aria-hidden="true" />
                             <input
                                 type="search"
@@ -1128,11 +1127,10 @@ export const AlbumPage = () => {
                                 </button>
                             ) : null}
                         </div>
-
-                        <div className="flex items-center gap-2" aria-label="Album view mode">
+                    } controls={<div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
                             <button
                                 type="button"
-                                className={`flex h-12 w-auto items-center gap-2 rounded-xl border px-4 text-sm font-bold shadow-none transition-transform hover:scale-[1.04] ${albumViewMode === "card" ? "border-neutral-950 bg-neutral-950 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-950" : "border-neutral-300 bg-white text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"}`}
+                                className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-0 px-3 text-sm font-bold shadow-none lg:h-10 lg:flex-none ${albumViewMode === "card" ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
                                 onClick={() => setAlbumViewMode("card")}
                                 aria-pressed={albumViewMode === "card"}
                                 aria-label="Card view"
@@ -1144,7 +1142,7 @@ export const AlbumPage = () => {
 
                             <button
                                 type="button"
-                                className={`flex h-12 w-auto items-center gap-2 rounded-xl border px-4 text-sm font-bold shadow-none transition-transform hover:scale-[1.04] ${albumViewMode === "list" ? "border-neutral-950 bg-neutral-950 text-white dark:border-neutral-100 dark:bg-neutral-100 dark:text-neutral-950" : "border-neutral-300 bg-white text-neutral-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"}`}
+                                className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-0 px-3 text-sm font-bold shadow-none lg:h-10 lg:flex-none ${albumViewMode === "list" ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
                                 onClick={() => setAlbumViewMode("list")}
                                 aria-pressed={albumViewMode === "list"}
                                 aria-label="List view"
@@ -1153,9 +1151,7 @@ export const AlbumPage = () => {
                                 <FontAwesomeIcon icon={faList} aria-hidden="true" />
                                 <span className="hidden sm:inline">List</span>
                             </button>
-                        </div>
-                    </div>
-                </div>
+                        </div>} />
             ) : null}
 
             {loading ? (
