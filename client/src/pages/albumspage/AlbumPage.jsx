@@ -388,7 +388,9 @@ export const AlbumPage = () => {
                 expectedTotal = parsedTotal;
             }
 
-            if (pageItems.length < pageSize) {
+            const effectivePageSize = Math.max(1, Number.parseInt(data.limit, 10) || pageItems.length || pageSize);
+
+            if (pageItems.length === 0 || pageItems.length < effectivePageSize) {
                 break;
             }
 

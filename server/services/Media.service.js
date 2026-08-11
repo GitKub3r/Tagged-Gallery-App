@@ -5,6 +5,7 @@ const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
 const { detectMediaType, generateThumbnail } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR, THUMBNAILS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
+const MAX_MEDIA_PAGE_SIZE = 500;
 
 const removeFileIfExists = async (filePath) => {
     try {
@@ -229,7 +230,7 @@ class MediaService {
     static async getAll(requestUser, page = 1, limit = 20, filters = {}) {
         try {
             const parsedPage = Math.max(1, Number(page) || 1);
-            const parsedLimit = Math.min(100, Math.max(1, Number(limit) || 20));
+            const parsedLimit = Math.min(MAX_MEDIA_PAGE_SIZE, Math.max(1, Number(limit) || 20));
             const toArray = (value) => (Array.isArray(value) ? value : value ? [value] : [])
                 .map((item) => String(item).trim())
                 .filter(Boolean);
