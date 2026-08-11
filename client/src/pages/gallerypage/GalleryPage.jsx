@@ -3305,6 +3305,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     selectedTags={selectedTags}
                     tagColorByName={tagColorByName}
                     tagTypeByName={tagTypeByName}
+                    existingTagNames={distinctTagNames}
                     activeSuggestionField={activeSuggestionField}
                     activeSuggestionIndex={activeSuggestionIndex}
                     displayNameSuggestions={visibleDisplayNameSuggestions}

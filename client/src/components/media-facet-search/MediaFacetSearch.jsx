@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { faImage, faMagnifyingGlass, faUser, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faImage, faUser, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { parseMediaFacetFilters, serializeMediaFacetFilters } from "../../utils/mediaFacetFilters";
+import { SearchField } from "../search-field/SearchField";
 
 const normalizeOptions = (values) => [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 
@@ -38,14 +39,11 @@ export const MediaFacetSearch = ({ value, onChange, mediaItems = [], displayName
 
     return (
         <div className="min-w-0">
-            <label className="relative block">
-                <span className="sr-only">{label}</span>
-                <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600" aria-hidden="true" />
-                <input
-                    type="search"
-                    className="h-11 w-full rounded-xl border border-neutral-300 bg-white pl-9 pr-3 text-sm text-neutral-950 outline-none placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600"
+            <div className="relative">
+                <SearchField
+                    label={label}
                     value={inputValue}
-                    onChange={(event) => { setInputValue(event.target.value); setIsOpen(Boolean(event.target.value.trim())); }}
+                    onChange={(nextValue) => { setInputValue(nextValue); setIsOpen(Boolean(nextValue.trim())); }}
                     onFocus={() => setIsOpen(Boolean(inputValue.trim()))}
                     onBlur={() => setIsOpen(false)}
                     onKeyDown={(event) => {
@@ -58,7 +56,6 @@ export const MediaFacetSearch = ({ value, onChange, mediaItems = [], displayName
                     }}
                     placeholder={placeholder}
                     disabled={disabled}
-                    autoComplete="off"
                 />
                 {isOpen && options.length > 0 ? (
                     <ul className="absolute inset-x-0 top-[calc(100%+0.35rem)] z-50 grid gap-1 rounded-xl border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-700 dark:bg-neutral-900" role="listbox">
@@ -73,7 +70,7 @@ export const MediaFacetSearch = ({ value, onChange, mediaItems = [], displayName
                         ))}
                     </ul>
                 ) : null}
-            </label>
+            </div>
 
             {selectedFilters.length > 0 ? (
                 <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Active media filters">

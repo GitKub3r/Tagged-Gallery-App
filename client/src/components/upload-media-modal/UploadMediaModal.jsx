@@ -30,6 +30,7 @@ export const UploadMediaModal = ({
     selectedTags,
     tagColorByName = {},
     tagTypeByName = {},
+    existingTagNames = [],
     activeSuggestionField,
     activeSuggestionIndex,
     displayNameSuggestions,
@@ -247,6 +248,7 @@ export const UploadMediaModal = ({
                                     selectedTags={selectedTags}
                                     tagColorByName={tagColorByName}
                                     tagTypeByName={tagTypeByName}
+                                    existingTagNames={existingTagNames}
                                     activeSuggestionField={activeSuggestionField}
                                     activeSuggestionIndex={activeSuggestionIndex}
                                     displayNameSuggestions={displayNameSuggestions}

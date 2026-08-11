@@ -683,6 +683,7 @@ export const MediaEditModal = ({
                             selectedTags={selectedTags}
                             tagColorByName={tagColorByName}
                             tagTypeByName={tagTypeByName}
+                            existingTagNames={distinctTagNames}
                             activeSuggestionField={activeSuggestionField}
                             activeSuggestionIndex={activeSuggestionIndex}
                             displayNameSuggestions={visibleDisplayNameSuggestions}
