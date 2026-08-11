@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Selecto from "react-selecto";
 
+const PROGRAMMATIC_DRAG_CONTAINER = [];
+
 export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, selectedIds, onSelectionChange, onActivate }) => {
     const selectoRef = useRef(null);
     const [dragContainer, setDragContainer] = useState(null);
@@ -21,18 +23,22 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
     const containerProps = {
         ref: setDragContainer,
         onDragStart: (event) => event.preventDefault(),
+        onMouseDownCapture: (event) => {
+            if (event.button !== 0) return;
+            selectoRef.current?.triggerDragStart(event.nativeEvent);
+        },
     };
 
     const selectionOverlay = dragContainer && typeof document !== "undefined" ? (
         <Selecto
             ref={selectoRef}
             container={document.body}
-            dragContainer={window}
-            dragCondition={({ inputEvent }) => dragContainer.contains(inputEvent.target)}
+            dragContainer={PROGRAMMATIC_DRAG_CONTAINER}
             selectableTargets={[() => Array.from(dragContainer.querySelectorAll("[data-marquee-selection-id]"))]}
             selectByClick={false}
             selectFromInside
             preventDragFromInside={false}
+            preventDefault
             preventClickEventOnDrag
             hitRate={1}
             keyContainer={window}
