@@ -2445,15 +2445,22 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 setUploadError(null);
                 setIsUploadModalOpen(false);
                 setIsUploadToastMode(false);
+                hideUploadToast();
                 resetUploadForm();
-                showUploadToast(
-                    {
-                        status: "info",
-                        title: "Upload cancelled",
-                        message: selectedFiles.length === 1 ? "The media upload was cancelled." : "The batch upload was cancelled.",
-                    },
-                    2600,
-                );
+                const cancelledMessage = selectedFiles.length === 1
+                    ? "The media upload was cancelled."
+                    : "The batch upload was cancelled.";
+
+                window.setTimeout(() => {
+                    showUploadToast(
+                        {
+                            status: "info",
+                            title: "Upload cancelled",
+                            message: cancelledMessage,
+                        },
+                        2600,
+                    );
+                }, 450);
                 return;
             }
 
