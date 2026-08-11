@@ -15,6 +15,7 @@ import { AlbumEditModal } from "./components/AlbumEditModal";
 import { AlbumSearchField } from "./components/AlbumSearchField";
 import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
 import { useFilterTransition } from "../../components/results-loading-indicator/useFilterTransition";
+import { ConvergingShuffleOverlay } from "../../components/converging-shuffle-overlay/ConvergingShuffleOverlay";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import "./AlbumPage.css";
 
@@ -228,6 +229,8 @@ export const AlbumPage = () => {
         const storedMode = String(window.localStorage.getItem(ALBUM_VIEW_STORAGE_KEY) || "card").toLowerCase();
         return storedMode === "list" ? "list" : "card";
     });
+    const [isShufflingAlbums, setIsShufflingAlbums] = useState(false);
+    const [albumShufflePreviewItems, setAlbumShufflePreviewItems] = useState([]);
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
@@ -263,6 +266,13 @@ export const AlbumPage = () => {
     const longPressPointerStartRef = useRef(null);
     const longPressPointerMovedRef = useRef(false);
     const longPressConsumedAlbumIdRef = useRef(null);
+    const albumShuffleNavigationTimeoutRef = useRef(null);
+    const albumShuffleFeedbackTimeoutRef = useRef(null);
+
+    useEffect(() => () => {
+        if (albumShuffleNavigationTimeoutRef.current) window.clearTimeout(albumShuffleNavigationTimeoutRef.current);
+        if (albumShuffleFeedbackTimeoutRef.current) window.clearTimeout(albumShuffleFeedbackTimeoutRef.current);
+    }, []);
 
     const imageMediaItems = useMemo(
         () =>
@@ -1140,18 +1150,31 @@ export const AlbumPage = () => {
     }
 
     const handleOpenRandomAlbum = () => {
-        if (!visibleAlbums.length) return;
-        const randomAlbum = visibleAlbums[Math.floor(Math.random() * visibleAlbums.length)];
-        handleOpenAlbumDetail(randomAlbum.id);
+        if (!visibleAlbums.length || isShufflingAlbums) return;
+        const targetAlbum = visibleAlbums[Math.floor(Math.random() * visibleAlbums.length)];
+        const supportingAlbums = visibleAlbums.filter((album) => album.id !== targetAlbum.id).slice(0, 2);
+        const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+        setAlbumShufflePreviewItems([...supportingAlbums, targetAlbum]);
+        setIsShufflingAlbums(true);
+        albumShuffleNavigationTimeoutRef.current = window.setTimeout(() => {
+            handleOpenAlbumDetail(targetAlbum.id);
+            albumShuffleNavigationTimeoutRef.current = null;
+        }, prefersReducedMotion ? 0 : 950);
+        albumShuffleFeedbackTimeoutRef.current = window.setTimeout(() => {
+            setIsShufflingAlbums(false);
+            albumShuffleFeedbackTimeoutRef.current = null;
+        }, prefersReducedMotion ? 250 : 1200);
     };
 
     return (
         <section className="tagged-app-page tagged-album-page">
             <ResultsLoadingIndicator isVisible={isFilteringAlbums} />
+            {isShufflingAlbums ? <ConvergingShuffleOverlay items={albumShufflePreviewItems} getPreviewUrl={(album) => getAssetUrl(album.albumthumbpath || album.albumcoverpath)} fallbackIcon={faFolderOpen} ariaLabel="Random album selected" /> : null}
             {!loading && !error && albums.length > 0 ? (
                     <LibraryToolbar maxWidth="max-w-[91.5rem]" searchClassName="lg:max-w-4xl" label="Search albums" search={
                         <AlbumSearchField value={albumSearchInput} suggestions={albumNameSuggestions} onChange={setAlbumSearchInput} onSubmit={(value) => setAlbumSearch(String(value || "").trim())} />
-                    } controls={<><button type="button" className="inline-flex! h-11! w-auto! shrink-0! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-3! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-white! dark:text-neutral-950! dark:hover:bg-neutral-200! sm:px-4! lg:h-12!" onClick={handleOpenRandomAlbum} aria-label="Open a random album"><FontAwesomeIcon icon={faShuffle} aria-hidden="true" /><span className="hidden sm:inline">Random</span></button><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
+                    } controls={<><button type="button" className="inline-flex! h-11! w-auto! shrink-0! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-3! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-60! dark:bg-white! dark:text-neutral-950! dark:hover:bg-neutral-200! sm:px-4! lg:h-12!" onClick={handleOpenRandomAlbum} disabled={isShufflingAlbums} aria-label="Open a random album"><FontAwesomeIcon icon={faShuffle} aria-hidden="true" /><span className="hidden sm:inline">Random</span></button><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
                             <button
                                 type="button"
                                 className={`inline-flex! h-9! w-auto! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! text-sm! font-bold! shadow-none! lg:h-10! lg:flex-none! ${albumViewMode === "card" ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}

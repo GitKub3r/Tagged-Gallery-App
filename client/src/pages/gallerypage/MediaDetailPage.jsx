@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { ConvergingShuffleOverlay } from "../../components/converging-shuffle-overlay/ConvergingShuffleOverlay";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { apiClient } from "../../api/apiClient";
@@ -2087,22 +2088,7 @@ export const MediaDetailPage = () => {
             </header>
 
             {isShufflingMedia ? (
-                <div className="tagged-media-detail-shuffle-overlay" role="status" aria-live="polite" aria-label="Media order shuffled">
-                    <div className="tagged-media-detail-shuffle-stage" aria-hidden="true">
-                        {shufflePreviewItems.map((media, index) => {
-                            const previewUrl = getThumbnailUrl(media) || getMediaUrl(media);
-                            const animationSlot = index === shufflePreviewItems.length - 1 ? 3 : index + 1;
-                            return (
-                                <span key={media.id} className={`tagged-media-detail-shuffle-card tagged-media-detail-shuffle-card--${animationSlot}`}>
-                                    {previewUrl ? <img src={previewUrl} alt="" /> : <FontAwesomeIcon icon={faImage} />}
-                                </span>
-                            );
-                        })}
-                        <span className="tagged-media-detail-shuffle-particles">
-                            {Array.from({ length: 12 }, (_, particleIndex) => <i key={particleIndex} />)}
-                        </span>
-                    </div>
-                </div>
+                <ConvergingShuffleOverlay items={shufflePreviewItems} getPreviewUrl={(media) => getThumbnailUrl(media) || getMediaUrl(media)} ariaLabel="Media order shuffled" />
             ) : null}
 
             <div className="tagged-media-detail-shell">
