@@ -20,6 +20,7 @@ import { IconButton } from "../../../components/icon-button/IconButton";
 import { MediaCard } from "../../../components/media-card/MediaCard";
 import { MediaFacetSearch } from "../../../components/media-facet-search/MediaFacetSearch";
 import { CollectionLoadingSkeleton } from "../../../components/loading-skeletons/CollectionLoadingSkeleton";
+import { SearchField } from "../../../components/search-field/SearchField";
 
 const LAPTOP_MEDIA_PAGE_SIZE = 8;
 const DESKTOP_MEDIA_PAGE_SIZE = 10;
@@ -406,17 +407,14 @@ export const AlbumCoverPickerModal = ({
                                 ) : null}
                             </div>
 
-                            <label className="relative mb-3 block shrink-0">
-                                <FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400" aria-hidden="true" />
-                                <input
-                                    type="search"
-                                    className="h-10 w-full rounded-xl border border-neutral-300 bg-white pl-9 pr-3 text-sm text-neutral-950 outline-none focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100"
-                                    value={tagFilterSearch}
-                                    onChange={(event) => handleTagFilterSearchChange(event.target.value)}
-                                    placeholder="Search tags"
-                                    aria-label="Search tags"
-                                />
-                            </label>
+                            <SearchField
+                                className="mb-3 shrink-0"
+                                inputClassName="h-10!"
+                                value={tagFilterSearch}
+                                onChange={handleTagFilterSearchChange}
+                                placeholder="Search tags"
+                                label="Search tags"
+                            />
 
                             <ul className="grid min-h-0 flex-1 auto-rows-[2.25rem] content-start gap-1.5" aria-label="Tag filters">
                                 {visibleTags.map((tagName) => {
