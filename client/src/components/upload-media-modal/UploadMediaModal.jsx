@@ -208,7 +208,6 @@ export const UploadMediaModal = ({
             title="Upload media"
             subtitle={!isUploading ? fileSummary : ""}
             onClose={onClose}
-            closeDisabled={isUploading}
         >
                 {isUploading ? (
                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6 text-center" aria-live="polite">
