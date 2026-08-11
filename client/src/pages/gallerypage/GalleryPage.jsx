@@ -622,6 +622,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     });
     const [uploadPreviewUrls, setUploadPreviewUrls] = useState([]);
     const [selectedFiles, setSelectedFiles] = useState([]);
+    const [isDraggingUploadFiles, setIsDraggingUploadFiles] = useState(false);
     const [displayNameInput, setDisplayNameInput] = useState("");
     const [authorInput, setAuthorInput] = useState("");
     const [tagInput, setTagInput] = useState("");
@@ -688,6 +689,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const galleryScrollSaveRafRef = useRef(null);
     const isRestoringGalleryScrollRef = useRef(false);
     const galleryShuffleTimeoutRef = useRef(null);
+    const uploadDragDepthRef = useRef(0);
 
     const galleryScrollStorageKey = `${GALLERY_SCROLL_STORAGE_KEY_PREFIX}:${basePath}`;
 
@@ -2297,9 +2299,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         hiddenFileInputRef.current?.click();
     };
 
-    const handleFileSelectionChange = (event) => {
-        const files = Array.from(event.target.files || []);
-
+    const openUploadWithFiles = (files) => {
         if (files.length === 0) {
             return;
 
@@ -2311,6 +2311,43 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setUploadPreviewUrls(nextPreviewUrls);
         setSelectedFiles(files);
         setIsUploadModalOpen(true);
+    };
+
+    const handleFileSelectionChange = (event) => {
+        openUploadWithFiles(Array.from(event.target.files || []));
+    };
+
+    const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
+
+    const handleUploadDragEnter = (event) => {
+        if (basePath !== "/gallery" || !hasDraggedFiles(event)) return;
+        event.preventDefault();
+        uploadDragDepthRef.current += 1;
+        setIsDraggingUploadFiles(true);
+    };
+
+    const handleUploadDragOver = (event) => {
+        if (basePath !== "/gallery" || !hasDraggedFiles(event)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+    };
+
+    const handleUploadDragLeave = (event) => {
+        if (basePath !== "/gallery" || !isDraggingUploadFiles) return;
+        event.preventDefault();
+        uploadDragDepthRef.current = Math.max(0, uploadDragDepthRef.current - 1);
+        if (uploadDragDepthRef.current === 0) setIsDraggingUploadFiles(false);
+    };
+
+    const handleUploadDrop = (event) => {
+        if (basePath !== "/gallery" || !hasDraggedFiles(event)) return;
+        event.preventDefault();
+        uploadDragDepthRef.current = 0;
+        setIsDraggingUploadFiles(false);
+        const files = Array.from(event.dataTransfer.files || []).filter((file) =>
+            /^(image|video)\//i.test(file.type) || /\.hei[cf]$/i.test(file.name),
+        );
+        openUploadWithFiles(files);
     };
 
     const handleOpenUpload = () => {
@@ -2933,8 +2970,25 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     return (
         <section
             className={`tagged-app-page tagged-gallery-page${gridViewMode === "list" ? " tagged-gallery-page--list-view" : ""}`}
+            onDragEnter={handleUploadDragEnter}
+            onDragOver={handleUploadDragOver}
+            onDragLeave={handleUploadDragLeave}
+            onDrop={handleUploadDrop}
         >
             <ResultsLoadingIndicator isVisible={mediaQuery.isFetching && !mediaQuery.isLoading && Boolean(mediaQuery.data)} />
+            {isDraggingUploadFiles ? (
+                <div className="tagged-gallery-drop-overlay" role="status" aria-live="polite">
+                    <div className="flex flex-col items-center gap-3 text-center">
+                        <span className="grid h-14 w-14 place-items-center rounded-xl border border-neutral-300 bg-white text-xl text-neutral-700 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
+                            <FontAwesomeIcon icon={faCloudArrowUp} aria-hidden="true" />
+                        </span>
+                        <div>
+                            <p className="text-lg font-black text-neutral-950 dark:text-neutral-100">Drop media here</p>
+                            <p className="mt-1 text-sm font-semibold text-neutral-500 dark:text-neutral-400">Images and videos will open in the upload editor</p>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
             <input
                 ref={hiddenFileInputRef}
                 type="file"
