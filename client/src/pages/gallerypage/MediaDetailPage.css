@@ -1183,8 +1183,8 @@
     height: 2.55rem;
     border-radius: var(--tagged-radius-lg);
     border: 0;
-    background: #0a0a0a;
-    color: #ffffff;
+    background: #0a0a0a !important;
+    color: #ffffff !important;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2177,6 +2177,7 @@
 
     .tagged-media-detail-title-block {
         padding-top: 0.18rem;
+        padding-left: 2.8rem;
     }
 
     .tagged-media-detail-header-actions {

@@ -364,16 +364,16 @@ export const UploadMediaModal = ({
                         else goToPreviousPreview();
                     }}
                 >
-                    <IconButton className="absolute right-4 top-4 border-white/30 bg-black/60 text-white hover:bg-black/80" onClick={() => setIsPreviewOpen(false)} aria-label="Close selected media preview">
+                    <IconButton className="absolute! right-4! top-4! border-white/30! bg-black/70! text-white! hover:bg-black/90!" onClick={() => setIsPreviewOpen(false)} aria-label="Close selected media preview">
                         <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                     </IconButton>
 
                     {totalFiles > 1 ? (
                         <>
-                            <IconButton className="absolute left-4 top-1/2 -translate-y-1/2 border-white/30 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToPreviousPreview} disabled={safePreviewIndex === 0} aria-label="Previous selected file">
+                            <IconButton className="absolute! left-4! top-1/2! -translate-y-1/2! border-white/30! bg-black/70! text-white! hover:bg-black/90! disabled:opacity-30!" onClick={goToPreviousPreview} disabled={safePreviewIndex === 0} aria-label="Previous selected file">
                                 <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
                             </IconButton>
-                            <IconButton className="absolute right-4 top-1/2 -translate-y-1/2 border-white/30 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToNextPreview} disabled={safePreviewIndex === totalFiles - 1} aria-label="Next selected file">
+                            <IconButton className="absolute! right-4! top-1/2! -translate-y-1/2! border-white/30! bg-black/70! text-white! hover:bg-black/90! disabled:opacity-30!" onClick={goToNextPreview} disabled={safePreviewIndex === totalFiles - 1} aria-label="Next selected file">
                                 <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
                             </IconButton>
                             <span className="absolute left-4 top-4 rounded-xl bg-black/60 px-3 py-2 text-xs font-semibold text-white">

@@ -758,10 +758,10 @@ export const MediaEditModal = ({
 
                         {navigationCount > 1 ? (
                             <>
-                                <IconButton className="absolute left-2 top-1/2 -translate-y-1/2 border-white/20 bg-black/65 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToPreviousPreview} disabled={!canGoPrevPreview} aria-label="Previous media">
+                                <IconButton className="absolute! left-2! top-1/2! -translate-y-1/2! border-white/20! bg-black/70! text-white! hover:bg-black/90! disabled:opacity-30!" onClick={goToPreviousPreview} disabled={!canGoPrevPreview} aria-label="Previous media">
                                     <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
                                 </IconButton>
-                                <IconButton className="absolute right-2 top-1/2 -translate-y-1/2 border-white/20 bg-black/65 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToNextPreview} disabled={!canGoNextPreview} aria-label="Next media">
+                                <IconButton className="absolute! right-2! top-1/2! -translate-y-1/2! border-white/20! bg-black/70! text-white! hover:bg-black/90! disabled:opacity-30!" onClick={goToNextPreview} disabled={!canGoNextPreview} aria-label="Next media">
                                     <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
                                 </IconButton>
                                 <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-xl bg-black/65 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur-sm">
@@ -814,15 +814,15 @@ export const MediaEditModal = ({
                     onPointerUp={handlePreviewPointerUp}
                     onPointerCancel={() => { previewTouchStartRef.current = null; }}
                 >
-                    <IconButton className="absolute right-4 top-4 border-white/30 bg-black/60 text-white hover:bg-black/80" onClick={() => setIsPreviewLightboxOpen(false)} aria-label="Close selected media preview">
+                    <IconButton className="absolute! right-4! top-4! border-white/30! bg-black/70! text-white! hover:bg-black/90!" onClick={() => setIsPreviewLightboxOpen(false)} aria-label="Close selected media preview">
                         <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                     </IconButton>
                     {navigationCount > 1 ? (
                         <>
-                            <IconButton className="absolute left-4 top-1/2 -translate-y-1/2 border-white/30 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToPreviousPreview} disabled={!canGoPrevPreview} aria-label="Previous media">
+                            <IconButton className="absolute! left-4! top-1/2! -translate-y-1/2! border-white/30! bg-black/70! text-white! hover:bg-black/90! disabled:opacity-30!" onClick={goToPreviousPreview} disabled={!canGoPrevPreview} aria-label="Previous media">
                                 <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
                             </IconButton>
-                            <IconButton className="absolute right-4 top-1/2 -translate-y-1/2 border-white/30 bg-black/60 text-white hover:bg-black/80 disabled:opacity-30" onClick={goToNextPreview} disabled={!canGoNextPreview} aria-label="Next media">
+                            <IconButton className="absolute! right-4! top-1/2! -translate-y-1/2! border-white/30! bg-black/70! text-white! hover:bg-black/90! disabled:opacity-30!" onClick={goToNextPreview} disabled={!canGoNextPreview} aria-label="Next media">
                                 <FontAwesomeIcon icon={faArrowRight} aria-hidden="true" />
                             </IconButton>
                         </>
