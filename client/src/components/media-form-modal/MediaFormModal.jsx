@@ -82,6 +82,7 @@ export const MediaMetadataFields = ({
     displayNamePlaceholder = "Undefined",
     authorPlaceholder = "Optional",
     tagPlaceholder = "Type a tag and press Enter",
+    autoFocusDisplayName = false,
     error,
     onDisplayNameChange,
     onAuthorChange,
@@ -109,7 +110,7 @@ export const MediaMetadataFields = ({
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                 <span className="mb-1.5 block">Media name</span>
                 <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} />
+                    <input className={mediaFormInputClasses} type="text" value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} />
                     {activeSuggestionField === "displayname" ? <MediaSuggestionList items={displayNameSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectDisplayName} /> : null}
                 </div>
             </label>

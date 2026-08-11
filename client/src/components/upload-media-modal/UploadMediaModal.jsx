@@ -254,6 +254,7 @@ export const UploadMediaModal = ({
                                     displayNameSuggestions={displayNameSuggestions}
                                     authorSuggestions={authorSuggestions}
                                     tagSuggestions={tagSuggestions}
+                                    autoFocusDisplayName
                                     error={uploadError}
                                     onDisplayNameChange={onDisplayNameChange}
                                     onAuthorChange={onAuthorChange}
