@@ -379,6 +379,37 @@
     padding-bottom: 0.35rem;
 }
 
+@media (min-width: 1024px) {
+    .tagged-album-page--minimum-page {
+        gap: 0.75rem;
+    }
+
+    .tagged-album-page--minimum-page .tagged-album-grid-v2 {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 0.75rem;
+        padding-bottom: 0;
+    }
+
+    .tagged-album-page--minimum-page .tagged-album-create-tile-v2 {
+        min-height: 0;
+    }
+
+    .tagged-album-page--minimum-page .tagged-album-list-v2 {
+        gap: 0;
+    }
+
+    .tagged-album-page--minimum-page .tagged-album-list-row-v2 {
+        min-height: 2.75rem;
+        padding-top: 0.25rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .tagged-album-page--minimum-page .tagged-album-list-preview-v2 {
+        width: 3.5rem;
+        height: 2.25rem;
+    }
+}
+
 @media (max-width: 760px) {
     .tagged-album-grid-v2 {
         grid-template-columns: repeat(2, minmax(0, 1fr));

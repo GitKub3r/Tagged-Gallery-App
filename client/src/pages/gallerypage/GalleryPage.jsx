@@ -2970,7 +2970,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     }
     return (
         <section
-            className={`tagged-app-page tagged-gallery-page${gridViewMode === "list" ? " tagged-gallery-page--list-view" : ""}`}
+            className={`tagged-app-page tagged-gallery-page${gridViewMode === "list" ? " tagged-gallery-page--list-view" : ""}${pageSize === MIN_PAGE_SIZE ? " tagged-gallery-page--minimum-page" : ""}`}
             onDragEnter={handleUploadDragEnter}
             onDragOver={handleUploadDragOver}
             onDragLeave={handleUploadDragLeave}

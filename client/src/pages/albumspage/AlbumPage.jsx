@@ -1168,16 +1168,16 @@ export const AlbumPage = () => {
     };
 
     return (
-        <section className="tagged-app-page tagged-album-page">
+        <section className={`tagged-app-page tagged-album-page${albumPageSize === 10 ? " tagged-album-page--minimum-page" : ""}`}>
             <ResultsLoadingIndicator isVisible={isFilteringAlbums} />
             {isShufflingAlbums ? <ConvergingShuffleOverlay items={albumShufflePreviewItems} getPreviewUrl={(album) => getAssetUrl(album.albumthumbpath || album.albumcoverpath)} fallbackIcon={faFolderOpen} ariaLabel="Random album selected" /> : null}
             {!loading && !error && albums.length > 0 ? (
                     <LibraryToolbar maxWidth="max-w-[91.5rem]" searchClassName="lg:max-w-4xl" label="Search albums" search={
                         <AlbumSearchField value={albumSearchInput} suggestions={albumNameSuggestions} onChange={setAlbumSearchInput} onSubmit={(value) => setAlbumSearch(String(value || "").trim())} />
-                    } controls={<><button type="button" className="inline-flex! h-11! w-auto! shrink-0! items-center! justify-center! gap-2! rounded-xl! border! border-neutral-300! bg-white! px-3! py-2! text-sm! font-semibold! text-neutral-600! shadow-none! transition-colors! hover:bg-neutral-100! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800! sm:px-4! lg:h-12!" onClick={handleOpenRandomAlbum} aria-label="Open a random album"><FontAwesomeIcon icon={faShuffle} aria-hidden="true" /><span className="hidden sm:inline">Random</span></button><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
+                    } controls={<><button type="button" className="inline-flex! h-11! w-auto! shrink-0! items-center! justify-center! gap-2! rounded-xl! border! border-neutral-300! bg-white! px-3! py-2! text-sm! font-semibold! text-neutral-600! shadow-none! transition-colors! hover:bg-neutral-100! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800! sm:px-4! lg:h-12!" onClick={handleOpenRandomAlbum} aria-label="Open a random album"><FontAwesomeIcon icon={faShuffle} aria-hidden="true" /><span className="hidden sm:inline">Random</span></button><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 [&>button]:h-9! [&>button]:min-w-0! [&>button]:flex-1! [&>button]:justify-center! [&>button]:rounded-xl! [&>button]:border-0! [&>button]:px-0! lg:contents lg:[&>button]:h-12! lg:[&>button]:flex-none! lg:[&>button]:border! lg:[&>button]:px-4!" aria-label="Album view mode">
                             <button
                                 type="button"
-                                className={`inline-flex! h-9! w-auto! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! text-sm! font-bold! shadow-none! lg:h-10! lg:flex-none! ${albumViewMode === "card" ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                                className={`inline-flex! w-auto! items-center! gap-2! py-2! text-sm! font-semibold! shadow-none! transition-colors! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500! ${albumViewMode === "card" ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!"}`}
                                 onClick={() => setAlbumViewMode("card")}
                                 aria-pressed={albumViewMode === "card"}
                                 aria-label="Card view"
@@ -1189,7 +1189,7 @@ export const AlbumPage = () => {
 
                             <button
                                 type="button"
-                                className={`inline-flex! h-9! w-auto! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! text-sm! font-bold! shadow-none! lg:h-10! lg:flex-none! ${albumViewMode === "list" ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                                className={`inline-flex! w-auto! items-center! gap-2! py-2! text-sm! font-semibold! shadow-none! transition-colors! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-neutral-500! ${albumViewMode === "list" ? "border-neutral-950! bg-neutral-950! text-white! dark:border-neutral-100! dark:bg-neutral-100! dark:text-neutral-950!" : "border-neutral-300! bg-white! text-neutral-600! hover:bg-neutral-100! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-300! dark:hover:bg-neutral-800!"}`}
                                 onClick={() => setAlbumViewMode("list")}
                                 aria-pressed={albumViewMode === "list"}
                                 aria-label="List view"
@@ -1228,7 +1228,11 @@ export const AlbumPage = () => {
                         onAction={handleOpenCreateModal}
                     />
                 ) : albumViewMode === "list" ? (
-                    <div className="mx-auto grid w-full max-w-[91.5rem] gap-1" aria-label="Albums list">
+                    <div className="tagged-album-list-v2 mx-auto grid w-full max-w-[91.5rem] gap-1" aria-label="Albums list">
+                        <button type="button" className="tagged-album-list-row-v2 flex min-h-20 w-full items-center gap-4 border-0 border-b border-dashed border-neutral-400 bg-transparent px-1 py-3 text-left text-neutral-600 shadow-none hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:text-neutral-100" onClick={handleOpenCreateModal} aria-label="Add new album">
+                            <span className="tagged-album-list-preview-v2 grid h-16 w-24 shrink-0 place-items-center rounded-xl border border-dashed border-neutral-400 sm:h-20 sm:w-28"><FontAwesomeIcon icon={faFolderPlus} aria-hidden="true" /></span>
+                            <span className="text-sm font-bold sm:text-base">Add new album</span>
+                        </button>
                         {paginatedAlbums.map((album) => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
@@ -1239,7 +1243,7 @@ export const AlbumPage = () => {
                             return (
                                 <article
                                     key={album.id}
-                                    className={`group relative flex min-h-20 w-full cursor-pointer items-center gap-4 border-b border-neutral-200 px-1 py-3 transition-colors dark:border-neutral-800 ${isSelected ? "bg-neutral-100/70 dark:bg-neutral-800/50" : ""}`}
+                                    className={`tagged-album-list-row-v2 group relative flex min-h-20 w-full cursor-pointer items-center gap-4 border-b border-neutral-200 px-1 py-3 transition-colors dark:border-neutral-800 ${isSelected ? "bg-neutral-100/70 dark:bg-neutral-800/50" : ""}`}
                                 >
                                     <button
                                         type="button"
@@ -1261,7 +1265,7 @@ export const AlbumPage = () => {
                                         aria-pressed={isAlbumSelectionMode ? isSelected : undefined}
                                         aria-label={`Open album ${albumDisplayName}`}
                                     >
-                                        <span className="relative h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-900 sm:h-20 sm:w-28">
+                                        <span className="tagged-album-list-preview-v2 relative h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-900 sm:h-20 sm:w-28">
                                             {coverUrl ? (
                                                 <img className="h-full w-full object-cover" src={coverUrl} alt="" />
                                             ) : (
