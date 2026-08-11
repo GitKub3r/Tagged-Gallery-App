@@ -3055,7 +3055,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                     <button
                                         key={filter.type}
                                         type="button"
-                                        className={`inline-flex! h-9! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-0! py-0! text-sm! font-bold! shadow-none! lg:h-10! lg:flex-none! lg:px-3! ${mediaTypeFilter === filter.type ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
+                                        className={`inline-flex! h-9! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-0! py-0! text-sm! font-bold! shadow-none! lg:h-10! lg:w-auto! lg:flex-none! lg:px-3! ${mediaTypeFilter === filter.type ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
                                         onClick={() => setMediaTypeFilter(filter.type)}
                                         aria-pressed={mediaTypeFilter === filter.type}
                                         title={filter.label}
