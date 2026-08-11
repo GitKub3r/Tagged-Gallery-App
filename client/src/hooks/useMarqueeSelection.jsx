@@ -27,7 +27,8 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
         <Selecto
             ref={selectoRef}
             container={document.body}
-            dragContainer={dragContainer}
+            dragContainer={window}
+            dragCondition={({ inputEvent }) => dragContainer.contains(inputEvent.target)}
             selectableTargets={[() => Array.from(dragContainer.querySelectorAll("[data-marquee-selection-id]"))]}
             selectByClick={false}
             selectFromInside
