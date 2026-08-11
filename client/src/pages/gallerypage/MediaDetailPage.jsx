@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { faChevronLeft, faChevronRight, faCopyright, faDownload, faHeart as faHeartSolid, faImage, faPen, faPlay, faRepeat, faScrewdriverWrench, faTags, faTrash, faUser, faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faChevronRight, faCopyright, faDownload, faHeart as faHeartSolid, faImage, faPen, faPlay, faRepeat, faScrewdriverWrench, faShuffle, faTags, faTrash, faUser, faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../components/icon-button/IconButton";
@@ -443,6 +443,7 @@ export const MediaDetailPage = () => {
         return storedValue === null ? true : storedValue === "true";
     });
     const [isMediaToolsOpen, setIsMediaToolsOpen] = useState(true);
+    const [isShufflingMedia, setIsShufflingMedia] = useState(false);
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
     const [isLightboxImageZoomed, setIsLightboxImageZoomed] = useState(false);
     const [lightboxImageScale, setLightboxImageScale] = useState(LIGHTBOX_MIN_ZOOM);
@@ -508,6 +509,7 @@ export const MediaDetailPage = () => {
     const navigationBurstResetTimeoutRef = useRef(null);
     const lastKeyboardRepeatNavigationRef = useRef(0);
     const actionToastTimeoutRef = useRef(null);
+    const shuffleFeedbackTimeoutRef = useRef(null);
 
     const clampLightboxScale = (scale) =>
         Math.min(LIGHTBOX_MAX_ZOOM, Math.max(LIGHTBOX_MIN_ZOOM, Number(scale) || LIGHTBOX_MIN_ZOOM));
@@ -566,6 +568,11 @@ export const MediaDetailPage = () => {
             if (navigationBurstResetTimeoutRef.current) {
                 window.clearTimeout(navigationBurstResetTimeoutRef.current);
                 navigationBurstResetTimeoutRef.current = null;
+            }
+
+            if (shuffleFeedbackTimeoutRef.current) {
+                window.clearTimeout(shuffleFeedbackTimeoutRef.current);
+                shuffleFeedbackTimeoutRef.current = null;
             }
         },
         [],
@@ -865,6 +872,11 @@ export const MediaDetailPage = () => {
         });
     }, [mediaItems, activeTagFilter, activeAuthorFilter]);
 
+    const hasNavigableVideo = useMemo(
+        () => filteredMediaItems.some((media) => String(media?.mediatype || "").toLowerCase().includes("video")),
+        [filteredMediaItems],
+    );
+
     const currentIndex = useMemo(
         () => filteredMediaItems.findIndex((item) => String(item.id) === String(mediaId)),
         [filteredMediaItems, mediaId],
@@ -1075,6 +1087,33 @@ export const MediaDetailPage = () => {
 
     const handleNextMedia = () => {
         requestMediaNavigation(1);
+    };
+
+    const handleShuffleMedia = () => {
+        if (mediaItems.length < 2) return;
+
+        const shuffledMediaItems = [...mediaItems];
+        for (let index = shuffledMediaItems.length - 1; index > 0; index -= 1) {
+            const randomIndex = Math.floor(Math.random() * (index + 1));
+            [shuffledMediaItems[index], shuffledMediaItems[randomIndex]] = [shuffledMediaItems[randomIndex], shuffledMediaItems[index]];
+        }
+
+        if (shuffledMediaItems.every((media, index) => media.id === mediaItems[index]?.id)) {
+            shuffledMediaItems.push(shuffledMediaItems.shift());
+        }
+
+        setMediaItems(shuffledMediaItems);
+        navigate(`${location.pathname}${location.search || ""}`, {
+            replace: true,
+            state: { ...location.state, mediaItems: shuffledMediaItems },
+        });
+
+        if (shuffleFeedbackTimeoutRef.current) window.clearTimeout(shuffleFeedbackTimeoutRef.current);
+        setIsShufflingMedia(true);
+        shuffleFeedbackTimeoutRef.current = window.setTimeout(() => {
+            setIsShufflingMedia(false);
+            shuffleFeedbackTimeoutRef.current = null;
+        }, 480);
     };
 
     keyboardMediaNavigationRef.current = {
@@ -1993,24 +2032,37 @@ export const MediaDetailPage = () => {
                         <span className="tagged-media-detail-tools-separator" aria-hidden="true" />
                         <button
                             type="button"
-                            className="tagged-media-detail-tool-action"
-                            onClick={handleToggleMediaDetailAutoplay}
-                            aria-pressed={mediaDetailAutoplay}
+                            className={`tagged-media-detail-tool-action${isShufflingMedia ? " is-shuffling" : ""}`}
+                            onClick={handleShuffleMedia}
+                            disabled={filteredMediaItems.length < 2}
                             tabIndex={isMediaToolsOpen ? 0 : -1}
+                            aria-label={isShufflingMedia ? "Media shuffled" : "Shuffle media"}
                         >
-                            <FontAwesomeIcon icon={faPlay} aria-hidden="true" />
-                            <span>Autoplay</span>
+                            <FontAwesomeIcon icon={faShuffle} aria-hidden="true" />
+                            <span>Shuffle</span>
                         </button>
-                        <button
-                            type="button"
-                            className="tagged-media-detail-tool-action"
-                            onClick={handleToggleMediaDetailLoop}
-                            aria-pressed={mediaDetailLoop}
-                            tabIndex={isMediaToolsOpen ? 0 : -1}
-                        >
-                            <FontAwesomeIcon icon={faRepeat} aria-hidden="true" />
-                            <span>Loop</span>
-                        </button>
+                        {hasNavigableVideo ? <>
+                            <button
+                                type="button"
+                                className="tagged-media-detail-tool-action"
+                                onClick={handleToggleMediaDetailAutoplay}
+                                aria-pressed={mediaDetailAutoplay}
+                                tabIndex={isMediaToolsOpen ? 0 : -1}
+                            >
+                                <FontAwesomeIcon icon={faPlay} aria-hidden="true" />
+                                <span>Autoplay</span>
+                            </button>
+                            <button
+                                type="button"
+                                className="tagged-media-detail-tool-action"
+                                onClick={handleToggleMediaDetailLoop}
+                                aria-pressed={mediaDetailLoop}
+                                tabIndex={isMediaToolsOpen ? 0 : -1}
+                            >
+                                <FontAwesomeIcon icon={faRepeat} aria-hidden="true" />
+                                <span>Loop</span>
+                            </button>
+                        </> : null}
                     </div>
                 </div>
             </header>
