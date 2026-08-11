@@ -23,6 +23,10 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+        if (axios.isCancel(error) || error.code === "ERR_CANCELED") {
+            return Promise.reject(error);
+        }
+
         const request = error.config;
         const isAuthenticatedRequest = Boolean(request?.headers?.Authorization);
 
