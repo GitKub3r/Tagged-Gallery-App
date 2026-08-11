@@ -2,7 +2,7 @@ export const ProgressToast = ({ data }) => {
     const progress = typeof data.progress === "number" ? Math.max(0, Math.min(100, data.progress)) : null;
 
     return (
-        <div className="grid w-full min-w-0 gap-3 px-4 py-3 text-sm sm:px-5 sm:py-4">
+        <div className="grid w-[min(24rem,calc(100vw-2rem))] min-w-0 gap-3 px-4 py-3 text-sm sm:px-5 sm:py-4">
             <div>
                 <strong className="block font-bold text-neutral-950 dark:text-neutral-100">{data.title}</strong>
                 {data.message ? <p className="mt-1 break-words text-xs leading-5 text-neutral-500 dark:text-neutral-400">{data.message}</p> : null}
