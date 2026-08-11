@@ -31,6 +31,6 @@ export const CollectionLoadingSkeleton = ({ itemType = "media", viewMode = "card
     useEffect(() => { const timer = window.setTimeout(() => setIsVisible(true), SKELETON_VISIBILITY_DELAY_MS); return () => window.clearTimeout(timer); }, []);
     if (!isVisible) return null;
     const count = viewMode === "list" ? 8 : Math.max(8, Math.min(15, Number(gridColumns || 5) * 3));
-    const containerClass = viewMode === "list" ? `${itemType === "album" ? "tagged-album-list" : "tagged-gallery-list"} ${context === "album-detail" ? "tagged-album-detail-list" : ""}` : `${itemType === "album" ? "tagged-album-grid" : "tagged-gallery-grid"} ${context === "album-detail" ? "tagged-album-detail-grid" : ""}`;
+    const containerClass = viewMode === "list" ? `${itemType === "album" ? "tagged-album-list" : "tagged-gallery-list"} ${context === "album-detail" ? "tagged-album-detail-list" : ""}` : `${itemType === "album" ? "tagged-album-grid-v2" : "tagged-gallery-grid"} ${context === "album-detail" ? "tagged-album-detail-grid" : ""}`;
     return <div className={`${containerClass} ${className}`} style={viewMode === "card" ? { "--tagged-grid-columns": gridColumns } : undefined} role="status" aria-live="polite" aria-label={ariaLabel}>{keys.slice(0, count).map((key) => viewMode === "list" ? <ListSkeleton key={key} itemType={itemType} /> : itemType === "album" ? <AlbumCardSkeleton key={key} /> : <MediaCardSkeleton key={key} />)}<span className="sr-only">{ariaLabel}</span></div>;
 };
