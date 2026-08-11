@@ -35,6 +35,7 @@ import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { AddToAlbumModal } from "./components/AddToAlbumModal";
 import { useAuth } from "../../hooks/useAuth";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useGridView } from "../../context/GridViewContext";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
@@ -729,6 +730,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         }
         return String(window.localStorage.getItem(GALLERY_SEARCH_STORAGE_KEY) || "");
     });
+    const debouncedGallerySearchQuery = useDebouncedValue(gallerySearchQuery, 400);
     const [gallerySuggestionOpen, setGallerySuggestionOpen] = useState(false);
     const [gallerySuggestionIndex, setGallerySuggestionIndex] = useState(0);
     const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
@@ -2290,7 +2292,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 tag: activeTagFilter || undefined,
                 includeTag: selectedIncludeFilterTags,
                 excludeTag: selectedExcludeFilterTags,
-                search: gallerySearchQuery.trim() || undefined,
+                search: debouncedGallerySearchQuery.trim() || undefined,
                 randomSeed: isRandomOrderEnabled ? randomOrderSeed : undefined,
             },
             accessToken,
@@ -2621,7 +2623,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             activeTagFilter,
             selectedIncludeFilterTags,
             selectedExcludeFilterTags,
-            gallerySearchQuery,
+            debouncedGallerySearchQuery,
             isRandomOrderEnabled,
             randomOrderSeed,
         ],
