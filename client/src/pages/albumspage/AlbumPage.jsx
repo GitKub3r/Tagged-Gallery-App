@@ -807,7 +807,7 @@ export const AlbumPage = () => {
         });
     };
 
-    const { containerProps: albumMarqueeProps, selectionOverlay: albumSelectionOverlay } = useMarqueeSelection({
+    const { containerProps: albumMarqueeProps, surfaceProps: albumMarqueeSurfaceProps, selectionOverlay: albumSelectionOverlay } = useMarqueeSelection({
         items: paginatedAlbums,
         selectedIds: selectedAlbumIds,
         onSelectionChange: setSelectedAlbumIds,
@@ -1176,7 +1176,7 @@ export const AlbumPage = () => {
     };
 
     return (
-        <section className={`tagged-app-page tagged-album-page${albumPageSize === 10 ? " tagged-album-page--minimum-page" : ""}`}>
+        <section className={`tagged-app-page tagged-album-page${albumPageSize === 10 ? " tagged-album-page--minimum-page" : ""}`} {...albumMarqueeSurfaceProps}>
             <ResultsLoadingIndicator isVisible={isFilteringAlbums} />
             {isShufflingAlbums ? <ConvergingShuffleOverlay items={albumShufflePreviewItems} getPreviewUrl={(album) => getAssetUrl(album.albumthumbpath || album.albumcoverpath)} fallbackIcon={faFolderOpen} ariaLabel="Random album selected" /> : null}
             {!loading && !error && albums.length > 0 ? (

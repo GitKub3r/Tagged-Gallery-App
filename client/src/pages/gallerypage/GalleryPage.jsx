@@ -1357,7 +1357,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         });
     };
 
-    const { containerProps: mediaMarqueeProps, selectionOverlay: mediaSelectionOverlay } = useMarqueeSelection({
+    const { containerProps: mediaMarqueeProps, surfaceProps: mediaMarqueeSurfaceProps, selectionOverlay: mediaSelectionOverlay } = useMarqueeSelection({
         items: visibleMediaItems,
         selectedIds: selectedMediaIds,
         onSelectionChange: setSelectedMediaIds,
@@ -2981,6 +2981,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     return (
         <section
             className={`tagged-app-page tagged-gallery-page${gridViewMode === "list" ? " tagged-gallery-page--list-view" : ""}${pageSize === MIN_PAGE_SIZE ? " tagged-gallery-page--minimum-page" : ""}`}
+            {...mediaMarqueeSurfaceProps}
             onDragEnter={handleUploadDragEnter}
             onDragOver={handleUploadDragOver}
             onDragLeave={handleUploadDragLeave}

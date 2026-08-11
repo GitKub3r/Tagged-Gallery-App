@@ -20,12 +20,28 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
         selectoRef.current.setSelectedTargets(selectedTargets);
     }, [dragContainer, itemIdsByKey, selectedIds]);
 
+    const startSelection = (event) => {
+        if (event.button !== 0 || !dragContainer) return;
+
+        const target = event.target;
+        const startedInsideGrid = target instanceof Element && dragContainer.contains(target);
+        const startedOnControl = target instanceof Element && target.closest(
+            "button, a, input, textarea, select, label, [contenteditable='true'], [role='dialog']",
+        );
+
+        if (!startedInsideGrid && startedOnControl) return;
+
+        selectoRef.current?.triggerDragStart(event.nativeEvent);
+    };
+
     const containerProps = {
         ref: setDragContainer,
         onDragStart: (event) => event.preventDefault(),
+    };
+
+    const surfaceProps = {
         onMouseDownCapture: (event) => {
-            if (event.button !== 0) return;
-            selectoRef.current?.triggerDragStart(event.nativeEvent);
+            startSelection(event);
         },
     };
 
@@ -58,5 +74,5 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
         />
     ) : null;
 
-    return { containerProps, selectionOverlay };
+    return { containerProps, surfaceProps, selectionOverlay };
 };
