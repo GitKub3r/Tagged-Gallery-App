@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const DRAG_THRESHOLD_PX = 5;
 
@@ -19,84 +19,92 @@ export const useMarqueeSelection = ({ items, getItemId = (item) => item.id, sele
     const [selectionRect, setSelectionRect] = useState(null);
     const dragRef = useRef(null);
     const suppressClickRef = useRef(false);
+    const removeWindowListenersRef = useRef(() => {});
     const itemIdsByKey = useMemo(
         () => new Map(items.map((item) => [String(getItemId(item)), getItemId(item)])),
         [getItemId, items],
     );
 
-    const finishDrag = useCallback((event) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
+    useEffect(() => () => removeWindowListenersRef.current(), []);
 
-        if (drag.active) suppressClickRef.current = true;
+    const stopTracking = () => {
+        removeWindowListenersRef.current();
+        removeWindowListenersRef.current = () => {};
         dragRef.current = null;
         setSelectionRect(null);
-
-        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-    }, []);
-
-    const cancelDrag = useCallback((event) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        dragRef.current = null;
-        suppressClickRef.current = false;
-        setSelectionRect(null);
-    }, []);
+    };
 
     const containerProps = {
         onPointerDown: (event) => {
             if (event.pointerType !== "mouse" || event.button !== 0) return;
 
-            dragRef.current = {
+            removeWindowListenersRef.current();
+            const container = event.currentTarget;
+            const drag = {
                 pointerId: event.pointerId,
                 start: { x: event.clientX, y: event.clientY },
                 active: false,
                 baseSelection: event.ctrlKey || event.metaKey ? new Set(selectedIds) : new Set(),
             };
-        },
-        onPointerMove: (event) => {
-            const drag = dragRef.current;
-            if (!drag || drag.pointerId !== event.pointerId) return;
+            dragRef.current = drag;
 
-            const current = { x: event.clientX, y: event.clientY };
-            if (!drag.active && Math.hypot(current.x - drag.start.x, current.y - drag.start.y) < DRAG_THRESHOLD_PX) return;
+            const handlePointerMove = (pointerEvent) => {
+                if (pointerEvent.pointerId !== drag.pointerId) return;
 
-            const isStartingSelection = !drag.active;
-            if (isStartingSelection) {
+                const current = { x: pointerEvent.clientX, y: pointerEvent.clientY };
+                if (!drag.active && Math.hypot(current.x - drag.start.x, current.y - drag.start.y) < DRAG_THRESHOLD_PX) return;
+
+                const isStartingSelection = !drag.active;
                 drag.active = true;
-                event.currentTarget.setPointerCapture?.(event.pointerId);
-            }
-            event.preventDefault();
-            window.getSelection?.()?.removeAllRanges();
-            const nextRect = buildRect(drag.start, current);
-            const nextSelection = new Set(drag.baseSelection);
+                pointerEvent.preventDefault();
+                window.getSelection?.()?.removeAllRanges();
 
-            event.currentTarget.querySelectorAll("[data-marquee-selection-id]").forEach((element) => {
-                if (!intersects(nextRect, element.getBoundingClientRect())) return;
-                const itemId = itemIdsByKey.get(element.dataset.marqueeSelectionId);
-                if (itemId !== undefined) nextSelection.add(itemId);
-            });
+                const nextRect = buildRect(drag.start, current);
+                const nextSelection = new Set(drag.baseSelection);
+                container.querySelectorAll("[data-marquee-selection-id]").forEach((element) => {
+                    if (!intersects(nextRect, element.getBoundingClientRect())) return;
+                    const itemId = itemIdsByKey.get(element.dataset.marqueeSelectionId);
+                    if (itemId !== undefined) nextSelection.add(itemId);
+                });
 
-            if (isStartingSelection) onActivate();
-            onSelectionChange(nextSelection);
-            setSelectionRect(nextRect);
+                if (isStartingSelection) onActivate();
+                onSelectionChange(nextSelection);
+                setSelectionRect(nextRect);
+            };
+
+            const handlePointerUp = (pointerEvent) => {
+                if (pointerEvent.pointerId !== drag.pointerId) return;
+                suppressClickRef.current = drag.active;
+                stopTracking();
+            };
+
+            const handlePointerCancel = (pointerEvent) => {
+                if (pointerEvent.pointerId !== drag.pointerId) return;
+                suppressClickRef.current = false;
+                stopTracking();
+            };
+
+            window.addEventListener("pointermove", handlePointerMove, { passive: false });
+            window.addEventListener("pointerup", handlePointerUp);
+            window.addEventListener("pointercancel", handlePointerCancel);
+            removeWindowListenersRef.current = () => {
+                window.removeEventListener("pointermove", handlePointerMove);
+                window.removeEventListener("pointerup", handlePointerUp);
+                window.removeEventListener("pointercancel", handlePointerCancel);
+            };
         },
-        onPointerUp: finishDrag,
-        onPointerCancel: cancelDrag,
-        onDragStart: (event) => event.preventDefault(),
         onClickCapture: (event) => {
             if (!suppressClickRef.current) return;
             suppressClickRef.current = false;
             event.preventDefault();
             event.stopPropagation();
         },
+        onDragStart: (event) => event.preventDefault(),
     };
 
     const selectionOverlay = selectionRect ? (
         <div
-            className="pointer-events-none fixed z-[1100] rounded-xl border border-neutral-500 bg-neutral-500/15 dark:border-neutral-300 dark:bg-neutral-100/10"
+            className="pointer-events-none fixed z-[1100] rounded-xl border-2 border-sky-500 bg-sky-500/20 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]"
             style={{
                 left: selectionRect.left,
                 top: selectionRect.top,
