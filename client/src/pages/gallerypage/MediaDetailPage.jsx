@@ -1091,7 +1091,7 @@ export const MediaDetailPage = () => {
     };
 
     const handleShuffleMedia = () => {
-        if (mediaItems.length < 2) return;
+        if (mediaItems.length < 2 || !currentMedia?.id) return;
 
         const shuffledMediaItems = [...mediaItems];
         for (let index = shuffledMediaItems.length - 1; index > 0; index -= 1) {
@@ -1105,10 +1105,10 @@ export const MediaDetailPage = () => {
 
         setMediaItems(shuffledMediaItems);
         const navigableMediaIds = new Set(filteredMediaItems.map((media) => String(media.id)));
-        setShufflePreviewItems(
-            shuffledMediaItems.filter((media) => navigableMediaIds.has(String(media.id))).slice(0, 3),
-        );
-        navigate(`${location.pathname}${location.search || ""}`, {
+        const shuffledNavigableItems = shuffledMediaItems.filter((media) => navigableMediaIds.has(String(media.id)));
+        const nextCurrentMedia = shuffledNavigableItems.find((media) => String(media.id) !== String(currentMedia?.id));
+        setShufflePreviewItems(shuffledNavigableItems.slice(0, 3));
+        navigate(`/gallery/${nextCurrentMedia?.id || currentMedia.id}${location.search || ""}`, {
             replace: true,
             state: { ...location.state, mediaItems: shuffledMediaItems },
         });
@@ -1118,7 +1118,7 @@ export const MediaDetailPage = () => {
         shuffleFeedbackTimeoutRef.current = window.setTimeout(() => {
             setIsShufflingMedia(false);
             shuffleFeedbackTimeoutRef.current = null;
-        }, 900);
+        }, 1200);
     };
 
     keyboardMediaNavigationRef.current = {
@@ -2083,9 +2083,11 @@ export const MediaDetailPage = () => {
                                 </span>
                             );
                         })}
-                        <span className="tagged-media-detail-shuffle-particles">
-                            {Array.from({ length: 12 }, (_, index) => <i key={index} />)}
-                        </span>
+                        {shufflePreviewItems.map((media, index) => (
+                            <span key={`particles-${media.id}`} className={`tagged-media-detail-shuffle-particles tagged-media-detail-shuffle-particles--${index + 1}`}>
+                                {Array.from({ length: 8 }, (_, particleIndex) => <i key={particleIndex} />)}
+                            </span>
+                        ))}
                     </div>
                 </div>
             ) : null}

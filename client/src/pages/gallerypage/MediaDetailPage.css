@@ -148,7 +148,7 @@
     overflow: hidden;
     background: rgba(0, 0, 0, 0.12);
     backdrop-filter: blur(2px);
-    animation: tagged-shuffle-overlay 900ms ease both;
+    animation: tagged-shuffle-overlay 1200ms ease both;
 }
 
 .tagged-media-detail-shuffle-stage {
@@ -198,6 +198,10 @@
     height: 0;
 }
 
+.tagged-media-detail-shuffle-particles--1 { transform: translate(-4.8rem, 0.7rem); }
+.tagged-media-detail-shuffle-particles--2 { transform: translate(0, -1.1rem); }
+.tagged-media-detail-shuffle-particles--3 { transform: translate(4.8rem, 0.7rem); }
+
 .tagged-media-detail-shuffle-particles i {
     --particle-x: 0rem;
     --particle-y: -6rem;
@@ -210,7 +214,7 @@
     background: #ffffff;
     box-shadow: 0 0 1rem rgba(255, 255, 255, 0.8);
     opacity: 0;
-    animation: tagged-shuffle-particle-burst 760ms cubic-bezier(0.16, 1, 0.3, 1) 420ms both;
+    animation: tagged-shuffle-particle-burst 620ms cubic-bezier(0.16, 1, 0.3, 1) 560ms both;
 }
 
 .tagged-media-detail-shuffle-particles i:nth-child(2n) {
@@ -225,18 +229,14 @@
     border-radius: 9999px;
 }
 
-.tagged-media-detail-shuffle-particles i:nth-child(1) { --particle-x: 0rem; --particle-y: -7rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(2) { --particle-x: 3.7rem; --particle-y: -5.8rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(3) { --particle-x: 6.8rem; --particle-y: -2.4rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(4) { --particle-x: 7.2rem; --particle-y: 1.8rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(5) { --particle-x: 4.2rem; --particle-y: 5.5rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(6) { --particle-x: 0.6rem; --particle-y: 7rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(7) { --particle-x: -3.5rem; --particle-y: 5.8rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(8) { --particle-x: -6.7rem; --particle-y: 3rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(9) { --particle-x: -7.2rem; --particle-y: -1.5rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(10) { --particle-x: -4.8rem; --particle-y: -5.2rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(11) { --particle-x: 2.2rem; --particle-y: -4.4rem; }
-.tagged-media-detail-shuffle-particles i:nth-child(12) { --particle-x: 4.8rem; --particle-y: 3.2rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(1) { --particle-x: 0rem; --particle-y: -3.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(2) { --particle-x: 2.8rem; --particle-y: -2.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(3) { --particle-x: 4rem; --particle-y: 0rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(4) { --particle-x: 2.8rem; --particle-y: 2.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(5) { --particle-x: 0rem; --particle-y: 3.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(6) { --particle-x: -2.8rem; --particle-y: 2.8rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(7) { --particle-x: -4rem; --particle-y: 0rem; }
+.tagged-media-detail-shuffle-particles i:nth-child(8) { --particle-x: -2.8rem; --particle-y: -2.8rem; }
 
 @keyframes tagged-shuffle-overlay {
     0%, 100% { opacity: 0; }
@@ -246,22 +246,25 @@
 @keyframes tagged-shuffle-card-one {
     0% { transform: translate3d(-7rem, 1rem, -4rem) rotate(-14deg) scale(0.72); opacity: 0; }
     42% { transform: translate3d(5.6rem, -1.7rem, 2rem) rotate(12deg) scale(1.04); opacity: 1; }
-    70% { transform: translate3d(0, 0, 2rem) rotate(0) scale(0.72); opacity: 1; }
-    100% { transform: translate3d(0, 0, -2rem) rotate(0) scale(0.35); opacity: 0; }
+    70% { transform: translate3d(-4.8rem, 0.7rem, 2rem) rotate(-5deg) scale(0.76); opacity: 1; }
+    82% { transform: translate3d(-4.8rem, 0.7rem, 2rem) rotate(-5deg) scale(1.02); opacity: 1; }
+    100% { transform: translate3d(-4.8rem, 0.7rem, -2rem) rotate(-5deg) scale(0); opacity: 0; }
 }
 
 @keyframes tagged-shuffle-card-two {
     0% { transform: translate3d(0, -3rem, -2rem) rotate(5deg) scale(0.75); opacity: 0; }
     44% { transform: translate3d(-5.4rem, 1.6rem, 1rem) rotate(-11deg) scale(1); opacity: 1; }
-    70% { transform: translate3d(0, 0, 3rem) rotate(0) scale(0.76); opacity: 1; }
-    100% { transform: translate3d(0, 0, -1rem) rotate(0) scale(0.35); opacity: 0; }
+    70% { transform: translate3d(0, -1.1rem, 3rem) rotate(0) scale(0.8); opacity: 1; }
+    82% { transform: translate3d(0, -1.1rem, 3rem) rotate(0) scale(1.06); opacity: 1; }
+    100% { transform: translate3d(0, -1.1rem, -1rem) rotate(0) scale(0); opacity: 0; }
 }
 
 @keyframes tagged-shuffle-card-three {
     0% { transform: translate3d(7rem, 1rem, -4rem) rotate(14deg) scale(0.72); opacity: 0; }
     46% { transform: translate3d(0, -2rem, 3rem) rotate(-3deg) scale(1.08); opacity: 1; }
-    70% { transform: translate3d(0, 0, 4rem) rotate(0) scale(0.8); opacity: 1; }
-    100% { transform: translate3d(0, 0, 0) rotate(0) scale(0.35); opacity: 0; }
+    70% { transform: translate3d(4.8rem, 0.7rem, 4rem) rotate(5deg) scale(0.84); opacity: 1; }
+    82% { transform: translate3d(4.8rem, 0.7rem, 4rem) rotate(5deg) scale(1.1); opacity: 1; }
+    100% { transform: translate3d(4.8rem, 0.7rem, 0) rotate(5deg) scale(0); opacity: 0; }
 }
 
 @keyframes tagged-shuffle-particle-burst {
