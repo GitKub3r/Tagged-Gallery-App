@@ -1990,6 +1990,15 @@
 }
 
 @media (max-width: 1024px) {
+    .tagged-media-detail-tools-row {
+        position: relative;
+        top: auto;
+        left: auto;
+        width: 100%;
+        justify-content: center;
+        margin-bottom: 0.15rem;
+    }
+
     .tagged-media-detail-desktop-overlay,
     .tagged-media-detail-actions--desktop {
         display: none;
