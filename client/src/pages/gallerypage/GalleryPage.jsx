@@ -31,6 +31,7 @@ import { uploadMedia } from "../../api/mediaUploadRequest";
 import { galleryApi } from "../../api/galleryApi";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
+import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
@@ -563,11 +564,7 @@ const LazyViewportItem = ({
             {hasBeenVisible ? (
                 children
             ) : (
-                <div
-                    className={`tagged-gallery-lazy-placeholder ${placeholderClassName}`}
-                    style={{ minHeight }}
-                    aria-hidden="true"
-                />
+                <Skeleton className={placeholderClassName} style={{ minHeight }} />
             )}
         </div>
     );
@@ -3102,7 +3099,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                 key={media.id}
                                 className="tagged-gallery-lazy-item--card"
                                 placeholderClassName="tagged-gallery-lazy-placeholder--card"
-                                minHeight="17rem"
+                                minHeight="0"
                             >
                                 <MediaCard
                                     media={media}

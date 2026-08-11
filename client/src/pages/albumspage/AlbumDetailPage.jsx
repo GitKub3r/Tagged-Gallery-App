@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
+import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
@@ -3151,10 +3152,10 @@ export const AlbumDetailPage = () => {
     if (loading) {
         return (
             <section className="tagged-app-page tagged-album-detail-page" aria-label="Loading album detail">
-                <header className="relative min-h-[18rem] animate-pulse overflow-hidden rounded-xl border border-neutral-200 bg-neutral-200 sm:min-h-[22rem] lg:min-h-[26rem] dark:border-neutral-800 dark:bg-neutral-900" aria-hidden="true">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_15%,rgba(255,255,255,0.08),transparent_30%),radial-gradient(circle_at_82%_75%,rgba(255,255,255,0.05),transparent_34%)]" />
-                    <div className="absolute bottom-6 left-6 h-8 w-52 rounded-xl bg-neutral-300 dark:bg-neutral-800" />
-                    <div className="absolute bottom-6 right-6 h-6 w-24 rounded-xl bg-neutral-300 dark:bg-neutral-800" />
+                <header className="relative min-h-[18rem] overflow-hidden rounded-xl border border-neutral-200 bg-white/60 sm:min-h-[22rem] lg:min-h-[26rem] dark:border-neutral-800 dark:bg-neutral-900/60" aria-hidden="true">
+                    <Skeleton className="absolute inset-0 h-full w-full rounded-none" />
+                    <Skeleton className="absolute bottom-6 left-6 h-8 w-52" />
+                    <Skeleton className="absolute bottom-6 right-6 h-6 w-24" />
                 </header>
 
                 <div className="tagged-album-detail-grid-wrap" aria-live="polite">

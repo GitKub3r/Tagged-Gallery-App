@@ -4,6 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAccessControl } from "../../hooks/useAccessControl";
 import { TagFilterProvider } from "../../context/TagFilterContext";
 import { GridViewProvider } from "../../context/GridViewContext";
+import { Skeleton } from "../loading-skeletons/Skeleton";
 
 export const ProtectedLayout = () => {
     const { loading, isAuthenticated } = useAuth();
@@ -12,7 +13,7 @@ export const ProtectedLayout = () => {
     useAccessControl();
 
     if (loading) {
-        return <main className="grid min-h-dvh place-items-center bg-neutral-950 text-sm font-bold tracking-wide text-neutral-400">Loading...</main>;
+        return <main className="grid min-h-dvh place-items-center bg-neutral-100 p-6 dark:bg-neutral-950" role="status" aria-label="Restoring session"><div className="w-full max-w-sm space-y-4"><Skeleton className="mx-auto h-14 w-14" /><Skeleton className="mx-auto h-5 w-36" /><Skeleton className="h-12 w-full" /></div><span className="sr-only">Restoring session</span></main>;
     }
 
     if (!isAuthenticated) {

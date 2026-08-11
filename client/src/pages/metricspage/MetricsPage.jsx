@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { MediaCard } from "../../components/media-card/MediaCard";
+import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import "./MetricsPage.css";
@@ -327,10 +328,7 @@ export const DashboardPage = () => {
     if (loading) {
         return (
             <section className="tagged-app-page tagged-metrics-page">
-                <article className="tagged-app-page-card tagged-metrics-status-card" aria-live="polite">
-                    <h2>Loading metrics</h2>
-                    <p>Building your dashboard from the library.</p>
-                </article>
+                <PageLoadingSkeleton variant="dashboard" ariaLabel="Loading dashboard" />
             </section>
         );
     }

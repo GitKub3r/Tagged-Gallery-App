@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
 import "./UsersPage.css";
 
@@ -361,10 +362,7 @@ export const UsersPage = () => {
     if (loading) {
         return (
             <section className="tagged-app-page tagged-users-page">
-                <article className="tagged-app-page-card tagged-users-status-card" aria-live="polite">
-                    <h2>Loading users</h2>
-                    <p>Preparing admin directory.</p>
-                </article>
+                <PageLoadingSkeleton ariaLabel="Loading users" />
             </section>
         );
     }

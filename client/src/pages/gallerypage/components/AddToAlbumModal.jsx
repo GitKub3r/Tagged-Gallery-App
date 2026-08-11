@@ -12,6 +12,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../../../components/icon-button/IconButton";
+import { Skeleton } from "../../../components/loading-skeletons/Skeleton";
 import { ErrorToast } from "../../../components/toast/ErrorToast";
 
 const PAGE_BUTTON_CLASSES =
@@ -167,7 +168,7 @@ export const AddToAlbumModal = ({
 
                         <div className="mt-4 min-h-0 flex-1">
                             {isLoading ? (
-                                <div className="grid h-full place-items-center text-sm text-neutral-500 dark:text-neutral-400">Loading albums...</div>
+                                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="status" aria-label="Loading albums">{Array.from({ length: 6 }, (_, index) => <div key={index} className="flex items-center gap-3 rounded-xl border border-neutral-200 p-3 dark:border-neutral-800"><Skeleton className="h-14 w-20 shrink-0" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-1/3" /></div></div>)}</div>
                             ) : albums.length === 0 ? (
                                 <div className="grid h-full place-items-center text-center">
                                     <div>

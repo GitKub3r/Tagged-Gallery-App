@@ -15,6 +15,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { UserAvatar } from "../../components/user-avatar/UserAvatar";
 import { useAppToast } from "../../components/toast/useAppToast";
+import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
 import "./LogsPage.css";
 
@@ -792,10 +793,7 @@ export const LogsPage = () => {
     if (loading && !hasLoadedOnce) {
         return (
             <section className="tagged-app-page tagged-logs-page">
-                <article className="tagged-app-page-card tagged-logs-status-card" aria-live="polite">
-                    <h2>Loading logs dashboard</h2>
-                    <p>Fetching audit history and filters.</p>
-                </article>
+                <PageLoadingSkeleton variant="dashboard" ariaLabel="Loading logs dashboard" />
             </section>
         );
     }

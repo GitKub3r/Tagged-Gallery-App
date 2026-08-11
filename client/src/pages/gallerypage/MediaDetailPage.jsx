@@ -6,6 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
+import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAppToast } from "../../components/toast/useAppToast";
 import { apiClient } from "../../api/apiClient";
 import { useAuth } from "../../hooks/useAuth";
@@ -1851,14 +1852,7 @@ export const MediaDetailPage = () => {
     if (loading) {
         return (
             <section className="tagged-app-page tagged-media-detail-page">
-                <article
-                    className="tagged-app-page-card tagged-media-detail-empty-card tagged-media-detail-empty-card--loading"
-                    aria-live="polite"
-                >
-                    <h2>Loading media</h2>
-                    <p>Fetching your media library.</p>
-                    <span className="tagged-media-detail-loading-spinner" aria-hidden="true" />
-                </article>
+                <PageLoadingSkeleton variant="detail" ariaLabel="Loading media detail" />
             </section>
         );
     }

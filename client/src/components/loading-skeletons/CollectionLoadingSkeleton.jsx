@@ -1,144 +1,36 @@
 import { useEffect, useState } from "react";
-import "./CollectionLoadingSkeleton.css";
+import { Skeleton } from "./Skeleton";
 
-const SKELETON_VISIBILITY_DELAY_MS = 300;
-const CARD_SKELETON_KEYS = Array.from({ length: 15 }, (_, index) => `card-skeleton-${index}`);
-const LIST_SKELETON_KEYS = Array.from({ length: 8 }, (_, index) => `list-skeleton-${index}`);
-
-const getCardSkeletonCount = (gridColumns) => {
-    const normalizedColumns = Number(gridColumns);
-    const columnCount = Number.isFinite(normalizedColumns) ? normalizedColumns : 5;
-    return Math.max(8, Math.min(CARD_SKELETON_KEYS.length, columnCount * 3));
-};
-
-const SkeletonBlock = ({ className = "" }) => <span className={`tagged-skeleton-block ${className}`} aria-hidden="true" />;
+const SKELETON_VISIBILITY_DELAY_MS = 180;
+const keys = Array.from({ length: 15 }, (_, index) => index);
 
 const MediaCardSkeleton = () => (
-    <article className="tagged-media-card tagged-loading-skeleton-card tagged-loading-skeleton-media-card" aria-hidden="true">
-        <div className="tagged-media-card-preview-wrap tagged-loading-skeleton-preview">
-            <SkeletonBlock className="tagged-loading-skeleton-play-pill" />
-        </div>
-
-        <div className="tagged-media-card-body tagged-loading-skeleton-body">
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--title" />
-            <div className="tagged-loading-skeleton-meta-row">
-                <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--meta" />
-                <SkeletonBlock className="tagged-loading-skeleton-dot" />
-            </div>
-        </div>
-    </article>
-);
-
-const MediaListSkeleton = () => (
-    <article className="tagged-gallery-list-item tagged-loading-skeleton-list-item" aria-hidden="true">
-        <div className="tagged-gallery-list-preview tagged-loading-skeleton-list-preview" />
-
-        <div className="tagged-gallery-list-main tagged-loading-skeleton-list-main">
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--list-title" />
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--list-meta" />
-        </div>
-
-        <div className="tagged-gallery-list-actions tagged-loading-skeleton-list-actions">
-            <SkeletonBlock className="tagged-loading-skeleton-action" />
-            <SkeletonBlock className="tagged-loading-skeleton-action" />
-        </div>
+    <article className="w-full" aria-hidden="true">
+        <div className="relative aspect-[4/3] overflow-hidden rounded-xl"><Skeleton className="absolute inset-0 h-full w-full" /><Skeleton className="absolute right-2 top-2 h-10 w-10" /></div>
+        <div className="px-1 pb-1 pt-3"><Skeleton className="h-5 w-2/3" /><div className="mt-2 flex items-center gap-2"><Skeleton className="h-3 w-1/3" /><Skeleton className="h-3 w-12" /></div></div>
     </article>
 );
 
 const AlbumCardSkeleton = () => (
-    <article className="tagged-album-card tagged-loading-skeleton-card tagged-loading-skeleton-album-card" aria-hidden="true">
-        <div className="tagged-album-card-preview-wrap tagged-loading-skeleton-preview" />
-
-        <div className="tagged-album-card-body tagged-loading-skeleton-body">
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--title" />
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--meta" />
-        </div>
+    <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white/60 dark:border-neutral-800 dark:bg-neutral-900/60" aria-hidden="true">
+        <Skeleton className="aspect-[16/9] w-full rounded-none" />
+        <div className="space-y-2 p-4"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-2/5" /></div>
     </article>
 );
 
-const AlbumListSkeleton = () => (
-    <article className="tagged-album-list-item tagged-loading-skeleton-list-item" aria-hidden="true">
-        <div className="tagged-album-list-preview tagged-loading-skeleton-list-preview" />
-
-        <div className="tagged-album-list-main tagged-loading-skeleton-list-main">
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--list-title" />
-            <SkeletonBlock className="tagged-loading-skeleton-line tagged-loading-skeleton-line--list-meta" />
-        </div>
+const ListSkeleton = ({ itemType }) => (
+    <article className="flex min-h-20 items-center gap-4 border-b border-neutral-200 py-3 dark:border-neutral-800" aria-hidden="true">
+        <Skeleton className={`${itemType === "album" ? "h-14 w-20" : "h-16 w-20"} shrink-0`} />
+        <div className="min-w-0 flex-1 space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-3 w-1/2" /></div>
+        <Skeleton className="h-9 w-9 shrink-0" />
     </article>
 );
 
-const getContainerClassName = (itemType, viewMode, context, className) => {
-    const classes = ["tagged-loading-skeleton-collection"];
-
-    if (viewMode === "list") {
-        classes.push(itemType === "album" ? "tagged-album-list" : "tagged-gallery-list");
-        if (context === "album-detail") {
-            classes.push("tagged-album-detail-list");
-        }
-    } else if (itemType === "album") {
-        classes.push("tagged-album-grid");
-    } else {
-        classes.push("tagged-gallery-grid");
-        if (context === "album-detail") {
-            classes.push("tagged-album-detail-grid");
-        }
-    }
-
-    if (className) {
-        classes.push(className);
-    }
-
-    return classes.join(" ");
-};
-
-export const CollectionLoadingSkeleton = ({
-    itemType = "media",
-    viewMode = "card",
-    gridColumns = 5,
-    context = "gallery",
-    className = "",
-    ariaLabel = "Loading content",
-}) => {
+export const CollectionLoadingSkeleton = ({ itemType = "media", viewMode = "card", gridColumns = 5, context = "gallery", className = "", ariaLabel = "Loading content" }) => {
     const [isVisible, setIsVisible] = useState(false);
-    const normalizedViewMode = viewMode === "list" ? "list" : "card";
-    const skeletonKeys =
-        normalizedViewMode === "list"
-            ? LIST_SKELETON_KEYS
-            : CARD_SKELETON_KEYS.slice(0, getCardSkeletonCount(gridColumns));
-    const SkeletonItem =
-        itemType === "album"
-            ? normalizedViewMode === "list"
-                ? AlbumListSkeleton
-                : AlbumCardSkeleton
-            : normalizedViewMode === "list"
-              ? MediaListSkeleton
-              : MediaCardSkeleton;
-
-    useEffect(() => {
-        const visibilityTimer = window.setTimeout(() => {
-            setIsVisible(true);
-        }, SKELETON_VISIBILITY_DELAY_MS);
-
-        return () => {
-            window.clearTimeout(visibilityTimer);
-        };
-    }, []);
-
-    if (!isVisible) {
-        return null;
-    }
-
-    return (
-        <div
-            className={getContainerClassName(itemType, normalizedViewMode, context, className)}
-            style={normalizedViewMode === "card" ? { "--tagged-grid-columns": gridColumns } : undefined}
-            role="status"
-            aria-live="polite"
-            aria-label={ariaLabel}
-        >
-            {skeletonKeys.map((key) => (
-                <SkeletonItem key={key} />
-            ))}
-        </div>
-    );
+    useEffect(() => { const timer = window.setTimeout(() => setIsVisible(true), SKELETON_VISIBILITY_DELAY_MS); return () => window.clearTimeout(timer); }, []);
+    if (!isVisible) return null;
+    const count = viewMode === "list" ? 8 : Math.max(8, Math.min(15, Number(gridColumns || 5) * 3));
+    const containerClass = viewMode === "list" ? `${itemType === "album" ? "tagged-album-list" : "tagged-gallery-list"} ${context === "album-detail" ? "tagged-album-detail-list" : ""}` : `${itemType === "album" ? "tagged-album-grid" : "tagged-gallery-grid"} ${context === "album-detail" ? "tagged-album-detail-grid" : ""}`;
+    return <div className={`${containerClass} ${className}`} style={viewMode === "card" ? { "--tagged-grid-columns": gridColumns } : undefined} role="status" aria-live="polite" aria-label={ariaLabel}>{keys.slice(0, count).map((key) => viewMode === "list" ? <ListSkeleton key={key} itemType={itemType} /> : itemType === "album" ? <AlbumCardSkeleton key={key} /> : <MediaCardSkeleton key={key} />)}<span className="sr-only">{ariaLabel}</span></div>;
 };

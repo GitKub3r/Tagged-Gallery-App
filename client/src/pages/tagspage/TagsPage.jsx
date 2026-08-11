@@ -18,6 +18,7 @@ import { DeleteConfirmationModal } from "../../components/delete-confirmation-mo
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { ErrorToast } from "../../components/toast/ErrorToast";
 import { IconButton } from "../../components/icon-button/IconButton";
+import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 
@@ -169,7 +170,7 @@ export const MetadataPage = () => {
                         <label className="relative block w-full sm:max-w-sm"><span className="sr-only">Search {config.label}</span><FontAwesomeIcon icon={faMagnifyingGlass} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-neutral-400 dark:text-neutral-600" /><input type="search" className={`${inputClasses} pl-9`} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={`Search ${config.label.toLowerCase()}`} /></label>
                     </div>
 
-                    {metadataQuery.isPending ? <div className="grid min-h-64 place-items-center rounded-xl border border-neutral-200 bg-white/60 text-sm font-semibold text-neutral-500 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-400">Loading metadata...</div> : null}
+                    {metadataQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading metadata" /> : null}
                     {metadataQuery.isError ? <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-600 dark:text-red-400"><h2 className="font-bold">Could not load metadata</h2><p className="mt-1 text-sm">{metadataQuery.error.message}</p></div> : null}
                     {!metadataQuery.isPending && !metadataQuery.isError && items.length === 0 ? <EmptyState title={search ? `No matching ${config.label.toLowerCase()}` : `No ${config.label.toLowerCase()} yet`} icon={config.icon} placement="section" actionLabel={search ? "Clear search" : config.create} onAction={() => search ? setSearch("") : openEditor(undefined)} /> : null}
                     {items.length > 0 ? (
