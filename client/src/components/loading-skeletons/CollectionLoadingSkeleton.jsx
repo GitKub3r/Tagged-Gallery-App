@@ -12,7 +12,7 @@ const MediaCardSkeleton = () => (
 );
 
 const AlbumCardSkeleton = () => (
-    <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white/60 dark:border-neutral-800 dark:bg-neutral-900/60" aria-hidden="true">
+    <article className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900" aria-hidden="true">
         <Skeleton className="aspect-[16/9] w-full rounded-none" />
         <div className="space-y-2 p-4"><Skeleton className="h-5 w-2/3" /><Skeleton className="h-3 w-2/5" /></div>
     </article>

@@ -3154,7 +3154,7 @@ export const AlbumDetailPage = () => {
     if (loading || forceLoading) {
         return (
             <section className="tagged-app-page tagged-album-detail-page" aria-label="Loading album detail">
-                <header className="relative min-h-[18rem] overflow-hidden rounded-xl border border-neutral-200 bg-white/60 sm:min-h-[22rem] lg:min-h-[26rem] dark:border-neutral-800 dark:bg-neutral-900/60" aria-hidden="true">
+                <header className="relative min-h-[18rem] overflow-hidden rounded-xl border border-neutral-200 bg-white sm:min-h-[22rem] lg:min-h-[26rem] dark:border-neutral-800 dark:bg-neutral-900" aria-hidden="true">
                     <Skeleton className="absolute inset-0 h-full w-full rounded-none" />
                     <Skeleton className="absolute bottom-6 left-6 h-8 w-52" />
                     <Skeleton className="absolute bottom-6 right-6 h-6 w-24" />
