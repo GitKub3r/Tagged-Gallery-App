@@ -2224,7 +2224,7 @@ export const MediaDetailPage = () => {
                                 )}
                             </div>
                             <span className="tagged-media-detail-gallery-position-label" aria-hidden="true">
-                                {currentIndex + 1} / {filteredMediaItems.length}
+                                Media {currentIndex + 1} of {filteredMediaItems.length}
                             </span>
                         </div>
                     ) : null}
@@ -2247,25 +2247,6 @@ export const MediaDetailPage = () => {
                             </p>
                         </div>
                     </header>
-
-                    <div className="grid grid-cols-4 gap-2" aria-label="Media actions">
-                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleToggleFavourite} aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"} aria-pressed={isFavourite} disabled={isTogglingFavourite}>
-                            <FontAwesomeIcon icon={isFavourite ? faHeartSolid : faHeartRegular} className="text-base" aria-hidden="true" />
-                            <span>{isFavourite ? "Saved" : "Favourite"}</span>
-                        </button>
-                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={openEditModal}>
-                            <FontAwesomeIcon icon={faPen} className="text-base" aria-hidden="true" />
-                            <span>Edit</span>
-                        </button>
-                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleDownloadMedia} disabled={!mediaUrl || !currentMedia}>
-                            <FontAwesomeIcon icon={faDownload} className="text-base" aria-hidden="true" />
-                            <span>Download</span>
-                        </button>
-                        <button type="button" className={`${MOBILE_DETAIL_ACTION_CLASSES} border-red-500/30! text-red-600! hover:bg-red-500/10! hover:text-red-700! dark:text-red-400! dark:hover:text-red-300!`} onClick={openDeleteCurrentMediaConfirm} disabled={isDeletingMedia}>
-                            <FontAwesomeIcon icon={faTrash} className="text-base" aria-hidden="true" />
-                            <span>Delete</span>
-                        </button>
-                    </div>
 
                     <hr className="tagged-media-detail-separator" aria-hidden="true" />
 
@@ -2324,6 +2305,25 @@ export const MediaDetailPage = () => {
                             </button>
                         </section>
 
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-2 border-t border-neutral-200 pt-4 dark:border-neutral-800" aria-label="Media actions">
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleToggleFavourite} aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"} aria-pressed={isFavourite} disabled={isTogglingFavourite}>
+                            <FontAwesomeIcon icon={isFavourite ? faHeartSolid : faHeartRegular} className="text-base" aria-hidden="true" />
+                            <span>{isFavourite ? "Saved" : "Favourite"}</span>
+                        </button>
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={openEditModal}>
+                            <FontAwesomeIcon icon={faPen} className="text-base" aria-hidden="true" />
+                            <span>Edit</span>
+                        </button>
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleDownloadMedia} disabled={!mediaUrl || !currentMedia}>
+                            <FontAwesomeIcon icon={faDownload} className="text-base" aria-hidden="true" />
+                            <span>Download</span>
+                        </button>
+                        <button type="button" className={`${MOBILE_DETAIL_ACTION_CLASSES} border-red-500/30! text-red-600! hover:bg-red-500/10! hover:text-red-700! dark:text-red-400! dark:hover:text-red-300!`} onClick={openDeleteCurrentMediaConfirm} disabled={isDeletingMedia}>
+                            <FontAwesomeIcon icon={faTrash} className="text-base" aria-hidden="true" />
+                            <span>Delete</span>
+                        </button>
                     </div>
                 </aside>
             </div>

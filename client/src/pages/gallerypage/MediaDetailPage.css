@@ -768,7 +768,6 @@
     width: 1.2rem;
     height: 1.2rem;
     opacity: 0.78;
-    filter: brightness(0) saturate(100%);
 }
 
 .tagged-media-detail-tag-group--copyright .tagged-media-detail-tag-group-header {
@@ -816,7 +815,6 @@
     width: 1.2rem;
     height: 1.2rem;
     opacity: 0.78;
-    filter: brightness(0) saturate(100%);
 }
 
 [data-theme="dark"] .tagged-media-detail-tag-group-header h3 img,
@@ -2000,6 +1998,65 @@
         width: 100%;
         justify-content: center;
         margin-bottom: 0.15rem;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-header h1 {
+        color: var(--tagged-text-color);
+        font-size: clamp(1.35rem, 5vw, 1.75rem);
+        letter-spacing: -0.025em;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-upload-date,
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-empty-tags {
+        color: var(--tagged-text-color-muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-content-block {
+        gap: 1rem;
+        padding-top: 0;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-tag-group + .tagged-media-detail-tag-group,
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-tag-group + .tagged-media-detail-author-group {
+        border-top: 1px solid var(--tagged-border-fine);
+        padding-top: 1rem;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-tag-group-header h3,
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-author-group h3 {
+        color: var(--tagged-text-color-muted);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-tag-group-header h3 svg,
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-author-group h3 svg {
+        color: currentColor;
+        filter: none;
+        opacity: 1;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-meta-pill {
+        border: 1px solid var(--tagged-border-fine);
+        background: color-mix(in srgb, var(--tagged-text-color) 6%, transparent);
+        color: var(--tagged-text-color-muted);
+        font-weight: 700;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-meta-pill svg {
+        color: currentColor;
+        filter: none;
+    }
+
+    .tagged-media-detail-info-column--mobile .tagged-media-detail-author-tag {
+        border: 1px solid var(--tagged-border-fine-mid);
+        background: transparent;
+        color: var(--tagged-text-color);
+        box-shadow: none;
     }
 
     .tagged-media-detail-desktop-overlay,
