@@ -3043,7 +3043,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 [&>button]:h-9! [&>button]:min-w-0! [&>button]:flex-1! [&>button]:rounded-xl! [&>button]:border-0! [&>button]:px-0! lg:contents lg:[&>button]:h-12! lg:[&>button]:flex-none! lg:[&>button]:border! lg:[&>button]:px-4!">
+                            <div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 [&>button]:h-9! [&>button]:min-w-0! [&>button]:flex-1! [&>button]:justify-center! [&>button]:rounded-xl! [&>button]:border-0! [&>button]:px-0! lg:contents lg:[&>button]:h-12! lg:[&>button]:flex-none! lg:[&>button]:border! lg:[&>button]:px-4!">
                             <button
                                 type="button"
                                 className={`${TOOLBAR_BUTTON_CLASSES} ${gridViewMode === "card" ? TOOLBAR_BUTTON_ACTIVE_CLASSES : TOOLBAR_BUTTON_INACTIVE_CLASSES}`}
