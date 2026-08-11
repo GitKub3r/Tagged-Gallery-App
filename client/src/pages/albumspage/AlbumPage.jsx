@@ -1137,12 +1137,12 @@ export const AlbumPage = () => {
     return (
         <section className="tagged-app-page tagged-album-page">
             {!loading && !error && albums.length > 0 ? (
-                    <LibraryToolbar maxWidth="max-w-[91.5rem]" label="Search albums" search={
+                    <LibraryToolbar maxWidth="max-w-[91.5rem]" searchClassName="lg:max-w-4xl" label="Search albums" search={
                         <AlbumSearchField value={albumSearchInput} suggestions={albumNameSuggestions} onChange={setAlbumSearchInput} onSubmit={(value) => setAlbumSearch(String(value || "").trim())} />
-                    } controls={<><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
+                    } controls={<><button type="button" className="inline-flex! h-11! w-auto! shrink-0! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-3! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-white! dark:text-neutral-950! dark:hover:bg-neutral-200! sm:px-4! lg:h-12!" onClick={handleOpenCreateModal} aria-label="Create new album"><FontAwesomeIcon icon={faFolderPlus} aria-hidden="true" /><span className="hidden sm:inline">New album</span></button><div className="flex h-11 min-w-0 flex-1 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 lg:h-12 lg:flex-none" aria-label="Album view mode">
                             <button
                                 type="button"
-                                className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-0 px-3 text-sm font-bold shadow-none lg:h-10 lg:flex-none ${albumViewMode === "card" ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
+                                className={`inline-flex! h-9! w-auto! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! text-sm! font-bold! shadow-none! lg:h-10! lg:flex-none! ${albumViewMode === "card" ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
                                 onClick={() => setAlbumViewMode("card")}
                                 aria-pressed={albumViewMode === "card"}
                                 aria-label="Card view"
@@ -1154,7 +1154,7 @@ export const AlbumPage = () => {
 
                             <button
                                 type="button"
-                                className={`inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border-0 px-3 text-sm font-bold shadow-none lg:h-10 lg:flex-none ${albumViewMode === "list" ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
+                                className={`inline-flex! h-9! w-auto! min-w-0! flex-1! items-center! justify-center! gap-2! rounded-xl! border-0! px-3! text-sm! font-bold! shadow-none! lg:h-10! lg:flex-none! ${albumViewMode === "list" ? "bg-neutral-950! text-white! dark:bg-white! dark:text-neutral-950!" : "bg-transparent! text-neutral-500! hover:bg-neutral-100! dark:text-neutral-400! dark:hover:bg-neutral-800!"}`}
                                 onClick={() => setAlbumViewMode("list")}
                                 aria-pressed={albumViewMode === "list"}
                                 aria-label="List view"
@@ -1194,16 +1194,6 @@ export const AlbumPage = () => {
                     />
                 ) : albumViewMode === "list" ? (
                     <div className="mx-auto grid w-full max-w-[91.5rem] gap-1" aria-label="Albums list">
-                        <button
-                            type="button"
-                            className="mb-2 flex min-h-20 w-full items-center gap-3 rounded-xl border-2 border-dashed border-neutral-400 bg-transparent px-4 text-left text-neutral-600 shadow-none transition-[transform,border-color,color] hover:scale-[1.01] hover:border-neutral-950 hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-100 dark:hover:text-neutral-100"
-                            onClick={handleOpenCreateModal}
-                            aria-label="Add new album"
-                        >
-                            <FontAwesomeIcon icon={faFolderPlus} className="text-xl" aria-hidden="true" />
-                            <span className="font-bold">Add new album</span>
-                        </button>
-
                         {paginatedAlbums.map((album) => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
@@ -1261,16 +1251,6 @@ export const AlbumPage = () => {
                     </div>
                 ) : (
                     <div className="tagged-album-grid-v2" aria-label="Albums grid" style={{ "--tagged-grid-columns": gridColumns }}>
-                        <button
-                            type="button"
-                            className="tagged-album-create-tile-v2 group flex h-full min-h-56 w-full flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-neutral-400 bg-transparent p-5 text-neutral-600 shadow-none transition-[transform,border-color,color] hover:scale-[1.015] hover:border-neutral-950 hover:text-neutral-950 dark:border-neutral-600 dark:text-neutral-400 dark:hover:border-neutral-100 dark:hover:text-neutral-100"
-                            onClick={handleOpenCreateModal}
-                            aria-label="Add new album"
-                        >
-                            <FontAwesomeIcon icon={faFolderPlus} className="text-3xl transition-transform group-hover:scale-110" aria-hidden="true" />
-                            <span className="text-sm font-bold">Add new album</span>
-                        </button>
-
                         {paginatedAlbums.map((album) => {
                             const coverUrl = getAssetUrl(album.albumthumbpath || album.albumcoverpath);
                             const createdLabel = formatAlbumDate(album.created_at);
