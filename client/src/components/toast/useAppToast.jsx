@@ -18,6 +18,12 @@ export const useAppToast = (data, { id, onDismiss, onCancel } = {}) => {
         }
 
         const hasProgress = typeof data.progress === "number" || data.indeterminate || data.speedLabel;
+        const handleCancel = cancelRef.current
+            ? () => {
+                  cancelRef.current?.();
+                  toast.dismiss(id);
+              }
+            : null;
         const commonOptions = {
             id,
             closeButton: true,
@@ -25,12 +31,12 @@ export const useAppToast = (data, { id, onDismiss, onCancel } = {}) => {
             description: hasProgress ? undefined : data.message,
             onDismiss: () => dismissRef.current?.(),
             onAutoClose: () => dismissRef.current?.(),
-            action: !hasProgress && cancelRef.current ? { label: "Cancel", onClick: () => cancelRef.current?.() } : undefined,
+            action: !hasProgress && handleCancel ? { label: "Cancel", onClick: handleCancel } : undefined,
         };
 
         if (hasProgress) {
             toast.custom(
-                () => <ProgressToast data={data} onCancel={cancelRef.current ? () => cancelRef.current?.() : null} />,
+                () => <ProgressToast data={data} onCancel={handleCancel} />,
                 commonOptions,
             );
         } else if (data.status === "error") {
