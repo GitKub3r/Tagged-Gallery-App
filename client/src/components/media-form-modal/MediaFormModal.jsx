@@ -104,7 +104,7 @@ export const MediaMetadataFields = ({
     }, [selectedTags.length]);
 
     return (
-    <div className="flex min-h-0 flex-col justify-start gap-3">
+    <div className="flex h-full min-h-0 flex-col justify-start gap-3">
         <div className="grid grid-cols-2 gap-3">
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                 <span className="mb-1.5 block">Media name</span>
@@ -138,7 +138,7 @@ export const MediaMetadataFields = ({
 
         <div
             ref={selectedTagsContainerRef}
-            className="flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50"
+            className="flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] md:min-h-32 md:max-h-none md:flex-1 dark:border-neutral-800 dark:bg-neutral-950/50"
             aria-label={`Selected tags, ${selectedTags.length} selected`}
         >
             {selectedTags.map((tag) => (
