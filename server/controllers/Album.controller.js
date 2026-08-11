@@ -159,6 +159,17 @@ class AlbumController {
         }
     }
 
+    static async adjustCover(req, res) {
+        try {
+            const result = await AlbumService.adjustCover(req.params.id, req.body, req.user);
+            if (!result.success) return res.status(result.message === "Album not found" ? 404 : 400).json(result);
+            return res.json(result);
+        } catch (error) {
+            console.error("Error in AlbumController.adjustCover:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
     // ─── MEDIA RELATIONS ─────────────────────────────────────────────────────
 
     static async getMedia(req, res) {

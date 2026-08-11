@@ -129,6 +129,21 @@ class AlbumService {
         return { success: true, data: updated };
     }
 
+    static async adjustCover(id, body, requestUser) {
+        const album = requestUser.type === "admin" ? await AlbumModel.findById(id) : await AlbumModel.findByIdForUser(id, requestUser.id);
+        if (!album) return { success: false, message: "Album not found" };
+        if (!album.albumcoverpath) return { success: false, message: "Album has no cover" };
+
+        const positionX = Number(body.position_x);
+        const positionY = Number(body.position_y);
+        const zoom = Number(body.zoom);
+        if (![positionX, positionY, zoom].every(Number.isFinite) || positionX < 0 || positionX > 100 || positionY < 0 || positionY > 100 || zoom < 1 || zoom > 3) {
+            return { success: false, message: "Invalid cover adjustment" };
+        }
+        await AlbumModel.updateCoverAdjustment(id, positionX, positionY, zoom);
+        return { success: true, data: await AlbumModel.findById(id) };
+    }
+
     // ─── MEDIA RELATIONS ─────────────────────────────────────────────────────
 
     static async getMedia(id, requestUser) {

@@ -4,6 +4,7 @@ import JSZip from "jszip";
 import {
     faArrowLeft,
     faCheckDouble,
+    faCropSimple,
     faDownload,
     faEye,
     faEyeSlash,
@@ -22,6 +23,7 @@ import {
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { toast } from "sonner";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
@@ -37,6 +39,8 @@ import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { AlbumAddMediaModal } from "./components/AlbumAddMediaModal";
 import { AlbumEditModal } from "./components/AlbumEditModal";
+import { AlbumCoverAdjustModal } from "./components/AlbumCoverAdjustModal";
+import { apiClient } from "../../api/apiClient";
 import "./AlbumPage.css";
 import "./AlbumDetailPage.css";
 import "../gallerypage/GalleryPage.css";
@@ -490,6 +494,8 @@ export const AlbumDetailPage = () => {
     const [isSavingEdit, setIsSavingEdit] = useState(false);
     const [editError, setEditError] = useState(null);
     const [isHeroCoverBroken, setIsHeroCoverBroken] = useState(false);
+    const [isCoverAdjustOpen, setIsCoverAdjustOpen] = useState(false);
+    const [isSavingCoverAdjustment, setIsSavingCoverAdjustment] = useState(false);
     const [heroCoverVisibilityByAlbum, setHeroCoverVisibilityByAlbum] = useState({});
     const [isMontageSettingsOpen, setIsMontageSettingsOpen] = useState(false);
     const [montageSettings, setMontageSettings] = useState(getInitialMontageSettings);
@@ -546,7 +552,12 @@ export const AlbumDetailPage = () => {
 
     const albumDisplayName = album?.displayname || album?.albumname || "Untitled album";
     const albumCreatedLabel = formatAlbumDate(album?.created_at);
-    const albumCoverUrl = getAssetUrl(album?.albumthumbpath || album?.albumcoverpath);
+    const albumCoverUrl = getAssetUrl(album?.albumcoverpath || album?.albumthumbpath);
+    const coverAdjustment = {
+        positionX: Number(album?.cover_position_x ?? 50),
+        positionY: Number(album?.cover_position_y ?? 50),
+        zoom: Number(album?.cover_zoom ?? 1),
+    };
     const hasCachedHeroCoverVisibility = Object.prototype.hasOwnProperty.call(heroCoverVisibilityByAlbum, albumId);
     const isHeroCoverVisible = hasCachedHeroCoverVisibility
         ? heroCoverVisibilityByAlbum[albumId]
@@ -556,6 +567,24 @@ export const AlbumDetailPage = () => {
         const nextVisibility = !isHeroCoverVisible;
         setHeroCoverVisibilityByAlbum((previous) => ({ ...previous, [albumId]: nextVisibility }));
         window.localStorage.setItem(getAlbumCoverVisibilityStorageKey(albumId), String(nextVisibility));
+    };
+
+    const saveCoverAdjustment = async (adjustment) => {
+        try {
+            setIsSavingCoverAdjustment(true);
+            await apiClient.put(`/albums/${albumId}/cover/adjustment`, {
+                position_x: adjustment.positionX,
+                position_y: adjustment.positionY,
+                zoom: adjustment.zoom,
+            });
+            await loadPageData();
+            setIsCoverAdjustOpen(false);
+            toast.success("Album cover adjusted");
+        } catch (error) {
+            toast.error(error?.response?.data?.message || "Could not adjust album cover");
+        } finally {
+            setIsSavingCoverAdjustment(false);
+        }
     };
 
     useEffect(() => {
@@ -3174,6 +3203,7 @@ export const AlbumDetailPage = () => {
                         className="absolute inset-0 h-full w-full object-cover"
                         src={albumCoverUrl}
                         alt={albumDisplayName}
+                        style={{ objectPosition: `${coverAdjustment.positionX}% ${coverAdjustment.positionY}%`, transform: `scale(${coverAdjustment.zoom})` }}
                         onError={() => setIsHeroCoverBroken(true)}
                     />
                 ) : (
@@ -3206,6 +3236,13 @@ export const AlbumDetailPage = () => {
                             <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                             <span>Edit album</span>
                         </button>
+
+                        {albumCoverUrl ? (
+                            <button type="button" className="tagged-album-hero-action-button" onClick={() => setIsCoverAdjustOpen(true)} aria-label="Adjust album cover">
+                                <FontAwesomeIcon icon={faCropSimple} aria-hidden="true" />
+                                <span>Adjust cover</span>
+                            </button>
+                        ) : null}
 
                         <button
                             type="button"
@@ -3949,6 +3986,9 @@ export const AlbumDetailPage = () => {
                 onToggleEditFilterTag={toggleEditFilterTag}
                 error={editError}
             />
+            {isCoverAdjustOpen && albumCoverUrl ? (
+                <AlbumCoverAdjustModal imageUrl={albumCoverUrl} initialAdjustment={coverAdjustment} isSaving={isSavingCoverAdjustment} onClose={() => !isSavingCoverAdjustment && setIsCoverAdjustOpen(false)} onSave={saveCoverAdjustment} />
+            ) : null}
         </section>
     );
 };

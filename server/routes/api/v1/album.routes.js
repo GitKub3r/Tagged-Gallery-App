@@ -25,6 +25,7 @@ router.delete("/:id", authenticate, AlbumController.delete);
 
 // POST   /api/v1/albums/:id/cover  - Assign / replace album cover from an existing image media
 router.post("/:id/cover", authenticate, AlbumController.uploadCover);
+router.put("/:id/cover/adjustment", authenticate, AlbumController.adjustCover);
 
 // DELETE /api/v1/albums/:id/cover  - Remove album cover
 router.delete("/:id/cover", authenticate, AlbumController.deleteCover);

@@ -9,6 +9,7 @@ const routes = require("./routes");
 const { ensureUploadDirs } = require("./middlewares/upload.middleware");
 const AuditService = require("./services/Audit.service");
 const UserModel = require("./models/User.model");
+const AlbumModel = require("./models/Album.model");
 
 const app = express();
 
@@ -61,6 +62,7 @@ const startServer = async () => {
         await UserModel.ensureAvatarColumn();
         await UserModel.ensureMediaNameMatchModeColumn();
         await UserModel.ensureSessionVersionColumn();
+        await AlbumModel.ensureCoverAdjustmentColumns();
 
         // Si la conexión fue exitosa, iniciar el servidor
         const port = process.env.PORT || 4000;
