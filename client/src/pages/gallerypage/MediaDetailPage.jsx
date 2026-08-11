@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { faChevronLeft, faChevronRight, faDownload, faHeart as faHeartSolid, faPen, faPlay, faRepeat, faScrewdriverWrench, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faChevronRight, faCopyright, faDownload, faHeart as faHeartSolid, faImage, faPen, faPlay, faRepeat, faScrewdriverWrench, faTags, faTrash, faUser, faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../components/icon-button/IconButton";
@@ -27,6 +27,8 @@ const MEDIA_DETAIL_LOOP_STORAGE_KEY = "tagged.mediaDetail.loop";
 const MEDIA_DETAIL_AUTOPLAY_EVENT = "tagged:media-detail-autoplay";
 const DETAIL_OVERLAY_ACTION_CLASSES =
     "pointer-events-auto! flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! bg-neutral-950! p-0! text-white! shadow-lg! transition-[transform,background-color]! duration-180! ease-out! hover:scale-[1.08]! hover:bg-neutral-800! hover:text-white! active:scale-[0.96]! focus-visible:outline-2! focus-visible:outline-offset-2! focus-visible:outline-white! disabled:scale-100! disabled:opacity-40!";
+const MOBILE_DETAIL_ACTION_CLASSES =
+    "flex! min-h-16! w-full! min-w-0! flex-col! items-center! justify-center! gap-1.5! rounded-xl! border! border-neutral-200! bg-transparent! px-1! py-2! text-xs! font-bold! text-neutral-600! shadow-none! transition-colors! hover:bg-neutral-100! hover:text-neutral-950! disabled:opacity-40! dark:border-neutral-800! dark:text-neutral-300! dark:hover:bg-neutral-800! dark:hover:text-white!";
 
 const mergeDistinctValues = (currentValues, newValues) => {
     const valuesByKey = new Map();
@@ -301,7 +303,7 @@ const normalizeTags = (media) => {
 
 const TagGroup = ({
     title,
-    iconSrc,
+    icon,
     tags,
     expanded,
     onToggle,
@@ -317,7 +319,7 @@ const TagGroup = ({
         <section className={`tagged-media-detail-tag-group ${extraClassName}`.trim()} aria-label={`${title} tags`}>
             <div className="tagged-media-detail-tag-group-header">
                 <h3>
-                    {iconSrc ? <img src={iconSrc} alt="" aria-hidden="true" /> : null}
+                    {icon ? <FontAwesomeIcon icon={icon} aria-hidden="true" /> : null}
                     <span>{title}</span>
                 </h3>
 
@@ -2228,7 +2230,7 @@ export const MediaDetailPage = () => {
                     ) : null}
                 </div>
 
-                <aside className="tagged-media-detail-info-column tagged-media-detail-info-column--mobile">
+                <aside className="tagged-media-detail-info-column tagged-media-detail-info-column--mobile h-auto! gap-4! rounded-xl! border! border-neutral-200! bg-white/70! p-4! shadow-none! backdrop-blur-sm! dark:border-neutral-800! dark:bg-neutral-900/70!">
                     <header className="tagged-media-detail-header">
                         <div className="tagged-media-detail-header-top-row">
                             <div className="tagged-media-detail-title-block">
@@ -2237,18 +2239,6 @@ export const MediaDetailPage = () => {
                                 </div>
                             </div>
 
-                            <div className="tagged-media-detail-header-actions">
-                                <button
-                                    type="button"
-                                    className="flex! h-10! w-10! items-center! justify-center! rounded-xl! border-0! bg-transparent! p-0! text-neutral-500! shadow-none! hover:bg-transparent! hover:text-neutral-950! dark:text-neutral-400! dark:hover:text-neutral-100!"
-                                    onClick={handleToggleFavourite}
-                                    aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"}
-                                    aria-pressed={isFavourite}
-                                    disabled={isTogglingFavourite}
-                                >
-                                    <FontAwesomeIcon icon={isFavourite ? faHeartSolid : faHeartRegular} className="text-lg" aria-hidden="true" />
-                                </button>
-                            </div>
                         </div>
 
                         <div className="tagged-media-detail-mobile-meta-row">
@@ -2258,12 +2248,31 @@ export const MediaDetailPage = () => {
                         </div>
                     </header>
 
+                    <div className="grid grid-cols-4 gap-2" aria-label="Media actions">
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleToggleFavourite} aria-label={isFavourite ? "Remove from favourites" : "Add to favourites"} aria-pressed={isFavourite} disabled={isTogglingFavourite}>
+                            <FontAwesomeIcon icon={isFavourite ? faHeartSolid : faHeartRegular} className="text-base" aria-hidden="true" />
+                            <span>{isFavourite ? "Saved" : "Favourite"}</span>
+                        </button>
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={openEditModal}>
+                            <FontAwesomeIcon icon={faPen} className="text-base" aria-hidden="true" />
+                            <span>Edit</span>
+                        </button>
+                        <button type="button" className={MOBILE_DETAIL_ACTION_CLASSES} onClick={handleDownloadMedia} disabled={!mediaUrl || !currentMedia}>
+                            <FontAwesomeIcon icon={faDownload} className="text-base" aria-hidden="true" />
+                            <span>Download</span>
+                        </button>
+                        <button type="button" className={`${MOBILE_DETAIL_ACTION_CLASSES} border-red-500/30! text-red-600! hover:bg-red-500/10! hover:text-red-700! dark:text-red-400! dark:hover:text-red-300!`} onClick={openDeleteCurrentMediaConfirm} disabled={isDeletingMedia}>
+                            <FontAwesomeIcon icon={faTrash} className="text-base" aria-hidden="true" />
+                            <span>Delete</span>
+                        </button>
+                    </div>
+
                     <hr className="tagged-media-detail-separator" aria-hidden="true" />
 
                     <div className="tagged-media-detail-content-block">
                         <TagGroup
                             title="Copyright"
-                            iconSrc="/icons/copyright.svg"
+                            icon={faCopyright}
                             extraClassName="tagged-media-detail-tag-group--copyright"
                             tags={copyrightTags}
                             expanded={expandedCopyrightTags}
@@ -2277,11 +2286,7 @@ export const MediaDetailPage = () => {
                                             {formatMediaSize(currentMedia.size)}
                                         </span>
                                         <span className="tagged-media-detail-meta-pill tagged-media-detail-meta-pill--type">
-                                            <img
-                                                src={isVideo ? "/icons/video.svg" : "/icons/image.svg"}
-                                                alt=""
-                                                aria-hidden="true"
-                                            />
+                                            <FontAwesomeIcon icon={isVideo ? faVideo : faImage} aria-hidden="true" />
                                             {isVideo ? "Video" : "Image"}
                                         </span>
                                     </div>
@@ -2291,7 +2296,7 @@ export const MediaDetailPage = () => {
 
                         <TagGroup
                             title="Tags"
-                            iconSrc="/icons/tags.svg"
+                            icon={faTags}
                             tags={defaultTags}
                             expanded={expandedDefaultTags}
                             onToggle={() => setExpandedDefaultTags((previous) => !previous)}
@@ -2301,7 +2306,7 @@ export const MediaDetailPage = () => {
 
                         <section className="tagged-media-detail-author-group" aria-label="Author info">
                             <h3>
-                                <img src="/icons/account.svg" alt="" aria-hidden="true" />
+                                <FontAwesomeIcon icon={faUser} aria-hidden="true" />
                                 <span>Author</span>
                             </h3>
                             <button
@@ -2319,27 +2324,6 @@ export const MediaDetailPage = () => {
                             </button>
                         </section>
 
-                        <div className="tagged-media-detail-actions">
-                            <button
-                                type="button"
-                                className="tagged-media-detail-action tagged-media-detail-action--edit"
-                                onClick={openEditModal}
-                            >
-                                <img src="/icons/edit.svg" alt="" aria-hidden="true" />
-                                Edit Media
-                            </button>
-                            <button
-                                type="button"
-                                className="tagged-media-detail-action tagged-media-detail-action--delete"
-                                onClick={openDeleteCurrentMediaConfirm}
-                                disabled={isDeletingMedia}
-                                aria-label="Delete media"
-                                title="Delete media"
-                            >
-                                <img src="/icons/delete.svg" alt="" aria-hidden="true" />
-                                Delete Media
-                            </button>
-                        </div>
                     </div>
                 </aside>
             </div>
