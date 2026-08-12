@@ -103,7 +103,7 @@ export const MediaCard = ({
         }
     };
 
-    const handleCardClick = () => {
+    const handleCardClick = (event) => {
         if (suppressNextClickRef.current) {
             suppressNextClickRef.current = false;
             return;
@@ -111,6 +111,11 @@ export const MediaCard = ({
 
         if (longPressTriggeredRef.current) {
             longPressTriggeredRef.current = false;
+            return;
+        }
+
+        if (!selectionMode && (event?.ctrlKey || event?.metaKey)) {
+            onActivateSelectionMode?.(media.id);
             return;
         }
 

@@ -328,7 +328,7 @@ export const GalleryListItem = ({
     };
 
     }
-    const handleRowClick = () => {
+    const handleRowClick = (event) => {
         if (suppressNextClickRef.current) {
             suppressNextClickRef.current = false;
             return;
@@ -338,6 +338,10 @@ export const GalleryListItem = ({
             longPressTriggeredRef.current = false;
             return;
 
+        }
+        if (!selectionMode && (event?.ctrlKey || event?.metaKey)) {
+            onActivateSelectionMode?.(media.id);
+            return;
         }
         if (selectionMode) {
             onToggleSelect?.(media.id);
@@ -433,7 +437,7 @@ export const GalleryListItem = ({
                 }
 
                 event.preventDefault();
-                handleRowClick();
+                handleRowClick(event);
             }}
             aria-label={`Media ${mediaTitle}`}
         >
@@ -2283,20 +2287,19 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         if (basePath !== "/gallery" || user?.type === "admin") return undefined;
 
         const handleClipboardPaste = (event) => {
-            const focusedElement = event.target instanceof HTMLElement ? event.target : document.activeElement;
-            const isEditableTarget = focusedElement instanceof HTMLElement && (
-                focusedElement.matches("input, textarea, select") ||
-                focusedElement.isContentEditable ||
-                Boolean(focusedElement.closest("[contenteditable='true']"))
-            );
+            if (document.querySelector("[role='dialog'][aria-modal='true']")) return;
 
-            if (isEditableTarget || document.querySelector("[role='dialog'][aria-modal='true']")) return;
-
+            const clipboardFiles = Array.from(event.clipboardData?.files || []);
             const clipboardItems = Array.from(event.clipboardData?.items || []);
-            const imageFiles = clipboardItems
+            const itemFiles = clipboardItems
                 .filter((item) => item.kind === "file" && String(item.type || "").toLowerCase().startsWith("image/"))
                 .map((item) => item.getAsFile())
                 .filter(Boolean);
+            const imageFiles = [...clipboardFiles, ...itemFiles]
+                .filter((file) => String(file?.type || "").toLowerCase().startsWith("image/"))
+                .filter((file, index, files) => files.findIndex((candidate) => candidate === file || (
+                    candidate.name === file.name && candidate.size === file.size && candidate.type === file.type
+                )) === index);
 
             if (imageFiles.length === 0) return;
 
@@ -2717,20 +2720,6 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
     useEffect(() => {
         const handleGlobalKeyDown = (event) => {
-            const target = event.target;
-            const isTypingElement =
-                target instanceof HTMLElement &&
-                (target.tagName === "INPUT" ||
-                    target.tagName === "TEXTAREA" ||
-                    target.tagName === "SELECT" ||
-                    target.isContentEditable);
-
-            if (event.key === "Control" && !isTypingElement) {
-                setIsSelectionMode(true);
-                setSelectionActionError(null);
-                return;
-
-            }
             if (event.key === "Escape" && isDeleteConfirmOpen) {
                 closeDeleteSelectedConfirm();
                 return;
