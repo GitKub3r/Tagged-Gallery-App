@@ -1,4 +1,4 @@
-﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import JSZip from "jszip";
@@ -2261,7 +2261,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         hiddenFileInputRef.current?.click();
     };
 
-    const openUploadWithFiles = (files) => {
+    const openUploadWithFiles = useCallback((files) => {
         if (files.length === 0) {
             return;
 
@@ -2273,11 +2273,40 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setUploadPreviewUrls(nextPreviewUrls);
         setSelectedFiles(files);
         setIsUploadModalOpen(true);
-    };
+    }, []);
 
     const handleFileSelectionChange = (event) => {
         openUploadWithFiles(Array.from(event.target.files || []));
     };
+
+    useEffect(() => {
+        if (basePath !== "/gallery" || user?.type === "admin") return undefined;
+
+        const handleClipboardPaste = (event) => {
+            const focusedElement = event.target instanceof HTMLElement ? event.target : document.activeElement;
+            const isEditableTarget = focusedElement instanceof HTMLElement && (
+                focusedElement.matches("input, textarea, select") ||
+                focusedElement.isContentEditable ||
+                Boolean(focusedElement.closest("[contenteditable='true']"))
+            );
+
+            if (isEditableTarget || document.querySelector("[role='dialog'][aria-modal='true']")) return;
+
+            const clipboardItems = Array.from(event.clipboardData?.items || []);
+            const imageFiles = clipboardItems
+                .filter((item) => item.kind === "file" && String(item.type || "").toLowerCase().startsWith("image/"))
+                .map((item) => item.getAsFile())
+                .filter(Boolean);
+
+            if (imageFiles.length === 0) return;
+
+            event.preventDefault();
+            openUploadWithFiles(imageFiles);
+        };
+
+        window.addEventListener("paste", handleClipboardPaste);
+        return () => window.removeEventListener("paste", handleClipboardPaste);
+    }, [basePath, openUploadWithFiles, user?.type]);
 
     const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
 
