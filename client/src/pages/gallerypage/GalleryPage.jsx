@@ -60,6 +60,7 @@ const GALLERY_CURRENT_PAGE_STORAGE_KEY = "tagged:gallery-current-page";
 const DEFAULT_PAGE_SIZE = 20;
 const MIN_PAGE_SIZE = 10;
 const GALLERY_SEARCH_STORAGE_KEY = "tagged:gallery-search-query";
+const GALLERY_MEDIA_TYPE_STORAGE_KEY = "tagged:gallery-media-type";
 const GALLERY_SCROLL_STORAGE_KEY_PREFIX = "tagged:gallery-scroll-position";
 const MAX_SUGGESTIONS = 8;
 const TOOLBAR_BUTTON_CLASSES =
@@ -682,7 +683,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         return String(window.localStorage.getItem(GALLERY_SEARCH_STORAGE_KEY) || "");
     });
-    const [mediaTypeFilter, setMediaTypeFilter] = useState("all");
+    const [mediaTypeFilter, setMediaTypeFilter] = useState(() => {
+        if (typeof window === "undefined") return "all";
+        const storedFilter = window.localStorage.getItem(GALLERY_MEDIA_TYPE_STORAGE_KEY);
+        return ["all", "image", "video"].includes(storedFilter) ? storedFilter : "all";
+    });
     const [isRandomOrderEnabled, setIsRandomOrderEnabled] = useState(false);
     const [randomOrderSeed, setRandomOrderSeed] = useState(null);
     const [isGalleryShuffling, setIsGalleryShuffling] = useState(false);
@@ -1213,6 +1218,11 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             window.localStorage.setItem(GALLERY_SEARCH_STORAGE_KEY, submittedGallerySearchQuery);
         }
     }, [submittedGallerySearchQuery]);
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem(GALLERY_MEDIA_TYPE_STORAGE_KEY, mediaTypeFilter);
+        }
+    }, [mediaTypeFilter]);
     useEffect(() => {
         return () => {
             window.dispatchEvent(
