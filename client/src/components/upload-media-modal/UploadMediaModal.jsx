@@ -4,7 +4,6 @@ import {
     faArrowRight,
     faCloudArrowUp,
     faFile,
-    faImages,
     faRotate,
     faSpinner,
     faXmark,
@@ -327,7 +326,7 @@ export const UploadMediaModal = ({
 
                         <footer className="flex min-h-16 shrink-0 flex-col items-stretch justify-between gap-2 border-t border-neutral-200 px-4 py-2 dark:border-neutral-800 sm:h-16 sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-0">
                             <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs text-neutral-500 dark:text-neutral-400">
-                                {totalFiles > 1 ? <><FontAwesomeIcon icon={faImages} aria-hidden="true" /><span>Shared metadata will apply to every file</span></> : <><FontAwesomeIcon icon={faFile} aria-hidden="true" /><span className="whitespace-nowrap">Ready to upload</span><span className="text-neutral-300 dark:text-neutral-700" aria-hidden="true">·</span><MediaFileMeta size={activeFile?.size} mediaUrl={activePreviewUrl} isVideo={isVideo} /></>}
+                                <MediaFileMeta size={activeFile?.size} mediaUrl={activePreviewUrl} isVideo={isVideo} />
                             </div>
                             <div className="ml-auto flex items-center gap-2">
                                 <button
