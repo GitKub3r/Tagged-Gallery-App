@@ -12,6 +12,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
+import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
 
 const getFileLabel = (file, fallbackIndex) => String(file?.name || `Media ${fallbackIndex + 1}`);
 const isHeicFile = (file) => {
@@ -324,10 +325,9 @@ export const UploadMediaModal = ({
                             </div>
                         </div>
 
-                        <footer className="flex h-16 shrink-0 items-center justify-between gap-3 border-t border-neutral-200 px-4 dark:border-neutral-800 sm:px-6">
-                            <div className="hidden items-center gap-2 text-xs text-neutral-500 sm:flex dark:text-neutral-400">
-                                <FontAwesomeIcon icon={totalFiles > 1 ? faImages : faFile} aria-hidden="true" />
-                                <span>{totalFiles > 1 ? "Shared metadata will apply to every file" : "Ready to upload"}</span>
+                        <footer className="flex min-h-16 shrink-0 flex-col items-stretch justify-between gap-2 border-t border-neutral-200 px-4 py-2 dark:border-neutral-800 sm:h-16 sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-0">
+                            <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs text-neutral-500 dark:text-neutral-400">
+                                {totalFiles > 1 ? <><FontAwesomeIcon icon={faImages} aria-hidden="true" /><span>Shared metadata will apply to every file</span></> : <><FontAwesomeIcon icon={faFile} aria-hidden="true" /><span className="whitespace-nowrap">Ready to upload</span><span className="text-neutral-300 dark:text-neutral-700" aria-hidden="true">·</span><MediaFileMeta size={activeFile?.size} mediaUrl={activePreviewUrl} isVideo={isVideo} /></>}
                             </div>
                             <div className="ml-auto flex items-center gap-2">
                                 <button

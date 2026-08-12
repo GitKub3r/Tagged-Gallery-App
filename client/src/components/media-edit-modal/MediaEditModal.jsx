@@ -5,6 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { rankSuggestions } from "../../utils/suggestionRanking";
+import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
 
 const MAX_SUGGESTIONS = 8;
 const isVideoLike = (media) => {
@@ -259,6 +260,7 @@ export const MediaEditModal = ({
                     posterUrl,
                     isVideo: mediaIsVideo,
                     label: String(media?.displayname || media?.filename || media?.id || "Media").trim(),
+                    size: media?.size,
                 };
             })
             .filter(Boolean);
@@ -734,8 +736,10 @@ export const MediaEditModal = ({
                     </div>
                 </div>
 
-                <footer className="flex h-16 shrink-0 items-center justify-between gap-2 border-t border-neutral-200 px-3 dark:border-neutral-800 sm:gap-3 sm:px-6">
-                    {typeof onCloseOnSaveChange === "function" ? (
+                <footer className="flex min-h-16 shrink-0 flex-col items-stretch justify-between gap-2 border-t border-neutral-200 px-3 py-2 dark:border-neutral-800 sm:h-16 sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-0">
+                    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3 overflow-hidden">
+                        {activePreviewItem && !isMultiMode ? <MediaFileMeta size={activePreviewItem.size} mediaUrl={activePreviewItem.url} isVideo={activePreviewItem.isVideo} className="text-xs text-neutral-500 dark:text-neutral-400" /> : null}
+                        {typeof onCloseOnSaveChange === "function" ? (
                         <label className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                             <span className="relative grid h-4 w-4 shrink-0 place-items-center">
                                 <input
@@ -749,7 +753,8 @@ export const MediaEditModal = ({
                             </span>
                             <span>Close on save</span>
                         </label>
-                    ) : <span />}
+                        ) : null}
+                    </div>
 
                     <div className="ml-auto flex items-center gap-2">
                         <button type="button" className="h-10! w-auto! whitespace-nowrap! rounded-xl! border! border-neutral-300! bg-transparent! px-3! py-2! text-sm! font-semibold! text-neutral-600! shadow-none! hover:bg-neutral-100! sm:px-4! dark:border-neutral-700! dark:text-neutral-300! dark:hover:bg-neutral-800!" onClick={handleCloseModal} disabled={isSaving}>

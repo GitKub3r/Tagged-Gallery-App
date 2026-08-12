@@ -15,6 +15,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
+import { formatMediaSize } from "../../utils/mediaFormat";
 import "./MediaDetailPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -190,28 +191,6 @@ const buildTagStyle = (hexColor, surface = "light") => {
         borderWidth: "2px",
         boxShadow: `inset 0 0 0 1px ${isLightSurface ? "rgba(0, 0, 0, 0.22)" : "rgba(255, 255, 255, 0.3)"}`,
     };
-};
-
-const formatMediaSize = (sizeInBytes) => {
-    const numericSize = Number(sizeInBytes);
-
-    if (!Number.isFinite(numericSize) || numericSize <= 0) {
-        return "0 KB";
-    }
-
-    const bytesInKb = 1024;
-    const bytesInMb = bytesInKb * 1024;
-    const bytesInGb = bytesInMb * 1024;
-
-    if (numericSize < bytesInMb) {
-        return `${(numericSize / bytesInKb).toFixed(2)} KB`;
-    }
-
-    if (numericSize < bytesInGb) {
-        return `${(numericSize / bytesInMb).toFixed(2)} MB`;
-    }
-
-    return `${(numericSize / bytesInGb).toFixed(2)} GB`;
 };
 
 const formatUploadDate = (dateValue) => {
@@ -2211,6 +2190,7 @@ export const MediaDetailPage = () => {
                                     </span>
                                 </div>
                                 <div className="tagged-media-detail-desktop-top-right">
+                                    <h1 className="tagged-media-detail-desktop-name" title={currentMedia.displayname || "Undefined"}>{currentMedia.displayname || "Undefined"}</h1>
                                     <div className="tagged-media-detail-actions tagged-media-detail-actions--desktop">
                                         <button
                                             type="button"

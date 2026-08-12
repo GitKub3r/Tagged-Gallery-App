@@ -441,7 +441,25 @@
     align-items: flex-start;
     justify-content: flex-end;
     margin-left: auto;
-    gap: 0;
+    gap: 0.55rem;
+    min-width: 0;
+}
+
+.tagged-media-detail-desktop-name {
+    max-width: min(24rem, 34vw);
+    margin: 0;
+    padding: 0.48rem 0.72rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: var(--tagged-radius-md);
+    background: rgba(0, 0, 0, 0.58);
+    color: #ffffff;
+    font-size: 0.9rem;
+    font-weight: 900;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    backdrop-filter: blur(10px);
 }
 
 .tagged-media-detail-action--favourite {
