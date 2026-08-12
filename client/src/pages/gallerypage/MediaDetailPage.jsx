@@ -1251,6 +1251,53 @@ export const MediaDetailPage = () => {
                 return;
             }
 
+            if (event.code === "Space" && viewerIsVideo) {
+                const target = event.target;
+                const isVideoTarget = target instanceof HTMLVideoElement;
+                const isInteractiveTarget =
+                    target instanceof HTMLElement &&
+                    Boolean(
+                        target.closest(
+                            'input, textarea, select, button, a[href], [contenteditable="true"], [role="button"], [role="slider"]',
+                        ),
+                    );
+
+                if (isInteractiveTarget && !isVideoTarget) {
+                    return;
+                }
+
+                const video = isLightboxOpen ? lightboxVideoRef.current : detailVideoRef.current;
+
+                if (!video) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (event.repeat) {
+                    return;
+                }
+
+                if (video.paused || video.ended) {
+                    if (video.ended) {
+                        video.currentTime = 0;
+                    }
+
+                    if (!isLightboxOpen) {
+                        video.muted = false;
+                        video.volume = 1;
+                    }
+
+                    void video.play().catch(() => {
+                        setIsDetailVideoPlaying(false);
+                    });
+                } else {
+                    video.pause();
+                }
+
+                return;
+            }
+
             if (event.repeat) {
                 const now = Date.now();
 
@@ -1281,7 +1328,7 @@ export const MediaDetailPage = () => {
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
         };
-    }, [isDeleteConfirmOpen, isEditModalOpen]);
+    }, [isDeleteConfirmOpen, isEditModalOpen, isLightboxOpen, viewerIsVideo]);
 
     const handleTouchStart = (event) => {
         touchStartXRef.current = event.changedTouches[0]?.clientX || 0;
