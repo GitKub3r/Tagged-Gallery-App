@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
         const restoreSession = async () => {
             if (storedAccessToken && storedRefreshToken && storedUser) {
                 try {
-                    const parsedUser = JSON.parse(storedUser);
+                    JSON.parse(storedUser);
                     let validAccessToken = storedAccessToken;
                     if (isTokenExpired(storedAccessToken)) {
                         const refreshResult = await authApi.refresh(storedRefreshToken, { skipErrorToast: true });
@@ -59,13 +59,17 @@ export const AuthProvider = ({ children }) => {
                         if (!refreshResult.success || !validAccessToken) throw new Error(refreshResult.message || "Could not refresh the session");
                         localStorage.setItem("accessToken", validAccessToken);
                     }
+                    const currentUserResult = await authApi.getCurrentUser(validAccessToken);
+                    const currentUser = currentUserResult.data;
+                    if (!currentUserResult.success || !currentUser) throw new Error(currentUserResult.message || "Could not load the current user");
                     if (!isActive) return;
                     accessTokenRef.current = validAccessToken;
                     refreshTokenRef.current = storedRefreshToken;
                     setAccessToken(validAccessToken);
                     setRefreshToken(storedRefreshToken);
-                    setUser(parsedUser);
-                    storeMediaNameMatchMode(parsedUser?.media_name_match_mode);
+                    setUser(currentUser);
+                    localStorage.setItem("user", JSON.stringify(currentUser));
+                    storeMediaNameMatchMode(currentUser.media_name_match_mode);
                 } catch (restoreError) {
                     localStorage.removeItem("user");
                     localStorage.removeItem("accessToken");

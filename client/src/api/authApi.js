@@ -4,6 +4,14 @@ const getErrorMessage = (error, fallback) =>
     error.response?.data?.message || error.message || fallback;
 
 export const authApi = {
+    async getCurrentUser(accessToken) {
+        const { data } = await apiClient.get("/users/me", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            _skipErrorToast: true,
+        });
+        return data;
+    },
+
     async login(credentials) {
         try {
             const { data } = await apiClient.post("/users/login", credentials, { _skipAuth: true });

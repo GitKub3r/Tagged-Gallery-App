@@ -15,6 +15,7 @@ router.post("/", UserController.create);
 // GET /api/v1/users - Obtener todos los usuarios
 router.get("/", authenticate, UserController.getAll);
 
+router.get("/me", authenticate, UserController.getMe);
 router.put("/me", authenticate, UserController.updateMe);
 router.put("/me/preferences/media-search", authenticate, UserController.updateMediaSearchPreference);
 router.put("/me/password", authenticate, UserController.changeOwnPassword);

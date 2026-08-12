@@ -21,6 +21,21 @@ const ensureAdmin = (req, res) => {
 };
 
 class UserController {
+    static async getMe(req, res) {
+        try {
+            const result = await UserService.getUserById(req.user.id);
+
+            if (!result.success) {
+                return res.status(404).json(result);
+            }
+
+            return res.json(result);
+        } catch (error) {
+            console.error("Error in UserController.getMe:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
     static async updateMediaSearchPreference(req, res) {
         try {
             const result = await UserService.updateMediaSearchPreference(req.user.id, req.body?.matchMode);
