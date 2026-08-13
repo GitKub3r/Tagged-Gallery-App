@@ -46,6 +46,37 @@ const normalizeColor = (color) => (/^#[\da-f]{6}$/i.test(String(color)) ? String
 const inputClasses =
     "h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600";
 
+const TagColorPicker = ({ value, onChange, compact = false, disabled = false, label = "Change tag color" }) => {
+    const normalizedValue = normalizeColor(value);
+
+    if (compact) {
+        return (
+            <label
+                className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-black/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-neutral-500"
+                style={isDefaultTagColor(value) ? buildDefaultTagStyle() : { backgroundColor: normalizedValue }}
+                title={label}
+            >
+                <span className="sr-only">{label}</span>
+                <input
+                    type="color"
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-wait"
+                    value={normalizedValue}
+                    onChange={(event) => onChange(event.target.value)}
+                    disabled={disabled}
+                    aria-label={label}
+                />
+            </label>
+        );
+    }
+
+    return (
+        <div className="flex h-11 items-center gap-3 rounded-xl border border-neutral-300 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-950">
+            <input type="color" className="h-7 w-9 cursor-pointer rounded-xl border-0 bg-transparent p-0" value={normalizedValue} onChange={(event) => onChange(event.target.value)} disabled={disabled} aria-label={label} />
+            <span className="text-sm font-semibold uppercase text-neutral-500 dark:text-neutral-400">{normalizedValue}</span>
+        </div>
+    );
+};
+
 const MetadataEditor = ({ managerType, item, isSaving, error, onClose, onSave }) => {
     const config = MANAGERS[managerType];
     const [name, setName] = useState(managerType === "tags" ? String(item?.tagname || "") : String(item?.value || ""));
@@ -71,10 +102,7 @@ const MetadataEditor = ({ managerType, item, isSaving, error, onClose, onSave })
                         <div className="grid gap-4 sm:grid-cols-2">
                             <label className="block">
                                 <span className="mb-1.5 block text-sm font-semibold">Color</span>
-                                <div className="flex h-11 items-center gap-3 rounded-xl border border-neutral-300 bg-white px-3 dark:border-neutral-700 dark:bg-neutral-950">
-                                    <input type="color" className="h-7 w-9 cursor-pointer rounded-xl border-0 bg-transparent p-0" value={color} onChange={(event) => setColor(event.target.value)} />
-                                    <span className="text-sm font-semibold uppercase text-neutral-500 dark:text-neutral-400">{color}</span>
-                                </div>
+                                <TagColorPicker value={color} onChange={setColor} disabled={isSaving} />
                             </label>
                             <label className="block">
                                 <span className="mb-1.5 block text-sm font-semibold">Type</span>
@@ -127,6 +155,30 @@ export const MetadataPage = () => {
             await queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
             setPendingDelete(null);
         },
+    });
+
+    const quickColorMutation = useMutation({
+        mutationFn: ({ item, color }) => metadataApi.save({
+            managerType: "tags",
+            item,
+            values: { name: item.tagname, color, type: item.type === "copyright" ? "copyright" : "default" },
+            accessToken,
+        }),
+        onMutate: async ({ item, color }) => {
+            await queryClient.cancelQueries({ queryKey: metadataQueryKeys.all });
+            const previousMetadata = queryClient.getQueryData(metadataQueryKeys.all);
+            queryClient.setQueryData(metadataQueryKeys.all, (currentMetadata) => currentMetadata
+                ? {
+                      ...currentMetadata,
+                      tags: currentMetadata.tags.map((tag) => tag.id === item.id ? { ...tag, tagcolor_hex: color } : tag),
+                  }
+                : currentMetadata);
+            return { previousMetadata };
+        },
+        onError: (_error, _variables, context) => {
+            if (context?.previousMetadata) queryClient.setQueryData(metadataQueryKeys.all, context.previousMetadata);
+        },
+        onSettled: () => queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all }),
     });
 
     const counts = {
@@ -183,7 +235,7 @@ export const MetadataPage = () => {
                             {items.map((item) => {
                                 const label = String(item[config.field] || "");
                                 return <li key={item.id ?? label} className="group flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white/70 p-3 transition-colors hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900">
-                                    {managerType === "tags" ? <span className="h-9 w-9 shrink-0 rounded-xl border border-black/10" style={isDefaultTagColor(item.tagcolor_hex) ? buildDefaultTagStyle() : { backgroundColor: normalizeColor(item.tagcolor_hex) }} aria-hidden="true" /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"><FontAwesomeIcon icon={config.icon} /></span>}
+                                    {managerType === "tags" ? <TagColorPicker compact value={item.tagcolor_hex} disabled={quickColorMutation.isPending} label={`Change color for ${label}`} onChange={(color) => quickColorMutation.mutate({ item, color })} /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"><FontAwesomeIcon icon={config.icon} /></span>}
                                     <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold" title={label}>{label}</p>{managerType === "tags" ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">{item.type === "copyright" ? <><FontAwesomeIcon icon={faCopyright} /> Copyright</> : "Standard tag"}</p> : <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Reusable {config.singular}</p>}</div>
                                     <div className="flex shrink-0 gap-1"><IconButton className="h-9 w-9 border-transparent bg-transparent" onClick={() => openEditor(item)} aria-label={`Edit ${label}`} title={`Edit ${label}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton className="h-9 w-9 border-transparent bg-transparent hover:text-red-500" onClick={() => setPendingDelete(item)} aria-label={`Delete ${label}`} title={`Delete ${label}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div>
                                 </li>;
