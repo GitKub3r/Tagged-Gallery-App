@@ -1,15 +1,41 @@
 # Tagged
 
-Guía de instalación y ejecución en macOS para el entorno de desarrollo de Tagged.
+Guía de instalación y ejecución para el entorno de desarrollo de Tagged.
 
 ## Requisitos
 
-- macOS con [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y abierto.
-- Node.js (se recomienda la versión LTS) y npm. Compruébalos con `node -v` y `npm -v`.
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y abierto.
+- Node.js (se recomienda la versión LTS) y npm solo si vas a ejecutar los servicios fuera de Docker.
 
 El backend incluye `ffmpeg-static`, por lo que no es necesario instalar FFmpeg por separado para el uso habitual.
 
-## 1. Instalar dependencias
+## 1. Iniciar todo con Docker
+
+Con Docker Desktop ya iniciado, ejecuta desde la raíz:
+
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+Esto levanta en contenedores:
+
+- Aplicación completa: [http://localhost:5173](http://localhost:5173)
+- API directa: [http://localhost:3000/api/v1](http://localhost:3000/api/v1)
+- MySQL: `localhost:3306`
+- phpMyAdmin: [http://localhost:8080](http://localhost:8080)
+
+El contenedor `app` arranca frontend y backend juntos. Vite expone el frontend en la red y redirige `/api` y `/uploads` al backend, así que no hace falta editar IPs en `client/.env` ni `server/.env`.
+
+Para entrar desde un móvil en la misma Wi-Fi, abre:
+
+```text
+http://IP_DEL_PC:5173
+```
+
+No hay que cambiar `VITE_API_URL` ni `CORS_ORIGIN`; las llamadas usan rutas relativas como `/api/v1`.
+
+## 2. Instalar dependencias para ejecución manual
 
 Desde la raíz del proyecto:
 
@@ -19,7 +45,7 @@ npm install --prefix client
 npm install --prefix server
 ```
 
-## 2. Iniciar MySQL y phpMyAdmin con Docker
+## 3. Iniciar solo MySQL y phpMyAdmin con Docker
 
 Con Docker Desktop ya iniciado, ejecuta:
 
@@ -45,7 +71,7 @@ Base de datos: media_app
 
 > En equipos Apple Silicon puede aparecer un aviso de que phpMyAdmin usa `linux/amd64` mientras el equipo es `arm64`. Docker Desktop lo ejecuta mediante emulación y el servicio sigue siendo utilizable.
 
-## 3. Configurar las variables de entorno
+## 4. Configurar las variables de entorno para ejecución manual
 
 Crea los archivos locales a partir de los ejemplos:
 
@@ -74,13 +100,13 @@ JWT_REFRESH_EXPIRES_IN=7d
 CORS_ORIGIN=http://localhost:5173
 ```
 
-Para desarrollo únicamente en el Mac, configura `client/.env`:
+Para desarrollo manual, configura `client/.env`:
 
 ```dotenv
-VITE_API_URL=http://localhost:3000/api/v1
+VITE_API_URL=/api/v1
 ```
 
-## 4. Iniciar la aplicación
+## 5. Iniciar la aplicación fuera de Docker
 
 Desde la raíz, inicia backend y frontend en una sola terminal:
 
@@ -88,41 +114,7 @@ Desde la raíz, inicia backend y frontend en una sola terminal:
 npm run dev
 ```
 
-Abre [http://localhost:5173](http://localhost:5173). La API estará en `http://localhost:3000/api/v1`.
-
-## Acceso desde un móvil en la misma red
-
-Obtén la IP Wi-Fi del Mac:
-
-```bash
-ipconfig getifaddr en0
-```
-
-Si el resultado fuera `192.168.1.131`, usa estos valores y reinicia los servidores:
-
-```dotenv
-# server/.env
-CORS_ORIGIN=http://192.168.1.131:5173
-```
-
-```dotenv
-# client/.env
-VITE_API_URL=http://192.168.1.131:3000/api/v1
-```
-
-En dos terminales distintas, inicia el backend y Vite exponiéndolo en la red:
-
-```bash
-# Terminal 1
-npm run dev:server
-```
-
-```bash
-# Terminal 2
-npm run dev:client -- --host 0.0.0.0 --port 5173 --strictPort
-```
-
-Después abre `http://192.168.1.131:5173` desde el móvil. Ambos dispositivos deben estar en la misma red Wi-Fi.
+Abre [http://localhost:5173](http://localhost:5173). La API estará disponible por el proxy de Vite en `/api/v1`.
 
 ## Solución rápida de problemas
 
@@ -130,4 +122,4 @@ Después abre `http://192.168.1.131:5173` desde el móvil. Ambos dispositivos de
 - **Advertencia sobre `version` en Compose**: no impide el arranque. El campo `version` de `docker-compose.yml` está obsoleto y puede eliminarse cuando se actualice el archivo.
 - **El backend no conecta a MySQL**: confirma que `docker compose ps` muestra `media_mysql` en ejecución y que las variables `DB_*` coinciden con las anteriores.
 - **Cambiaste `database.sql` y no se refleja**: el script solo se ejecuta cuando se crea el volumen. Para reinicializar la base de datos (esto borra todos los datos locales), ejecuta `docker compose down -v` y después `docker compose up -d`.
-- **El móvil muestra `Load failed`**: comprueba que `VITE_API_URL` y `CORS_ORIGIN` usan la IP del Mac, no `localhost`, y reinicia el frontend tras editar `.env`.
+- **El móvil muestra `Load failed`**: si usas Docker, entra siempre por `http://IP_DEL_PC:5173` y evita abrir la URL `localhost` desde el móvil. Si ejecutas fuera de Docker, asegúrate de iniciar Vite con `host: 0.0.0.0`.

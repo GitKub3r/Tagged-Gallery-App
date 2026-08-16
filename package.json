@@ -3,6 +3,7 @@
     "private": true,
     "scripts": {
         "dev": "concurrently \"npm:dev --prefix client\" \"npm:dev --prefix server\"",
+        "docker:dev": "node scripts/wait-for-tcp.js mysql 3306 && npm run dev",
         "dev:client": "npm run dev --prefix client",
         "dev:server": "npm run dev --prefix server"
     },

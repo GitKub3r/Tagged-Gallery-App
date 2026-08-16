@@ -14,9 +14,41 @@ const AlbumModel = require("./models/Album.model");
 const app = express();
 
 // Configurar CORS
+const configuredCorsOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+const isAllowedDevOrigin = (origin) => {
+    if (!origin) {
+        return true;
+    }
+
+    try {
+        const { hostname, port } = new URL(origin);
+        const isFrontendPort = port === "5173";
+        const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+        const isPrivateLan =
+            /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+            /^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname);
+
+        return isFrontendPort && (isLocalhost || isPrivateLan);
+    } catch {
+        return false;
+    }
+};
+
 app.use(
     cors({
-        origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+        origin(origin, callback) {
+            if (configuredCorsOrigins.includes(origin) || isAllowedDevOrigin(origin)) {
+                callback(null, true);
+                return;
+            }
+
+            callback(new Error(`CORS origin not allowed: ${origin}`));
+        },
         credentials: true,
     }),
 );
