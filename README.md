@@ -14,6 +14,14 @@ El backend incluye `ffmpeg-static`, por lo que no es necesario instalar FFmpeg p
 Con Docker Desktop ya iniciado, ejecuta desde la raíz:
 
 ```bash
+npm run docker:up
+```
+
+El comando detecta la IPv4 LAN del PC, levanta Docker y muestra la URL exacta para abrir desde el móvil.
+
+También puedes usar Compose directamente:
+
+```bash
 docker compose up -d --build
 docker compose ps
 ```
@@ -30,7 +38,7 @@ El contenedor `app` arranca frontend y backend juntos. Vite expone el frontend e
 Para entrar desde un móvil en la misma Wi-Fi, abre:
 
 ```text
-http://IP_DEL_PC:5173
+Mobile: http://IP_DETECTADA:5173
 ```
 
 No hay que cambiar `VITE_API_URL` ni `CORS_ORIGIN`; las llamadas usan rutas relativas como `/api/v1`.
