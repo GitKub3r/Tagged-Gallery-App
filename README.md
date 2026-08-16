@@ -35,6 +35,8 @@ Esto levanta en contenedores:
 
 El contenedor `app` arranca frontend y backend juntos. Vite expone el frontend en la red y redirige `/api` y `/uploads` al backend, así que no hace falta editar IPs en `client/.env` ni `server/.env`.
 
+Los archivos subidos se montan desde `server/uploads`, de modo que Docker usa las mismas imágenes, vídeos, miniaturas y avatares que el entorno manual.
+
 Para entrar desde un móvil en la misma Wi-Fi, abre:
 
 ```text
