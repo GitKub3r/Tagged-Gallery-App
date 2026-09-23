@@ -22,15 +22,13 @@ services:
             VITE_API_URL: /api/v1
             VITE_PROXY_TARGET: http://localhost:3000
             CHOKIDAR_USEPOLLING: "true"
-            WATCHPACK_POLLING: "true"
         volumes:
             - ./client:/app/client
             - ./server:/app/server
             - ./scripts:/app/scripts
-            - /app/client/node_modules
-            - /app/server/node_modules
-            - /app/node_modules
-            - ./server/uploads:/app/server/uploads
+            - client_node_modules:/app/client/node_modules
+            - server_node_modules:/app/server/node_modules
+            - app_node_modules:/app/node_modules
         depends_on:
             mysql:
                 condition: service_healthy
@@ -72,3 +70,6 @@ services:
 
 volumes:
     mysql_data:
+    client_node_modules:
+    server_node_modules:
+    app_node_modules:

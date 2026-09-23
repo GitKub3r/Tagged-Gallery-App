@@ -9,21 +9,20 @@ Guía de instalación y ejecución para el entorno de desarrollo de Tagged.
 
 El backend incluye `ffmpeg-static`, por lo que no es necesario instalar FFmpeg por separado para el uso habitual.
 
-## 1. Iniciar todo con Docker
+## 1. Preparar Docker una sola vez
 
-Con Docker Desktop ya iniciado, ejecuta desde la raíz:
-
-```bash
-npm run docker:up
-```
-
-El comando detecta la IPv4 LAN del PC, levanta Docker y muestra la URL exacta para abrir desde el móvil.
-
-También puedes usar Compose directamente:
+Con Docker Desktop abierto, ejecuta una vez desde la raíz:
 
 ```bash
 docker compose up -d --build
-docker compose ps
+```
+
+Después, abre [http://localhost:5173](http://localhost:5173). Docker Desktop mostrará el grupo `tagged-gallery-app` con la aplicación, MySQL y phpMyAdmin. Para los siguientes usos, inicia el grupo desde Docker Desktop. Los servicios tienen reinicio automático al arrancar Docker Desktop, salvo si los detuviste manualmente; en ese caso, pulsa **Start** en el grupo.
+
+Si prefieres iniciar el grupo desde la terminal, usa:
+
+```bash
+docker compose up -d
 ```
 
 Esto levanta en contenedores:
@@ -35,7 +34,9 @@ Esto levanta en contenedores:
 
 El contenedor `app` arranca frontend y backend juntos. Vite expone el frontend en la red y redirige `/api` y `/uploads` al backend, así que no hace falta editar IPs en `client/.env` ni `server/.env`.
 
-Los archivos subidos se montan desde `server/uploads`, de modo que Docker usa las mismas imágenes, vídeos, miniaturas y avatares que el entorno manual.
+Los cambios en el código se reflejan automáticamente: Vite actualiza el frontend y nodemon reinicia el backend. Al añadir o cambiar dependencias en `package.json` y `package-lock.json`, reinicia `app` desde Docker Desktop. El arranque detecta el cambio y sincroniza las dependencias con los volúmenes de `node_modules`; no hace falta reconstruir la imagen. Los cambios en `Dockerfile` o `docker-compose.yml` sí requieren `docker compose up -d --build`.
+
+Los archivos subidos se conservan en `server/uploads`, de modo que Docker usa las mismas imágenes, vídeos, miniaturas y avatares que el entorno manual. La base de datos se conserva en el volumen `mysql_data` existente.
 
 Para entrar desde un móvil en la misma Wi-Fi, abre:
 
@@ -55,33 +56,7 @@ npm install --prefix client
 npm install --prefix server
 ```
 
-## 3. Iniciar solo MySQL y phpMyAdmin con Docker
-
-Con Docker Desktop ya iniciado, ejecuta:
-
-```bash
-docker compose up -d
-docker compose ps
-```
-
-El primer inicio descarga las imágenes y crea el volumen de MySQL. El archivo `database.sql` se importa automáticamente al crear ese volumen por primera vez.
-
-Servicios disponibles:
-
-- MySQL: `localhost:3306`
-- phpMyAdmin: [http://localhost:8080](http://localhost:8080)
-
-En phpMyAdmin usa `mysql` como servidor y las credenciales definidas en `docker-compose.yml`:
-
-```text
-Usuario: appuser
-Contraseña: apppassword
-Base de datos: media_app
-```
-
-> En equipos Apple Silicon puede aparecer un aviso de que phpMyAdmin usa `linux/amd64` mientras el equipo es `arm64`. Docker Desktop lo ejecuta mediante emulación y el servicio sigue siendo utilizable.
-
-## 4. Configurar las variables de entorno para ejecución manual
+## 3. Configurar las variables de entorno para ejecución manual
 
 Crea los archivos locales a partir de los ejemplos:
 
@@ -116,7 +91,7 @@ Para desarrollo manual, configura `client/.env`:
 VITE_API_URL=/api/v1
 ```
 
-## 5. Iniciar la aplicación fuera de Docker
+## 4. Iniciar la aplicación fuera de Docker
 
 Desde la raíz, inicia backend y frontend en una sola terminal:
 
@@ -129,7 +104,6 @@ Abre [http://localhost:5173](http://localhost:5173). La API estará disponible p
 ## Solución rápida de problemas
 
 - **`failed to connect to the docker API`**: abre Docker Desktop y espera a que indique que el motor está en ejecución; luego repite `docker compose up -d`.
-- **Advertencia sobre `version` en Compose**: no impide el arranque. El campo `version` de `docker-compose.yml` está obsoleto y puede eliminarse cuando se actualice el archivo.
 - **El backend no conecta a MySQL**: confirma que `docker compose ps` muestra `media_mysql` en ejecución y que las variables `DB_*` coinciden con las anteriores.
 - **Cambiaste `database.sql` y no se refleja**: el script solo se ejecuta cuando se crea el volumen. Para reinicializar la base de datos (esto borra todos los datos locales), ejecuta `docker compose down -v` y después `docker compose up -d`.
 - **El móvil muestra `Load failed`**: si usas Docker, entra siempre por `http://IP_DEL_PC:5173` y evita abrir la URL `localhost` desde el móvil. Si ejecutas fuera de Docker, asegúrate de iniciar Vite con `host: 0.0.0.0`.

@@ -14,4 +14,4 @@ COPY . .
 
 EXPOSE 5173 3000
 
-CMD ["npm", "run", "docker:dev"]
+CMD ["sh", "scripts/sync-docker-deps.sh"]
