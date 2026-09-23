@@ -12,6 +12,7 @@ const UserModel = require("./models/User.model");
 const AlbumModel = require("./models/Album.model");
 const TemplateModel = require("./models/Template.model");
 const MediaModel = require("./models/Media.model");
+const GoogleDriveConnectionModel = require("./models/GoogleDriveConnection.model");
 
 const app = express();
 
@@ -101,6 +102,7 @@ const startServer = async () => {
         await AlbumModel.ensureCoverAdjustmentColumns();
         await TemplateModel.ensureTable();
         await MediaModel.ensureColumns();
+        await GoogleDriveConnectionModel.ensureTable();
 
         // Si la conexión fue exitosa, iniciar el servidor
         const port = process.env.PORT || 4000;

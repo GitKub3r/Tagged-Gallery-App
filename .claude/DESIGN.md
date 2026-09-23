@@ -360,7 +360,7 @@ Todos los modales:
 - Pie: `flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end sm:px-6`.
 - El `<form>` envuelve cuerpo y pie (`flex min-h-0 flex-col`) para que Enter envíe.
 
-**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
+**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
 
 **Modal anidado:** `z-[1300]`. Evitar más de dos niveles.
 
@@ -407,7 +407,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 
 ## 8. Iconografía
 
-- Font Awesome, importando cada icono por nombre desde `free-solid-svg-icons` (o `free-regular-svg-icons` para el estado vacío o apagado).
+- Font Awesome, importando cada icono por nombre desde `free-solid-svg-icons` (o `free-regular-svg-icons` para el estado vacío o apagado). `free-brands-svg-icons` solo para logotipos de servicios integrados, como Google Drive.
 - Tamaño: hereda el del texto. Los iconos de navegación van con `w-5 shrink-0`. Los iconos protagonistas de estados vacíos usan `text-5xl sm:text-6xl`.
 - Icono decorativo o acompañado de texto: `aria-hidden="true"`.
 
@@ -445,6 +445,8 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Tema claro / oscuro | `faSun` / `faMoon` |
 | Cuenta / usuarios | `faUser` / `faUsers` |
 | Cerrar sesión | `faRightFromBracket` |
+| Google Drive (pestaña, origen de una media) | `faGoogleDrive` (`@fortawesome/free-brands-svg-icons`) |
+| Desconectar una integración | `faLinkSlash` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
 
 Para una acción que no esté en la tabla, se elige el icono, se usa en todos los sitios de esa acción y se añade aquí.

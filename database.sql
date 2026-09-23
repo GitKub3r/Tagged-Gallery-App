@@ -128,6 +128,24 @@ CREATE TABLE tags (
 );
 
 -- =========================
+-- GOOGLE DRIVE CONNECTIONS
+-- =========================
+CREATE TABLE google_drive_connections (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    google_account_email VARCHAR(255) NULL,
+    refresh_token_encrypted TEXT NOT NULL, -- cifrado con AES-256-GCM, nunca se envía al cliente
+    scopes TEXT NOT NULL,
+    status ENUM('connected', 'revoked', 'error') NOT NULL DEFAULT 'connected',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_google_drive_connection_user (user_id),
+    CONSTRAINT fk_google_drive_connections_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- =========================
 -- MEDIA METADATA TEMPLATES
 -- =========================
 CREATE TABLE media_templates (
@@ -250,7 +268,9 @@ VALUES
     ('Add media to album', 'ALBUM_ADD_MEDIA', 'Add one media item to an album', TRUE),
     ('Add multiple media to album', 'ALBUM_ADD_MEDIA_BATCH', 'Add several media items to an album', TRUE),
     ('Remove media from album', 'ALBUM_REMOVE_MEDIA', 'Remove one media item from an album', TRUE),
-    ('Remove multiple media from album', 'ALBUM_REMOVE_MEDIA_BATCH', 'Remove several media items from an album', TRUE)
+    ('Remove multiple media from album', 'ALBUM_REMOVE_MEDIA_BATCH', 'Remove several media items from an album', TRUE),
+    ('Connect Google Drive', 'GOOGLE_DRIVE_CONNECT', 'Connect a Google Drive account', TRUE),
+    ('Disconnect Google Drive', 'GOOGLE_DRIVE_DISCONNECT', 'Disconnect a Google Drive account', TRUE)
 ON DUPLICATE KEY UPDATE
     actionname = VALUES(actionname),
     description = VALUES(description),

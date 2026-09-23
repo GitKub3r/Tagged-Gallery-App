@@ -8,6 +8,8 @@ export const DeleteConfirmationModal = ({
     title = "Delete this item?",
     description = "This action cannot be undone.",
     confirmLabel = "Delete",
+    pendingLabel = "Deleting...",
+    confirmIcon = faTrash,
     isDeleting = false,
     onConfirm,
     onClose,
@@ -41,8 +43,8 @@ export const DeleteConfirmationModal = ({
                         Cancel
                     </button>
                     <button type="button" className="inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border-0! bg-red-600! px-4! py-2! text-sm! font-semibold! text-white! shadow-none! hover:bg-red-500! disabled:opacity-50!" onClick={onConfirm} disabled={isDeleting}>
-                        <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
-                        <span>{isDeleting ? "Deleting..." : confirmLabel}</span>
+                        <FontAwesomeIcon icon={confirmIcon} aria-hidden="true" />
+                        <span>{isDeleting ? pendingLabel : confirmLabel}</span>
                     </button>
                 </footer>
             </section>

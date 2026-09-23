@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import {
     faAnglesLeft,
     faAnglesRight,
@@ -40,6 +41,7 @@ const navItems = [
     { label: "Albums", path: "/albums", icon: faFolderOpen },
     { label: "Metadata", path: "/metadata", icon: faTags },
     { label: "Templates", path: "/templates", icon: faCopy },
+    { label: "Google Drive", path: "/drive", icon: faGoogleDrive },
     { label: "Dashboard", path: "/dashboard", icon: faChartColumn },
 ];
 

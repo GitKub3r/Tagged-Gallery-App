@@ -66,14 +66,14 @@ Miniatura: se descarga de Drive una sola vez (thumbnailLink=s640) → /uploads/t
 
 ## Backend
 
-**Dependencias:** `googleapis` (en `server/`).
+**Dependencias:** `@googleapis/drive` y `google-auth-library` (en `server/`), más ligeras que `googleapis` completo.
 
 **Variables de entorno** (`server/.env.example` y `docker-compose.yml`):
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_TOKEN_ENCRYPTION_KEY`: 32 bytes en base64.
 - `MEDIA_URL_SIGNING_SECRET`
 
-En el cliente (`client/.env.example`): `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY` y `VITE_GOOGLE_APP_ID`.
+El cliente no tiene variables propias: `GET /google-drive/status` le devuelve `clientId`, `apiKey`, `appId` y `scopes` desde `GOOGLE_CLIENT_ID`, `GOOGLE_API_KEY` y `GOOGLE_APP_ID` del servidor.
 
 **Archivos nuevos** (capas y estilo de `Template.*`):
 - `server/utils/crypto.js`: `encrypt` y `decrypt` con AES-256-GCM para el refresh token. La firma HMAC de las URLs ya vive en `server/utils/uploadUrls.js` (fase 0).
@@ -158,7 +158,7 @@ Siguiendo `.claude/CLAUDE.md`, `.claude/DESIGN.md` y las skills `migrate-to-axio
 
    *La app sigue funcionando igual, pero ningún archivo es accesible sin una URL firmada válida.*
 1. ✅ **Base de datos de Drive:** columnas y `ensureColumns`, `MEDIA_COLUMNS`, MD5 en subidas y script de backfill. Este documento sustituye al plan antiguo.
-2. **Conexión OAuth:** utilidades de cifrado, modelo, servicio y rutas `status`/`connect`/`disconnect`; página `/drive` con conectar y desconectar, y la pestaña en la sidebar.
+2. ✅ **Conexión OAuth:** utilidades de cifrado, modelo, servicio y rutas `status`/`connect`/`disconnect`; página `/drive` con conectar y desconectar, y la pestaña en la sidebar.
 3. **Picker y vinculación:** `picker-token`, `linkFiles` con miniatura cacheada y deduplicación; `DriveSelectionReview` y `DriveLinkResult`.
 4. **Streaming:** proxy de Drive con `Range` en `/content`; detalle, montaje y portadas de álbum con medias de Drive.
 5. **Conversión de duplicados locales:** endpoint `convert` y su UI.
