@@ -1,5 +1,6 @@
-import { faCopyright, faTag, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { getTagIcon } from "../../utils/tagIcon";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/IconButton";
@@ -147,7 +148,7 @@ export const MediaMetadataFields = ({
         >
             {selectedTags.map((tag) => (
                 <button key={tag} type="button" className="inline-flex! h-8! w-auto! max-w-36! shrink-0! items-center! gap-2! rounded-xl! border! px-2.5! py-1! text-xs! font-semibold! shadow-none! hover:opacity-80!" style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])} onClick={() => onRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
-                    <FontAwesomeIcon icon={!existingTagNameSet.has(String(tag).trim().toLowerCase()) ? faWandMagicSparkles : tagTypeByName[String(tag).trim().toLowerCase()] === "copyright" ? faCopyright : faTag} aria-hidden="true" />
+                    <FontAwesomeIcon icon={getTagIcon(existingTagNameSet.has(String(tag).trim().toLowerCase()), tagTypeByName[String(tag).trim().toLowerCase()])} aria-hidden="true" />
                     <span className="truncate">{tag}</span>
                     <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                 </button>

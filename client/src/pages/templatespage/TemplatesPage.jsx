@@ -17,11 +17,12 @@ import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useTemplates } from "../../hooks/useTemplates";
 import { rankSuggestions } from "../../utils/suggestionRanking";
-import { buildDefaultTagStyle } from "../../utils/tagStyle";
+import { getTagIcon } from "../../utils/tagIcon";
+import { buildTagChipStyle } from "../../utils/tagStyle";
 
 const uniqueNames = (items) => [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))];
 
-const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
+const TemplateEditor = ({ template, metadata, tagNames, tagColorByName, tagTypeByName, isSaving, error, onSave, onCancel }) => {
     const [name, setName] = useState(template?.name || "");
     const [displayName, setDisplayName] = useState(template?.displayname || "");
     const [author, setAuthor] = useState(template?.author || "");
@@ -31,14 +32,6 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
     const [activeField, setActiveField] = useState(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [localError, setLocalError] = useState("");
-    const { accessToken } = useAuth();
-    const metadataQuery = useQuery({
-        queryKey: metadataQueryKeys.all,
-        queryFn: () => metadataApi.getAll(accessToken),
-        enabled: Boolean(accessToken),
-    });
-    const metadata = metadataQuery.data;
-    const tagNames = uniqueNames((metadata?.tags || []).map((item) => item.tagname));
     const displayNameSuggestions = rankSuggestions(uniqueNames((metadata?.displayNames || []).map((item) => typeof item === "string" ? item : item.displayname)), displayName).slice(0, 8);
     const authorSuggestions = rankSuggestions(uniqueNames((metadata?.authors || []).map((item) => typeof item === "string" ? item : item.author)), author).slice(0, 8);
     const tagSuggestions = rankSuggestions(tagNames.filter((item) => !tags.some((tag) => tag.toLowerCase() === item.toLowerCase())), tagInput).slice(0, 8);
@@ -105,6 +98,8 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
                         tagInput={tagInput}
                         displayNamePlaceholder="Optional media name"
                         selectedTags={tags}
+                        tagColorByName={tagColorByName}
+                        tagTypeByName={tagTypeByName}
                         existingTagNames={tagNames}
                         activeSuggestionField={activeField}
                         activeSuggestionIndex={activeIndex}
@@ -122,7 +117,7 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
                         onSelectAuthor={(value) => selectSuggestion("author", value)}
                         onAddTag={addTag}
                         onRemoveTag={(value) => setTags((current) => current.filter((tag) => tag !== value))}
-                        getTagStyle={buildDefaultTagStyle}
+                        getTagStyle={buildTagChipStyle}
                     />
                     <label className="mt-4 flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-100/60 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950/50">
                         <CheckboxControl checked={markFavourite} onChange={setMarkFavourite} disabled={isSaving} />
@@ -141,7 +136,7 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
     );
 };
 
-const TemplateCard = ({ template, onEdit, onDelete }) => {
+const TemplateCard = ({ template, tagNameSet, tagColorByName, tagTypeByName, metadataAvailable, onEdit, onDelete }) => {
     const hasMediaDetails = Boolean(template.displayname || template.author);
 
     return (
@@ -162,7 +157,10 @@ const TemplateCard = ({ template, onEdit, onDelete }) => {
             {template.tags.length > 0 ? (
                 <div className={`flex min-w-0 flex-wrap items-center gap-1.5 ${hasMediaDetails ? "mt-3 border-t border-neutral-200 pt-3 dark:border-neutral-800" : "mt-3"}`}>
                     <span className="mr-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400">Tags</span>
-                    {template.tags.map((tag) => <span key={tag} className="max-w-full truncate rounded-xl border border-neutral-300 px-2 py-1 text-xs font-medium dark:border-neutral-700" title={tag}>{tag}</span>)}
+                    {template.tags.map((tag) => {
+                        const key = tag.trim().toLowerCase();
+                        return <span key={tag} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-xl border px-2 py-1 text-xs font-semibold" style={buildTagChipStyle(tagColorByName[key])} title={tag}><FontAwesomeIcon icon={getTagIcon(!metadataAvailable || tagNameSet.has(key), tagTypeByName[key])} aria-hidden="true" /><span className="truncate">{tag}</span></span>;
+                    })}
                 </div>
             ) : null}
             {template.mark_favourite ? <div className="mt-3 text-xs font-semibold text-neutral-600 dark:text-neutral-300"><FontAwesomeIcon icon={faHeart} className="mr-1.5" aria-hidden="true" />Auto favourite</div> : null}
@@ -171,10 +169,15 @@ const TemplateCard = ({ template, onEdit, onDelete }) => {
 };
 
 export const TemplatesPage = () => {
-    const { user } = useAuth();
+    const { user, accessToken } = useAuth();
     const { forceLoading } = useDevTools();
     const queryClient = useQueryClient();
     const templatesQuery = useTemplates();
+    const metadataQuery = useQuery({
+        queryKey: metadataQueryKeys.all,
+        queryFn: () => metadataApi.getAll(accessToken),
+        enabled: Boolean(accessToken),
+    });
     const [editingTemplate, setEditingTemplate] = useState(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState(null);
@@ -196,6 +199,12 @@ export const TemplatesPage = () => {
         },
     });
     const templates = templatesQuery.data || [];
+    const metadata = metadataQuery.data;
+    const knownTags = (metadata?.tags || []).filter((tag) => typeof tag?.tagname === "string" && tag.tagname.trim());
+    const tagNames = uniqueNames(knownTags.map((tag) => tag.tagname));
+    const tagNameSet = new Set(tagNames.map((tag) => tag.toLowerCase()));
+    const tagColorByName = Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.tagcolor_hex]));
+    const tagTypeByName = Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.type]));
     const searchTerm = search.trim().toLowerCase();
     const filteredTemplates = searchTerm ? templates.filter((template) => [template.name, template.displayname, template.author, ...template.tags].some((value) => value.toLowerCase().includes(searchTerm))) : templates;
     const openEditor = (template = null) => { saveMutation.reset(); setEditingTemplate(template); setIsEditorOpen(true); };
@@ -209,7 +218,7 @@ export const TemplatesPage = () => {
                 <button type="button" className="inline-flex! h-11! w-full! shrink-0! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-4! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" onClick={() => openEditor()}><FontAwesomeIcon icon={faPlus} aria-hidden="true" />New template</button>
             </header>
 
-            {isEditorOpen ? <TemplateEditor key={editingTemplate?.id || "new"} template={editingTemplate} isSaving={saveMutation.isPending} error={saveMutation.error?.message} onSave={(template) => saveMutation.mutate(template)} onCancel={() => !saveMutation.isPending && setIsEditorOpen(false)} /> : null}
+            {isEditorOpen ? <TemplateEditor key={editingTemplate?.id || "new"} template={editingTemplate} metadata={metadata} tagNames={tagNames} tagColorByName={tagColorByName} tagTypeByName={tagTypeByName} isSaving={saveMutation.isPending} error={saveMutation.error?.message} onSave={(template) => saveMutation.mutate(template)} onCancel={() => !saveMutation.isPending && setIsEditorOpen(false)} /> : null}
 
             {!templatesQuery.isPending && !templatesQuery.isError && templates.length > 0 ? (
                 <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -222,7 +231,7 @@ export const TemplatesPage = () => {
             {!templatesQuery.isPending && !templatesQuery.isError && filteredTemplates.length === 0 ? <EmptyState title={search ? "No matching templates" : "No templates yet"} icon={faCopy} placement="section" actionLabel={search ? "Clear search" : "Create template"} onAction={() => search ? setSearch("") : openEditor()} /> : null}
             {filteredTemplates.length > 0 ? (
                 <ul className="grid items-start gap-3 lg:grid-cols-2" aria-label="Saved templates">
-                    {filteredTemplates.map((template) => <TemplateCard key={template.id} template={template} onEdit={openEditor} onDelete={setPendingDelete} />)}
+                    {filteredTemplates.map((template) => <TemplateCard key={template.id} template={template} tagNameSet={tagNameSet} tagColorByName={tagColorByName} tagTypeByName={tagTypeByName} metadataAvailable={Boolean(metadata)} onEdit={openEditor} onDelete={setPendingDelete} />)}
                 </ul>
             ) : null}
             <DeleteConfirmationModal isOpen={Boolean(pendingDelete)} title="Delete this template?" description="The saved template will be removed. Media that already used it will keep their metadata." confirmLabel="Delete template" isDeleting={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate(pendingDelete.id)} onClose={() => !deleteMutation.isPending && setPendingDelete(null)} />
