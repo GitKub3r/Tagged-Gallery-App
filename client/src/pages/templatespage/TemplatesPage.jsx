@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { faCopy, faPen, faPlus, faTag, faTrash, faUser, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCopy, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { metadataApi, metadataQueryKeys } from "../../api/metadataApi";
 import { templateApi, templateQueryKeys } from "../../api/templateApi";
@@ -9,7 +9,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
-import { MediaMetadataFields } from "../../components/media-form-modal/MediaFormModal";
+import { MediaFormModal, MediaMetadataFields } from "../../components/media-form-modal/MediaFormModal";
 import { mediaFormInputClasses } from "../../components/media-form-modal/mediaFormStyles";
 import { ErrorToast } from "../../components/toast/ErrorToast";
 import { useAuth } from "../../hooks/useAuth";
@@ -67,7 +67,8 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
         } else if (event.key === "Enter" && activeField === field && items.length) {
             event.preventDefault();
             selectSuggestion(field, items[activeIndex]);
-        } else if (event.key === "Escape") {
+        } else if (event.key === "Escape" && activeField) {
+            event.preventDefault();
             closeSuggestions();
         }
     };
@@ -84,44 +85,78 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
     };
 
     return (
-        <form className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:p-6" onSubmit={handleSubmit}>
-            <div className="mb-5 flex items-start justify-between gap-3">
-                <div><h2 className="text-xl font-bold">{template ? "Edit template" : "New template"}</h2><p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">Saved fields become a starting point for uploads and edits.</p></div>
-                <IconButton type="button" onClick={onCancel} disabled={isSaving} aria-label="Close template editor"><FontAwesomeIcon icon={faXmark} /></IconButton>
+        <MediaFormModal titleId="template-editor-title" title={template ? "Edit template" : "New template"} subtitle="Reusable details for uploads and edits" onClose={onCancel} closeDisabled={isSaving} compact>
+            <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
+                <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
+                    <label className="mb-5 block text-sm font-semibold">
+                        <span className="mb-1.5 block">Template name</span>
+                        <input className={mediaFormInputClasses} value={name} onChange={(event) => setName(event.target.value)} maxLength={100} placeholder="For example: Travel photos" required autoFocus />
+                    </label>
+                    <div className="mb-4 border-t border-neutral-200 pt-4 dark:border-neutral-800">
+                        <p className="text-sm font-semibold">Media details</p>
+                        <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Add the fields you want this template to fill.</p>
+                    </div>
+                    <MediaMetadataFields
+                        compact
+                        displayNameInput={displayName}
+                        authorInput={author}
+                        tagInput={tagInput}
+                        displayNamePlaceholder="Optional media name"
+                        selectedTags={tags}
+                        existingTagNames={tagNames}
+                        activeSuggestionField={activeField}
+                        activeSuggestionIndex={activeIndex}
+                        displayNameSuggestions={displayNameSuggestions}
+                        authorSuggestions={authorSuggestions}
+                        tagSuggestions={tagSuggestions}
+                        error={localError || error}
+                        onDisplayNameChange={(event) => { setDisplayName(event.target.value); setActiveField("displayname"); setActiveIndex(0); }}
+                        onAuthorChange={(event) => { setAuthor(event.target.value); setActiveField("author"); setActiveIndex(0); }}
+                        onTagInputChange={(event) => { setTagInput(event.target.value); setActiveField("tag"); setActiveIndex(0); }}
+                        onOpenSuggestions={(field) => { setActiveField(field); setActiveIndex(0); }}
+                        onCloseSuggestions={closeSuggestions}
+                        onSuggestionKeyDown={handleSuggestionKeyDown}
+                        onSelectDisplayName={(value) => selectSuggestion("displayname", value)}
+                        onSelectAuthor={(value) => selectSuggestion("author", value)}
+                        onAddTag={addTag}
+                        onRemoveTag={(value) => setTags((current) => current.filter((tag) => tag !== value))}
+                        getTagStyle={buildDefaultTagStyle}
+                    />
+                </div>
+                <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-neutral-200 p-4 dark:border-neutral-800 sm:flex-row sm:justify-end sm:px-6">
+                    <button type="button" className="h-11! w-full! rounded-xl! border! border-neutral-300! bg-transparent! px-4! text-sm! font-semibold! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-200! dark:hover:bg-neutral-800! sm:w-auto!" onClick={onCancel} disabled={isSaving}>Cancel</button>
+                    <button type="submit" className="h-11! w-full! rounded-xl! border-0! bg-neutral-950! px-5! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-50! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" disabled={isSaving || !name.trim()}>{isSaving ? "Saving..." : "Save template"}</button>
+                </footer>
+            </form>
+        </MediaFormModal>
+    );
+};
+
+const TemplateCard = ({ template, onEdit, onDelete }) => {
+    const hasMediaDetails = Boolean(template.displayname || template.author);
+
+    return (
+        <li className="min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700">
+            <div className="flex min-w-0 items-start gap-3">
+                <h2 className="min-w-0 flex-1 truncate pt-1 text-lg font-bold" title={template.name}>{template.name}</h2>
+                <div className="flex shrink-0 gap-1">
+                    <IconButton onClick={() => onEdit(template)} aria-label={`Edit ${template.name}`} title={`Edit ${template.name}`}><FontAwesomeIcon icon={faPen} /></IconButton>
+                    <IconButton onClick={() => onDelete(template)} aria-label={`Delete ${template.name}`} title={`Delete ${template.name}`}><FontAwesomeIcon icon={faTrash} /></IconButton>
+                </div>
             </div>
-            <label className="mb-5 block text-sm font-semibold">
-                <span className="mb-1.5 block">Template name</span>
-                <input className={mediaFormInputClasses} value={name} onChange={(event) => setName(event.target.value)} maxLength={100} placeholder="For example: Travel photos" required autoFocus />
-            </label>
-            <MediaMetadataFields
-                displayNameInput={displayName}
-                authorInput={author}
-                tagInput={tagInput}
-                selectedTags={tags}
-                existingTagNames={tagNames}
-                activeSuggestionField={activeField}
-                activeSuggestionIndex={activeIndex}
-                displayNameSuggestions={displayNameSuggestions}
-                authorSuggestions={authorSuggestions}
-                tagSuggestions={tagSuggestions}
-                error={localError || error}
-                onDisplayNameChange={(event) => { setDisplayName(event.target.value); setActiveField("displayname"); setActiveIndex(0); }}
-                onAuthorChange={(event) => { setAuthor(event.target.value); setActiveField("author"); setActiveIndex(0); }}
-                onTagInputChange={(event) => { setTagInput(event.target.value); setActiveField("tag"); setActiveIndex(0); }}
-                onOpenSuggestions={(field) => { setActiveField(field); setActiveIndex(0); }}
-                onCloseSuggestions={closeSuggestions}
-                onSuggestionKeyDown={handleSuggestionKeyDown}
-                onSelectDisplayName={(value) => selectSuggestion("displayname", value)}
-                onSelectAuthor={(value) => selectSuggestion("author", value)}
-                onAddTag={addTag}
-                onRemoveTag={(value) => setTags((current) => current.filter((tag) => tag !== value))}
-                getTagStyle={buildDefaultTagStyle}
-            />
-            <footer className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button type="button" className="h-11! w-full! rounded-xl! border! border-neutral-300! bg-transparent! px-4! text-sm! font-semibold! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-200! dark:hover:bg-neutral-800! sm:w-auto!" onClick={onCancel} disabled={isSaving}>Cancel</button>
-                <button type="submit" className="h-11! w-full! rounded-xl! border-0! bg-neutral-950! px-5! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-50! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" disabled={isSaving || !name.trim()}>{isSaving ? "Saving..." : "Save template"}</button>
-            </footer>
-        </form>
+            {hasMediaDetails ? (
+                <dl className={`mt-3 grid gap-2 ${template.displayname && template.author ? "sm:grid-cols-2" : ""}`}>
+                    {template.displayname ? <div className="min-w-0 rounded-xl bg-neutral-100 px-3 py-2 dark:bg-neutral-950"><dt className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Media name</dt><dd className="mt-0.5 truncate text-sm font-semibold" title={template.displayname}>{template.displayname}</dd></div> : null}
+                    {template.author ? <div className="min-w-0 rounded-xl bg-neutral-100 px-3 py-2 dark:bg-neutral-950"><dt className="text-xs font-medium text-neutral-500 dark:text-neutral-400">Author</dt><dd className="mt-0.5 truncate text-sm font-semibold" title={template.author}>{template.author}</dd></div> : null}
+                </dl>
+            ) : null}
+            {template.tags.length > 0 ? (
+                <div className={`flex min-w-0 flex-wrap items-center gap-1.5 ${hasMediaDetails ? "mt-3 border-t border-neutral-200 pt-3 dark:border-neutral-800" : "mt-3"}`}>
+                    <span className="mr-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400">Tags</span>
+                    {template.tags.map((tag) => <span key={tag} className="max-w-full truncate rounded-xl border border-neutral-300 px-2 py-1 text-xs font-medium dark:border-neutral-700" title={tag}>{tag}</span>)}
+                </div>
+            ) : null}
+        </li>
     );
 };
 
@@ -152,7 +187,7 @@ export const TemplatesPage = () => {
     });
     const templates = templatesQuery.data || [];
     const searchTerm = search.trim().toLowerCase();
-    const filteredTemplates = searchTerm ? templates.filter((template) => template.name.toLowerCase().includes(searchTerm)) : templates;
+    const filteredTemplates = searchTerm ? templates.filter((template) => [template.name, template.displayname, template.author, ...template.tags].some((value) => value.toLowerCase().includes(searchTerm))) : templates;
     const openEditor = (template = null) => { saveMutation.reset(); setEditingTemplate(template); setIsEditorOpen(true); };
 
     if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced templates loading preview" /></section>;
@@ -164,23 +199,20 @@ export const TemplatesPage = () => {
                 <button type="button" className="inline-flex! h-11! w-full! shrink-0! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-4! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" onClick={() => openEditor()}><FontAwesomeIcon icon={faPlus} aria-hidden="true" />New template</button>
             </header>
 
-            {isEditorOpen ? <div className="mb-6 max-w-3xl"><TemplateEditor key={editingTemplate?.id || "new"} template={editingTemplate} isSaving={saveMutation.isPending} error={saveMutation.error?.message} onSave={(template) => saveMutation.mutate(template)} onCancel={() => !saveMutation.isPending && setIsEditorOpen(false)} /></div> : null}
+            {isEditorOpen ? <TemplateEditor key={editingTemplate?.id || "new"} template={editingTemplate} isSaving={saveMutation.isPending} error={saveMutation.error?.message} onSave={(template) => saveMutation.mutate(template)} onCancel={() => !saveMutation.isPending && setIsEditorOpen(false)} /> : null}
 
             {!templatesQuery.isPending && !templatesQuery.isError && templates.length > 0 ? (
-                <label className="mb-5 block max-w-sm text-sm font-semibold"><span className="mb-1.5 block">Search templates</span><input type="search" className={mediaFormInputClasses} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name" /></label>
+                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                    <label className="block w-full max-w-sm text-sm font-semibold"><span className="mb-1.5 block">Search templates</span><input type="search" className={mediaFormInputClasses} value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Name, author or tag" /></label>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400" aria-live="polite">{filteredTemplates.length} {filteredTemplates.length === 1 ? "template" : "templates"}</p>
+                </div>
             ) : null}
             {templatesQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading templates" /> : null}
             {templatesQuery.isError ? <LoadErrorState title="Could not load templates" onRetry={() => templatesQuery.refetch()} placement="section" /> : null}
-            {!isEditorOpen && !templatesQuery.isPending && !templatesQuery.isError && filteredTemplates.length === 0 ? <EmptyState title={search ? "No matching templates" : "No templates yet"} icon={faCopy} placement="section" actionLabel={search ? "Clear search" : "Create template"} onAction={() => search ? setSearch("") : openEditor()} /> : null}
+            {!templatesQuery.isPending && !templatesQuery.isError && filteredTemplates.length === 0 ? <EmptyState title={search ? "No matching templates" : "No templates yet"} icon={faCopy} placement="section" actionLabel={search ? "Clear search" : "Create template"} onAction={() => search ? setSearch("") : openEditor()} /> : null}
             {filteredTemplates.length > 0 ? (
-                <ul className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3" aria-label="Saved templates">
-                    {filteredTemplates.map((template) => (
-                        <li key={template.id} className="flex min-w-0 flex-col gap-4 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:p-5">
-                            <div className="flex min-w-0 items-start justify-between gap-3"><div className="min-w-0"><h2 className="truncate text-lg font-bold" title={template.name}>{template.name}</h2><p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Reusable media metadata</p></div><div className="flex shrink-0 gap-1"><IconButton onClick={() => openEditor(template)} aria-label={`Edit ${template.name}`} title={`Edit ${template.name}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton onClick={() => setPendingDelete(template)} aria-label={`Delete ${template.name}`} title={`Delete ${template.name}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div></div>
-                            <dl className="grid gap-2 text-sm"><div className="flex gap-2"><dt className="w-24 shrink-0 text-neutral-500 dark:text-neutral-400">Media name</dt><dd className="min-w-0 break-words font-semibold">{template.displayname || "—"}</dd></div><div className="flex gap-2"><dt className="w-24 shrink-0 text-neutral-500 dark:text-neutral-400"><FontAwesomeIcon icon={faUser} className="mr-1" aria-hidden="true" />Author</dt><dd className="min-w-0 break-words font-semibold">{template.author || "—"}</dd></div></dl>
-                            <div className="mt-auto"><p className="mb-2 text-xs font-semibold text-neutral-500 dark:text-neutral-400"><FontAwesomeIcon icon={faTag} className="mr-1" aria-hidden="true" />{template.tags.length} {template.tags.length === 1 ? "tag" : "tags"}</p><div className="flex flex-wrap gap-1.5">{template.tags.map((tag) => <span key={tag} className="rounded-xl border border-neutral-300 px-2 py-1 text-xs font-semibold dark:border-neutral-700">{tag}</span>)}{template.tags.length === 0 ? <span className="text-xs text-neutral-500 dark:text-neutral-400">No tags</span> : null}</div></div>
-                        </li>
-                    ))}
+                <ul className="grid items-start gap-3 lg:grid-cols-2" aria-label="Saved templates">
+                    {filteredTemplates.map((template) => <TemplateCard key={template.id} template={template} onEdit={openEditor} onDelete={setPendingDelete} />)}
                 </ul>
             ) : null}
             <DeleteConfirmationModal isOpen={Boolean(pendingDelete)} title="Delete this template?" description="The saved template will be removed. Media that already used it will keep their metadata." confirmLabel="Delete template" isDeleting={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate(pendingDelete.id)} onClose={() => !deleteMutation.isPending && setPendingDelete(null)} />

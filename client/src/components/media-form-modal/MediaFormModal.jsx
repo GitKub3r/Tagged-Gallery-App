@@ -28,10 +28,10 @@ const MediaSuggestionList = ({ items, activeIndex, onSelect }) => {
     );
 };
 
-export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisabled = false, children }) => {
+export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisabled = false, compact = false, children }) => {
     useEffect(() => {
         const handleKeyDown = (event) => {
-            if (event.key === "Escape" && !closeDisabled) onClose();
+            if (event.key === "Escape" && !event.defaultPrevented && !closeDisabled) onClose();
         };
 
         window.addEventListener("keydown", handleKeyDown);
@@ -48,7 +48,7 @@ export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisable
             if (event.target === event.currentTarget && !closeDisabled) onClose();
         }}
     >
-        <section className="flex h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl sm:h-[min(44rem,calc(100dvh-2rem))] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+        <section className={`flex w-full flex-col overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${compact ? "max-h-[calc(100dvh-1rem)] max-w-2xl sm:max-h-[calc(100dvh-2rem)]" : "h-[calc(100dvh-1rem)] max-w-5xl sm:h-[min(44rem,calc(100dvh-2rem))]"}`}>
             <header className="flex h-16 shrink-0 items-center justify-between border-b border-neutral-200 px-4 dark:border-neutral-800 sm:px-6">
                 <div className="min-w-0">
                     <h2 id={titleId} className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h2>
@@ -96,6 +96,7 @@ export const MediaMetadataFields = ({
     getTagStyle,
     onApplyTemplate,
     templateResetKey,
+    compact = false,
 }) => {
     const selectedTagsContainerRef = useRef(null);
     const existingTagNameSet = new Set(existingTagNames.map((tag) => String(tag).trim().toLowerCase()));
@@ -106,7 +107,7 @@ export const MediaMetadataFields = ({
     }, [selectedTags.length]);
 
     return (
-    <div className="flex min-h-full flex-col justify-start gap-3">
+    <div className={`flex flex-col justify-start gap-3 ${compact ? "" : "min-h-full"}`}>
         {onApplyTemplate ? <TemplateSelector key={templateResetKey} onApply={onApplyTemplate} /> : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
@@ -141,7 +142,7 @@ export const MediaMetadataFields = ({
 
         <div
             ref={selectedTagsContainerRef}
-            className="flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] md:min-h-32 md:max-h-none md:flex-1 dark:border-neutral-800 dark:bg-neutral-950/50"
+            className={`flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50 ${compact ? "" : "md:min-h-32 md:max-h-none md:flex-1"}`}
             aria-label={`Selected tags, ${selectedTags.length} selected`}
         >
             {selectedTags.map((tag) => (
