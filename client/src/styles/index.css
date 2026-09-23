@@ -261,3 +261,23 @@ textarea:focus-visible {
         border-radius: var(--tagged-radius-md);
     }
 }
+
+/* Google Picker: widget de terceros que Tailwind no alcanza. Google lo coloca en posición absoluta al inicio
+   del documento; se fija a la ventana (el scroll de la página queda bloqueado mientras está abierto) y por
+   encima de los modales de la app, que pueden abrirlo con "Change" (escala de capas de DESIGN.md §5.4). */
+.picker-dialog-bg {
+    position: fixed !important;
+    inset: 0 !important;
+    width: auto !important;
+    height: auto !important;
+    z-index: 1450 !important;
+}
+
+.picker-dialog {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    max-width: calc(100vw - 1rem);
+    transform: translate(-50%, -50%);
+    z-index: 1451 !important;
+}

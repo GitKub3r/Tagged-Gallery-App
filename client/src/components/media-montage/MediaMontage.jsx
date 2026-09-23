@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { faChevronLeft, faChevronRight, faPause, faPlay, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "../../pages/albumspage/AlbumDetailPage.css";
+import { useScrollLock } from "../../hooks/useScrollLock";
 
 const DEFAULT_IMAGE_DURATION_MS = 4200;
 const SETTINGS_STORAGE_KEY = "tagged_album_detail_montage_settings";
@@ -82,11 +83,7 @@ export const MediaMontage = ({ items, getAssetUrl, onClose, onOpenMedia }) => {
         if (transitionTimerRef.current) window.clearTimeout(transitionTimerRef.current);
     }, []);
 
-    useEffect(() => {
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
-        return () => { document.body.style.overflow = previousOverflow; };
-    }, []);
+    useScrollLock();
 
     useEffect(() => {
         const handleKeyDown = (event) => {

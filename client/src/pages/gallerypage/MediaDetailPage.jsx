@@ -19,6 +19,7 @@ import { formatMediaSize } from "../../utils/mediaFormat";
 import "./MediaDetailPage.css";
 import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
 import { isDriveMedia } from "../../utils/mediaSource";
+import { lockPageScroll } from "../../utils/scrollLock";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -698,8 +699,7 @@ export const MediaDetailPage = () => {
             return undefined;
         }
 
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        const releaseScroll = lockPageScroll();
 
         const handleEscape = (event) => {
             if (event.key === "Escape") {
@@ -710,7 +710,7 @@ export const MediaDetailPage = () => {
         window.addEventListener("keydown", handleEscape);
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            releaseScroll();
             window.removeEventListener("keydown", handleEscape);
         };
     }, [isLightboxOpen]);

@@ -31,6 +31,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useDevTools } from "../../hooks/useDevTools";
 import { SearchField } from "../search-field/SearchField";
+import { lockPageScroll } from "../../utils/scrollLock";
 
 const OPEN_UPLOAD_EVENT = "tagged:open-upload";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "tagged:sidebar-collapsed";
@@ -112,12 +113,11 @@ export const Sidebar = () => {
         const handleKeyDown = (event) => {
             if (event.key === "Escape") setIsOpen(false);
         };
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        const releaseScroll = lockPageScroll();
         window.addEventListener("keydown", handleKeyDown);
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            releaseScroll();
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [isOpen]);

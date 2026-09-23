@@ -6,6 +6,7 @@ import { galleryQueryKeys } from "../api/galleryApi";
 import { metadataQueryKeys } from "../api/metadataApi";
 import { tagNameQueryKeys } from "../api/sidebarApi";
 import { loadScript } from "../utils/loadScript";
+import { lockPageScroll } from "../utils/scrollLock";
 import { useAuth } from "./useAuth";
 
 const GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
@@ -135,7 +136,12 @@ export const useDrivePicker = (config, { allowFolders = false } = {}) => {
             const [{ accessToken }] = await Promise.all([googleDriveApi.getPickerToken(), loadPickerLibrary()]);
             const { picker } = window.google;
 
+            let releaseScroll = () => {};
             return await new Promise((resolve) => {
+                const finish = (files) => {
+                    releaseScroll();
+                    resolve(files);
+                };
                 // Sin setParent, setIncludeFolders lista todas las carpetas de Drive en plano;
                 // con "root" se navega por carpetas igual que en Drive.
                 const folderView = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
@@ -161,9 +167,9 @@ export const useDrivePicker = (config, { allowFolders = false } = {}) => {
                     .setMaxItems(MAX_DRIVE_SELECTION)
                     .setCallback((data) => {
                         const action = data[picker.Response.ACTION];
-                        if (action === picker.Action.CANCEL) resolve([]);
+                        if (action === picker.Action.CANCEL) finish([]);
                         if (action !== picker.Action.PICKED) return;
-                        resolve(
+                        finish(
                             data[picker.Response.DOCUMENTS].map((doc) => ({
                                 id: doc[picker.Document.ID],
                                 name: doc[picker.Document.NAME],
@@ -174,6 +180,8 @@ export const useDrivePicker = (config, { allowFolders = false } = {}) => {
                     })
                     .build()
                     .setVisible(true);
+                // El Picker no bloquea el scroll de la página que queda detrás.
+                releaseScroll = lockPageScroll();
                 setIsOpening(false);
             });
         } catch (error) {

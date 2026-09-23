@@ -198,6 +198,7 @@ Se usa siempre esta escala; no inventar valores intermedios:
 | Modal principal (subida, edición, formulario) | `z-[1200]` |
 | Modal abierto desde otro modal | `z-[1300]` |
 | Confirmaciones y diálogos sobre cualquier modal | `z-[1400]` |
+| Google Picker (reglas globales en `styles/index.css`, fijado y centrado) | `1450` / `1451` |
 | Capa de selección con marquesina | `z-[2000]` |
 
 ### 5.5 Superposiciones
@@ -205,6 +206,7 @@ Se usa siempre esta escala; no inventar valores intermedios:
 - **Fondo de modal:** `bg-black/70 backdrop-blur-sm`.
 - **Fondo del drawer de sidebar:** `bg-black/60` sin blur.
 - **Visor de media a pantalla completa:** `bg-black/90`.
+- **Bloqueo de scroll:** todo modal, panel o widget superpuesto bloquea el scroll de la página con `useScrollLock(isOpen)` o `lockPageScroll()` (admite bloqueos anidados). No manipular `document.body.style.overflow` a mano.
 
 ---
 

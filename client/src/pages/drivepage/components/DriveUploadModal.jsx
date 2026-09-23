@@ -3,6 +3,7 @@ import { UploadMediaModal } from "../../../components/upload-media-modal/UploadM
 import { useDrivePreviews, useLinkDriveFiles } from "../../../hooks/useGoogleDrive";
 import { useMediaMetadataForm } from "../../../hooks/useMediaMetadataForm";
 import { useMetadata } from "../../../hooks/useMetadata";
+import { useScrollLock } from "../../../hooks/useScrollLock";
 import { applyTemplate } from "../../../utils/applyTemplate";
 import { buildTagChipStyle } from "../../../utils/tagStyle";
 
@@ -14,6 +15,7 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const previewQueries = useDrivePreviews(files.map((file) => file.id), activeIndex);
     const linkMutation = useLinkDriveFiles();
+    useScrollLock();
     const { processed, total } = linkMutation.progress;
 
     const modalFiles = files.map((file, index) => {

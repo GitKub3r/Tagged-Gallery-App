@@ -21,6 +21,7 @@ import { MediaCard } from "../../../components/media-card/MediaCard";
 import { MediaFacetSearch } from "../../../components/media-facet-search/MediaFacetSearch";
 import { CollectionLoadingSkeleton } from "../../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { SearchField } from "../../../components/search-field/SearchField";
+import { lockPageScroll } from "../../../utils/scrollLock";
 
 const LAPTOP_MEDIA_PAGE_SIZE = 8;
 const DESKTOP_MEDIA_PAGE_SIZE = 10;
@@ -117,11 +118,10 @@ export const AlbumCoverPickerModal = ({
             return undefined;
         }
 
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        const releaseScroll = lockPageScroll();
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            releaseScroll();
         };
     }, [isOpen]);
 
