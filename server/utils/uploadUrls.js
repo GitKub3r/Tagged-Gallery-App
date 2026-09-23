@@ -41,16 +41,34 @@ const signUploadPath = (uploadPath) => {
 const verifyUploadRequest = (relativePath, expiresAt, signature) => {
     if (!RELATIVE_PATH_PATTERN.test(String(relativePath || ""))) return { valid: false };
 
+    const verification = isValidSignature(relativePath, expiresAt, signature);
+    return verification.valid ? { ...verification, filePath: path.join(UPLOADS_ROOT, relativePath) } : verification;
+};
+
+const isValidSignature = (resource, expiresAt, signature) => {
     const expiry = Number(expiresAt);
     const nowSeconds = Math.floor(Date.now() / 1000);
     if (!Number.isInteger(expiry) || expiry <= nowSeconds) return { valid: false };
 
-    const expected = Buffer.from(createSignature(relativePath, expiry));
+    const expected = Buffer.from(createSignature(resource, expiry));
     const received = Buffer.from(String(signature || ""));
     if (expected.length !== received.length || !crypto.timingSafeEqual(expected, received)) return { valid: false };
-
-    return { valid: true, filePath: path.join(UPLOADS_ROOT, relativePath), maxAge: expiry - nowSeconds };
+    return { valid: true, maxAge: expiry - nowSeconds };
 };
+
+// Miniaturas del explorador de Drive. La firma cubre usuario, archivo y versión (fecha de modificación),
+// así una URL solo sirve la miniatura de ese archivo con la conexión de ese usuario.
+const DRIVE_THUMBNAIL_ROUTE = "/api/v1/google-drive/thumbnails/";
+const getDriveThumbnailResource = (userId, fileId, version) => `drive-thumbnail/${userId}/${fileId}/${version}`;
+
+const signDriveThumbnail = (userId, fileId, version) => {
+    const expiresAt = getExpiry();
+    const signature = createSignature(getDriveThumbnailResource(userId, fileId, version), expiresAt);
+    return `${DRIVE_THUMBNAIL_ROUTE}${userId}/${fileId}?v=${version}&exp=${expiresAt}&sig=${signature}`;
+};
+
+const verifyDriveThumbnailRequest = (userId, fileId, version, expiresAt, signature) =>
+    isValidSignature(getDriveThumbnailResource(userId, fileId, version), expiresAt, signature);
 
 const signUploadReferences = (value) => {
     if (Array.isArray(value)) return value.map(signUploadReferences);
@@ -77,4 +95,6 @@ module.exports = {
     signUploadPath,
     verifyUploadRequest,
     signUploadUrlsInResponses,
+    signDriveThumbnail,
+    verifyDriveThumbnailRequest,
 };

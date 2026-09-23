@@ -1,3 +1,4 @@
+const fs = require("fs/promises");
 const path = require("path");
 const sharp = require("sharp");
 const { drive: createDriveApi } = require("@googleapis/drive");
@@ -8,7 +9,8 @@ const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
 const { detectMediaType, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
-const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
+const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
+const { signDriveThumbnail } = require("../utils/uploadUrls");
 
 // GOOGLE_DRIVE_ACCESS elige el permiso sobre Drive:
 // - "file" (por defecto): solo los archivos elegidos en el Picker. No requiere verificación de Google.
@@ -52,6 +54,45 @@ const RECENT_DRIVE_MEDIA_LIMIT = 6;
 const MAX_FOLDER_EXPANSION = 500;
 const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 const PREVIEW_CONCURRENCY = 6;
+
+// Explorador de Drive propio (requiere drive.readonly).
+const BROWSE_PAGE_SIZE = 60;
+const BROWSE_VIEWS = new Set(["my-drive", "recent", "starred", "shared"]);
+const MAX_BROWSE_SEARCH_LENGTH = 100;
+const BROWSE_THUMBNAIL_SIZE = 480;
+const BROWSE_THUMBNAIL_MAX_AGE_DAYS = 30;
+const MEDIA_QUERY = "(mimeType contains 'image/' or mimeType contains 'video/')";
+const FOLDER_OR_MEDIA_QUERY = `(mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or ${MEDIA_QUERY.slice(1, -1)})`;
+const BROWSE_FIELDS =
+    "nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, videoMediaMetadata(durationMillis))";
+
+// Comillas y barras escapadas para la sintaxis de consultas de Drive.
+const escapeDriveQuery = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+
+const hasReadonlyScope = (connection) => String(connection?.scopes || "").split(" ").includes(DRIVE_SCOPES.readonly);
+
+// Consulta y orden de files.list según la vista, la carpeta abierta y la búsqueda.
+const buildBrowseQuery = ({ view, folderId, search }) => {
+    const base = "trashed = false";
+    if (search) {
+        const scope = view === "starred" ? " and starred = true" : view === "shared" ? " and sharedWithMe = true" : "";
+        const types = view === "recent" ? MEDIA_QUERY : FOLDER_OR_MEDIA_QUERY;
+        return { q: `${base} and name contains '${escapeDriveQuery(search)}' and ${types}${scope}`, orderBy: "folder, modifiedTime desc" };
+    }
+    if (folderId) return { q: `${base} and '${folderId}' in parents and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, name" };
+    if (view === "recent") return { q: `${base} and ${MEDIA_QUERY}`, orderBy: "modifiedTime desc" };
+    if (view === "starred") return { q: `${base} and starred = true and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, modifiedTime desc" };
+    if (view === "shared") return { q: `${base} and sharedWithMe = true and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, modifiedTime desc" };
+    return { q: `${base} and 'root' in parents and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, name" };
+};
+
+const getBrowseThumbnailPath = (userId, fileId, version) => path.join(DRIVE_CACHE_DIR, `${userId}-${fileId}-${version}.jpg`);
+
+// Clientes OAuth por usuario: reutilizarlos evita renovar el access token en cada petición
+// (el explorador pide muchas miniaturas seguidas). Se descartan si cambia el refresh token guardado.
+const authorizedClients = new Map();
+// Miniaturas que se están descargando, para no pedir la misma dos veces a la vez.
+const pendingThumbnails = new Map();
 
 const parseFileIds = (rawFileIds) => {
     const fileIds = [...new Set(Array.isArray(rawFileIds) ? rawFileIds : [])];
@@ -121,14 +162,19 @@ class GoogleDriveService {
             return { error: "Google Drive is not connected", status: 409 };
         }
 
+        const cached = authorizedClients.get(userId);
+        if (cached?.refreshTokenEncrypted === connection.refresh_token_encrypted) return { client: cached.client, connection };
+
         const client = createOAuthClient();
         client.setCredentials({ refresh_token: decrypt(connection.refresh_token_encrypted) });
-        return { client };
+        authorizedClients.set(userId, { client, refreshTokenEncrypted: connection.refresh_token_encrypted });
+        return { client, connection };
     }
 
     // Si Google invalida el acceso (el usuario lo revocó desde su cuenta), la conexión y sus medias pasan a "revoked".
     static async handleRevokedGrant(error, userId) {
         if (!isRevokedGrantError(error)) return null;
+        authorizedClients.delete(userId);
         await GoogleDriveConnectionModel.updateStatus(userId, "revoked");
         await GoogleDriveConnectionModel.markUserMediaStatus(userId, "revoked");
         return { error: "Google Drive access was revoked. Please reconnect your account.", status: 409 };
@@ -249,6 +295,123 @@ class GoogleDriveService {
         return { data: { ...stats, recent: await MediaService.enrichMediaListWithTags(recentRows) } };
     }
 
+    // Lista una página del Drive del usuario para el explorador de Tagged: una carpeta, una vista
+    // (recientes, destacados, compartidos) o una búsqueda. Marca los archivos que ya están en la biblioteca.
+    static async browse(query, user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const view = BROWSE_VIEWS.has(query?.view) ? query.view : "my-drive";
+        const folderId = typeof query?.folderId === "string" && query.folderId ? query.folderId : null;
+        if (folderId && folderId !== "root" && !DRIVE_FILE_ID_PATTERN.test(folderId)) return { error: "Invalid Drive folder id", status: 400 };
+        const search = typeof query?.search === "string" ? query.search.trim().slice(0, MAX_BROWSE_SEARCH_LENGTH) : "";
+        const pageToken = typeof query?.pageToken === "string" && query.pageToken ? query.pageToken : undefined;
+
+        const { client, connection, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+        if (!hasReadonlyScope(connection)) {
+            return { error: "Browsing your Drive needs read-only access. Reconnect Google Drive and try again.", status: 409 };
+        }
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+
+        let data;
+        try {
+            ({ data } = await driveApi.files.list({
+                ...buildBrowseQuery({ view, folderId, search }),
+                fields: BROWSE_FIELDS,
+                pageSize: BROWSE_PAGE_SIZE,
+                pageToken,
+                spaces: "drive",
+            }));
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            if (getGoogleErrorStatus(error) === 404) return { error: "This Drive folder is not available", status: 404 };
+            if (getGoogleErrorStatus(error) === 400 && pageToken) return { error: "This page of results expired. Reload the folder.", status: 400 };
+            throw error;
+        }
+
+        const files = data.files || [];
+        const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, files.map((file) => file.id));
+        const items = files.map((file) => {
+            const isFolder = file.mimeType === DRIVE_FOLDER_MIME_TYPE;
+            const version = Date.parse(file.modifiedTime) || 0;
+            return {
+                id: file.id,
+                name: file.name,
+                mimeType: file.mimeType,
+                isFolder,
+                size: Number(file.size) || 0,
+                modifiedTime: file.modifiedTime || null,
+                durationMs: Number(file.videoMediaMetadata?.durationMillis) || null,
+                thumbnailUrl: !isFolder && file.thumbnailLink ? signDriveThumbnail(user.id, file.id, version) : null,
+                inLibrary: linkedFileIds.has(file.id),
+            };
+        });
+
+        return { data: { items, nextPageToken: data.nextPageToken || null } };
+    }
+
+    // Miniatura de un archivo del explorador. Se descarga de Drive la primera vez y se guarda en
+    // uploads/drive-cache; la versión (fecha de modificación) forma parte del nombre.
+    static async getBrowseThumbnail(userId, fileId, version) {
+        if (!DRIVE_FILE_ID_PATTERN.test(fileId) || !/^\d{1,15}$/.test(String(version))) return { error: "Invalid thumbnail", status: 400 };
+
+        // Se comprueba siempre la conexión: tras desconectar, las URLs ya emitidas dejan de servir miniaturas.
+        const { client, ...clientError } = await this.getAuthorizedClient(userId);
+        if (!client) return clientError;
+
+        const filePath = getBrowseThumbnailPath(userId, fileId, version);
+        try {
+            await fs.access(filePath);
+            return { data: { filePath } };
+        } catch {
+            // No está en caché: se descarga.
+        }
+
+        const key = `${userId}:${fileId}:${version}`;
+        if (!pendingThumbnails.has(key)) {
+            pendingThumbnails.set(key, this.downloadBrowseThumbnail(client, userId, fileId, filePath).finally(() => pendingThumbnails.delete(key)));
+        }
+        return pendingThumbnails.get(key);
+    }
+
+    static async downloadBrowseThumbnail(client, userId, fileId, filePath) {
+        try {
+            const driveApi = createDriveApi({ version: "v3", auth: client });
+            const { data: driveFile } = await driveApi.files.get({ fileId, fields: "thumbnailLink", supportsAllDrives: true });
+            if (!driveFile.thumbnailLink) return { error: "Thumbnail not available", status: 404 };
+
+            const response = await client.request({ url: resizeThumbnailLink(driveFile.thumbnailLink, BROWSE_THUMBNAIL_SIZE), responseType: "arraybuffer" });
+            // Se escribe en un temporal y se renombra, para no servir nunca un archivo a medias.
+            const temporaryPath = `${filePath}.${process.pid}.tmp`;
+            await writeJpeg(Buffer.from(response.data), temporaryPath, { width: BROWSE_THUMBNAIL_SIZE, height: BROWSE_THUMBNAIL_SIZE, fit: "inside", withoutEnlargement: true }, 72);
+            await fs.rename(temporaryPath, filePath);
+            return { data: { filePath } };
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, userId);
+            if (revoked) return revoked;
+            const status = getGoogleErrorStatus(error);
+            if (status === 403 || status === 404) return { error: "Thumbnail not available", status: 404 };
+            throw error;
+        }
+    }
+
+    // Borra las miniaturas del explorador que llevan mucho tiempo sin renovarse.
+    static async pruneBrowseThumbnails() {
+        const limit = Date.now() - BROWSE_THUMBNAIL_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+        try {
+            const entries = await fs.readdir(DRIVE_CACHE_DIR);
+            await Promise.all(entries.map(async (entry) => {
+                const entryPath = path.join(DRIVE_CACHE_DIR, entry);
+                const stats = await fs.stat(entryPath);
+                if (stats.mtimeMs < limit) await fs.unlink(entryPath);
+            }));
+        } catch (error) {
+            console.warn("Could not prune Drive thumbnail cache:", error.message);
+        }
+    }
+
     // Convierte la selección del Picker (archivos y carpetas) en la lista de fotos y vídeos a añadir.
     // Las carpetas se recorren con sus subcarpetas y el total se limita a MAX_FOLDER_EXPANSION.
     static async expandSelection(body, user) {
@@ -256,8 +419,8 @@ class GoogleDriveService {
         if (forbidden) return forbidden;
 
         const items = Array.isArray(body?.items) ? body.items : [];
-        if (items.length === 0 || items.length > MAX_LINK_FILES) {
-            return { error: `Select between 1 and ${MAX_LINK_FILES} Drive items`, status: 400 };
+        if (items.length === 0 || items.length > MAX_FOLDER_EXPANSION) {
+            return { error: `Select between 1 and ${MAX_FOLDER_EXPANSION} Drive items`, status: 400 };
         }
         if (!items.every((item) => typeof item?.id === "string" && DRIVE_FILE_ID_PATTERN.test(item.id))) {
             return { error: "Invalid Drive file id", status: 400 };
@@ -265,7 +428,7 @@ class GoogleDriveService {
 
         const folderIds = items.filter((item) => item.mimeType === DRIVE_FOLDER_MIME_TYPE).map((item) => item.id);
         const connection = await GoogleDriveConnectionModel.findByUserId(user.id);
-        if (folderIds.length > 0 && !String(connection?.scopes || "").split(" ").includes(DRIVE_SCOPES.readonly)) {
+        if (folderIds.length > 0 && !hasReadonlyScope(connection)) {
             return { error: "Adding whole folders needs read-only access to your Drive. Reconnect Google Drive and try again.", status: 409 };
         }
 
@@ -514,6 +677,7 @@ class GoogleDriveService {
             console.warn("Google Drive token revocation failed:", error.response?.data || error.message);
         }
 
+        authorizedClients.delete(user.id);
         await GoogleDriveConnectionModel.deleteByUserId(user.id);
         await GoogleDriveConnectionModel.markUserMediaStatus(user.id, "revoked");
         await AuditService.logEvent({ actionCode: "GOOGLE_DRIVE_DISCONNECT", req, statusCode: 200, message: "Google Drive disconnected" });

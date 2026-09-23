@@ -9,12 +9,15 @@ const MEDIA_UPLOAD_DIR = path.join(UPLOADS_ROOT, "media");
 const THUMBNAILS_UPLOAD_DIR = path.join(UPLOADS_ROOT, "thumbnails");
 const PREVIEWS_UPLOAD_DIR = path.join(UPLOADS_ROOT, "previews");
 const AVATARS_UPLOAD_DIR = path.join(UPLOADS_ROOT, "avatars");
+// Miniaturas del explorador de Google Drive: caché temporal, nunca se sirve con /api/v1/files.
+const DRIVE_CACHE_DIR = path.join(UPLOADS_ROOT, "drive-cache");
 
 const ensureUploadDirs = () => {
     fs.mkdirSync(MEDIA_UPLOAD_DIR, { recursive: true });
     fs.mkdirSync(THUMBNAILS_UPLOAD_DIR, { recursive: true });
     fs.mkdirSync(PREVIEWS_UPLOAD_DIR, { recursive: true });
     fs.mkdirSync(AVATARS_UPLOAD_DIR, { recursive: true });
+    fs.mkdirSync(DRIVE_CACHE_DIR, { recursive: true });
 };
 
 const isSupportedMimeType = (mimeType = "") => {
@@ -89,6 +92,7 @@ module.exports = {
     THUMBNAILS_UPLOAD_DIR,
     PREVIEWS_UPLOAD_DIR,
     AVATARS_UPLOAD_DIR,
+    DRIVE_CACHE_DIR,
     avatarUpload,
     trackUploadCancellation,
 };
