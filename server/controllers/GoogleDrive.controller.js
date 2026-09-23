@@ -28,14 +28,6 @@ class GoogleDriveController {
         }
     }
 
-    static async getPickerToken(req, res) {
-        try {
-            return sendResult(res, await GoogleDriveService.getPickerToken(req.user));
-        } catch (error) {
-            return handleError(error, res);
-        }
-    }
-
     static async getSummary(req, res) {
         try {
             return sendResult(res, await GoogleDriveService.getSummary(req.user));

@@ -198,7 +198,6 @@ Se usa siempre esta escala; no inventar valores intermedios:
 | Modal principal (subida, edición, formulario) | `z-[1200]` |
 | Modal abierto desde otro modal | `z-[1300]` |
 | Confirmaciones y diálogos sobre cualquier modal | `z-[1400]` |
-| Google Picker (reglas globales en `styles/index.css`, fijado y centrado) | `1450` / `1451` |
 | Capa de selección con marquesina | `z-[2000]` |
 
 ### 5.5 Superposiciones
@@ -370,7 +369,15 @@ Todos los modales:
 
 **Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
 
-**Modal anidado:** `z-[1300]`. Evitar más de dos niveles.
+**Modal anidado:** `z-[1300]`. Con `MediaFormModal` se pasa `layer="nested"`: atiende Escape antes que el modal de debajo, así que solo se cierra el de arriba. Evitar más de dos niveles.
+
+**Explorador de archivos externos** (`DriveBrowserModal`, para elegir fotos, vídeos y carpetas de Google Drive). Se monta sobre `MediaFormModal` y, cuando se abre con "Change" desde el modal de añadir medias, usa `layer="nested"` y conserva la selección:
+
+- **Barra superior** (`border-b px-4 py-3 sm:px-6`): segmented control con las vistas (*My Drive*, *Recent*, *Starred*, *Shared*; solo icono en móvil) y `SearchField` (`md:max-w-xs`) con retardo de 350 ms.
+- **Barra de ubicación** (`min-h-14 border-b`): `IconButton` `faArrowLeft` para subir de carpeta, migas de pan con `buttonClasses.text` (en móvil solo las dos últimas) y, a la derecha, "Select all" / "Deselect all" (`faCheckDouble` / `faXmark`), que carga las páginas que falten hasta el límite.
+- **Contenido:** carpetas primero, en filas `h-14 rounded-xl border` (el nombre abre la carpeta; el círculo de la derecha la selecciona entera) y después fotos y vídeos en rejilla cuadrada (`grid-cols-2` → `lg:grid-cols-5`) con el nombre debajo. Selección con el mismo círculo que `MediaCard` y anillo `ring-2`; Mayús + clic selecciona un rango. Los vídeos llevan su duración en una píldora `bg-black/65` y lo que ya está en la biblioteca aparece atenuado, con "In library" y sin poder seleccionarse.
+- **Carga:** skeletons con la forma de la rejilla, scroll infinito con un `faSpinner` al final, `EmptyState` y `LoadErrorState` con `placement="section"`.
+- **Pie:** resumen `aria-live` ("3 files and 1 folder selected") con "Clear", y a la derecha "Cancel" y "Continue" (`faArrowRight`). Excepción al pie apilado: en móvil los dos botones comparten fila (`grid grid-cols-2`) para dejar más alto a la rejilla.
 
 ### 7.6 Navegación
 
@@ -454,6 +461,8 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Cuenta / usuarios | `faUser` / `faUsers` |
 | Cerrar sesión | `faRightFromBracket` |
 | Google Drive (pestaña, origen de una media) | `faGoogleDrive` (`@fortawesome/free-brands-svg-icons`) |
+| Carpeta de un servicio externo | `faFolder` |
+| Vistas del explorador: unidad / recientes / destacados / compartido | `faHardDrive` / `faClock` / `faStar` / `faUserGroup` |
 | Desconectar una integración | `faLinkSlash` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
 

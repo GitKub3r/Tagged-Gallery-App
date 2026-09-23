@@ -105,34 +105,27 @@ Abre [http://localhost:5173](http://localhost:5173). La API estará disponible p
 
 La pestaña **Google Drive** permite añadir fotos y vídeos de Drive sin copiarlos al servidor. Toda la configuración vive en `server/.env`; el cliente la recibe del backend.
 
-1. **Proyecto.** En [Google Cloud Console](https://console.cloud.google.com/) crea o elige un proyecto. Anota su **número de proyecto** (Panel del proyecto → *Project info*). Es `GOOGLE_APP_ID`.
-2. **APIs.** En *APIs & Services → Library* habilita **Google Drive API** y **Google Picker API**.
+1. **Proyecto.** En [Google Cloud Console](https://console.cloud.google.com/) crea o elige un proyecto.
+2. **APIs.** En *APIs & Services → Library* habilita **Google Drive API**.
 3. **Pantalla de consentimiento** (*Google Auth Platform*):
    - *Branding*: nombre `Tagged` y email de soporte.
    - *Audience*: tipo **External**.
-   - *Data access*: añade los scopes `.../auth/drive.file`, `openid` y `.../auth/userinfo.email`. `drive.file` no es sensible: la app solo ve los archivos que el usuario elige.
-   - **Publica la app (*In production*).** En modo *Testing*, Google caduca los refresh tokens a los 7 días y habría que reconectar cada semana. Con solo scopes no sensibles no hace falta verificación.
+   - *Data access*: añade los scopes `.../auth/drive.readonly`, `openid` y `.../auth/userinfo.email`. `drive.readonly` permite a Tagged explorar tu Drive (carpetas, miniaturas, búsqueda) sin poder modificar nada.
+   - Deja la app en modo ***Testing*** y añade en *Audience → Test users* las cuentas de Google que la usarán. `drive.readonly` es un permiso **restringido**: publicarla exigiría la verificación y la auditoría de seguridad de Google. En modo *Testing*, Google puede pedir reconectar la cuenta pasados unos días (botón **Reconnect** en `/drive`).
 4. **Cliente OAuth.** En *Clients* (o *Credentials → Create credentials → OAuth client ID*), tipo **Web application**:
    - *Authorized JavaScript origins*: `http://localhost:5173`.
    - *Authorized redirect URIs*: no hace falta ninguno (el flujo usa ventana emergente).
    - Copia el **Client ID** (`GOOGLE_CLIENT_ID`) y el **Client secret** (`GOOGLE_CLIENT_SECRET`).
-5. **Clave de API** para el Picker. En *Credentials → Create credentials → API key*, y después edítala:
-   - *Application restrictions*: **Websites**, con `http://localhost:5173/*`.
-   - *API restrictions*: solo **Google Picker API**.
-   - Es `GOOGLE_API_KEY`.
-6. **Variables.** Rellena en `server/.env`:
+5. **Variables.** Rellena en `server/.env`:
 
    ```env
    GOOGLE_CLIENT_ID=...
    GOOGLE_CLIENT_SECRET=...
-   GOOGLE_API_KEY=...
-   GOOGLE_APP_ID=...
    GOOGLE_TOKEN_ENCRYPTION_KEY=...
    ```
 
    Genera la clave de cifrado con `openssl rand -base64 32`. No la cambies después: los tokens guardados dejarían de poder descifrarse y habría que reconectar.
-7. **Permiso sobre Drive (opcional).** Por defecto (`GOOGLE_DRIVE_ACCESS=file`) Tagged solo accede a los archivos que eliges, y el selector de Google no muestra miniaturas. Con `GOOGLE_DRIVE_ACCESS=readonly` puede leer todo tu Drive, el selector muestra miniaturas y se pueden elegir carpetas enteras (con sus subcarpetas, hasta 500 fotos y vídeos por vez): es un permiso **restringido**, así que añade `.../auth/drive.readonly` en *Acceso a los datos* y deja la app en modo *Prueba* con tus usuarios de prueba (publicarla exigiría la verificación y la auditoría de seguridad de Google). Tras cambiarlo, pulsa **Reconnect** en `/drive`.
-8. **Reinicia el backend** (`docker compose restart app`), porque `.env` solo se lee al arrancar.
+6. **Reinicia el backend** (`docker compose restart app`), porque `.env` solo se lee al arrancar.
 
 Limitación: Google solo acepta como orígenes `localhost` o dominios `https`, así que la cuenta se conecta desde `http://localhost:5173` y no desde la IP de la red local. Una vez conectada, se usa desde cualquier dispositivo.
 

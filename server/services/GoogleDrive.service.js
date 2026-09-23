@@ -12,21 +12,13 @@ const { detectMediaType, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, 
 const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
 const { signDriveThumbnail } = require("../utils/uploadUrls");
 
-// GOOGLE_DRIVE_ACCESS elige el permiso sobre Drive:
-// - "file" (por defecto): solo los archivos elegidos en el Picker. No requiere verificación de Google.
-// - "readonly": lectura de todo el Drive. Permiso restringido: sin verificación solo sirve en modo Prueba
-//   (usuarios de prueba). Permite, por ejemplo, que el Picker muestre miniaturas.
-const DRIVE_SCOPES = {
-    file: "https://www.googleapis.com/auth/drive.file",
-    readonly: "https://www.googleapis.com/auth/drive.readonly",
-};
-const getDriveAccess = () => (process.env.GOOGLE_DRIVE_ACCESS === "readonly" ? "readonly" : "file");
-const getDriveScope = () => DRIVE_SCOPES[getDriveAccess()];
-const getOAuthScopes = () => [getDriveScope(), "openid", "email"];
+// Permiso de solo lectura sobre todo el Drive: lo necesita el explorador de Tagged para listar carpetas.
+// Es un permiso restringido: sin la verificación de Google, la app funciona en modo Prueba (usuarios de prueba).
+const DRIVE_READONLY_SCOPE = "https://www.googleapis.com/auth/drive.readonly";
+const OAUTH_SCOPES = [DRIVE_READONLY_SCOPE, "openid", "email"];
 
 const isConfigured = () =>
-    Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_API_KEY && process.env.GOOGLE_APP_ID) &&
-    hasEncryptionKey();
+    Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) && hasEncryptionKey();
 
 // Con el flujo de código en ventana emergente de Google Identity Services, el redirect_uri es "postmessage".
 const createOAuthClient = () =>
@@ -50,7 +42,7 @@ const resizeThumbnailLink = (link, size) => (/=s\d+$/.test(link) ? link.replace(
 const PREVIEW_SIZE = 1280;
 const LINK_CONCURRENCY = 4;
 const RECENT_DRIVE_MEDIA_LIMIT = 6;
-// Máximo de archivos que se añaden de una vez al expandir carpetas elegidas en el Picker.
+// Máximo de archivos que se añaden de una vez al expandir las carpetas elegidas.
 const MAX_FOLDER_EXPANSION = 500;
 const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 const PREVIEW_CONCURRENCY = 6;
@@ -69,7 +61,7 @@ const BROWSE_FIELDS =
 // Comillas y barras escapadas para la sintaxis de consultas de Drive.
 const escapeDriveQuery = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 
-const hasReadonlyScope = (connection) => String(connection?.scopes || "").split(" ").includes(DRIVE_SCOPES.readonly);
+const hasReadonlyScope = (connection) => String(connection?.scopes || "").split(" ").includes(DRIVE_READONLY_SCOPE);
 
 // Consulta y orden de files.list según la vista, la carpeta abierta y la búsqueda.
 const buildBrowseQuery = ({ view, folderId, search }) => {
@@ -134,19 +126,14 @@ const notConfigured = () => ({ error: "Google Drive integration is not configure
 
 const toStatus = (connection) => ({
     configured: true,
-    // Datos públicos que el cliente necesita para Google Identity Services y el Picker.
+    // Datos públicos que el cliente necesita para Google Identity Services.
     config: {
         clientId: process.env.GOOGLE_CLIENT_ID,
-        apiKey: process.env.GOOGLE_API_KEY,
-        appId: process.env.GOOGLE_APP_ID,
-        scopes: getOAuthScopes(),
+        scopes: OAUTH_SCOPES,
     },
-    // Permiso que la app pide ahora y permiso que concedió el usuario al conectar.
-    requiredAccess: getDriveAccess(),
-    grantedAccess: String(connection?.scopes || "").split(" ").includes(DRIVE_SCOPES.readonly) ? "readonly" : "file",
     connected: Boolean(connection && connection.status === "connected"),
-    // La conexión se hizo con otro permiso (p. ej. se cambió GOOGLE_DRIVE_ACCESS): hay que volver a conectar.
-    needsReconnect: Boolean(connection && connection.status === "connected" && !String(connection.scopes).split(" ").includes(getDriveScope())),
+    // Conexiones antiguas hechas solo con drive.file: hay que volver a conectar para explorar el Drive.
+    needsReconnect: Boolean(connection && connection.status === "connected" && !hasReadonlyScope(connection)),
     status: connection?.status || "disconnected",
     email: connection?.google_account_email || null,
     connectedAt: connection?.updated_at || null,
@@ -208,25 +195,7 @@ class GoogleDriveService {
         return derivatives;
     }
 
-    static async getPickerToken(user) {
-        const forbidden = forbidAdmin(user);
-        if (forbidden) return forbidden;
-
-        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
-        if (!client) return clientError;
-
-        try {
-            const { token } = await client.getAccessToken();
-            return { data: { accessToken: token, expiresAt: client.credentials.expiry_date || null } };
-        } catch (error) {
-            const revoked = await this.handleRevokedGrant(error, user.id);
-            if (revoked) return revoked;
-            throw error;
-        }
-    }
-
-    // Vistas previas de los archivos elegidos en el Picker para el modal de revisión (tras la selección Tagged
-    // ya tiene acceso a ellos, también con drive.file). Se devuelven como data URL y no se guardan.
+    // Vistas previas de los archivos elegidos para el modal de revisión. Se devuelven como data URL y no se guardan.
     static async getPreviews(body, user) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;
@@ -412,7 +381,7 @@ class GoogleDriveService {
         }
     }
 
-    // Convierte la selección del Picker (archivos y carpetas) en la lista de fotos y vídeos a añadir.
+    // Convierte la selección del explorador (archivos y carpetas) en la lista de fotos y vídeos a añadir.
     // Las carpetas se recorren con sus subcarpetas y el total se limita a MAX_FOLDER_EXPANSION.
     static async expandSelection(body, user) {
         const forbidden = forbidAdmin(user);
@@ -612,7 +581,7 @@ class GoogleDriveService {
         }
 
         const grantedScopes = String(tokens.scope || "").split(" ");
-        if (!grantedScopes.includes(getDriveScope())) {
+        if (!grantedScopes.includes(DRIVE_READONLY_SCOPE)) {
             return { error: "Tagged needs access to your Google Drive. Please allow it and try again.", status: 400 };
         }
 
@@ -655,7 +624,7 @@ class GoogleDriveService {
             client.setCredentials({ refresh_token: storedRefreshToken });
             const { token } = await client.getAccessToken();
             const { scopes = [] } = await client.getTokenInfo(token);
-            if (scopes.includes(getDriveScope())) return storedRefreshToken;
+            if (scopes.includes(DRIVE_READONLY_SCOPE)) return storedRefreshToken;
             await client.revokeToken(storedRefreshToken);
         } catch (error) {
             console.warn("Could not reuse stored Google Drive token:", error.response?.data || error.message);

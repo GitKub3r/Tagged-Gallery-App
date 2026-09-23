@@ -1,7 +1,7 @@
 let activeLocks = 0;
 let savedStyles = null;
 
-// Bloquea el scroll de la página mientras hay un modal, un panel o el Google Picker abiertos.
+// Bloquea el scroll de la página mientras hay un modal o un panel abiertos.
 // Admite bloqueos anidados: el estilo original se restaura al liberar el último. Devuelve la función de liberar.
 export const lockPageScroll = () => {
     const { body, documentElement } = document;

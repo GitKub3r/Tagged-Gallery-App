@@ -6,18 +6,9 @@ import { galleryQueryKeys } from "../api/galleryApi";
 import { metadataQueryKeys } from "../api/metadataApi";
 import { tagNameQueryKeys } from "../api/sidebarApi";
 import { loadScript } from "../utils/loadScript";
-import { lockPageScroll } from "../utils/scrollLock";
 import { useAuth } from "./useAuth";
 
 const GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
-const GOOGLE_API_SCRIPT = "https://apis.google.com/js/api.js";
-export const MAX_DRIVE_SELECTION = 50;
-export const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
-
-const loadPickerLibrary = async () => {
-    await loadScript(GOOGLE_API_SCRIPT);
-    await new Promise((resolve, reject) => window.gapi.load("picker", { callback: resolve, onerror: reject }));
-};
 
 export const useGoogleDriveStatus = () => {
     const { user, accessToken } = useAuth();
@@ -124,78 +115,6 @@ export const useDisconnectGoogleDrive = () => {
     });
 };
 
-// Abre el Google Picker (solo fotos y vídeos, selección múltiple) y devuelve los archivos elegidos.
-// Con el permiso drive.file, elegir un archivo aquí es lo que da acceso a Tagged a ese archivo.
-// allowFolders: con acceso de solo lectura a todo el Drive se pueden elegir carpetas enteras.
-export const useDrivePicker = (config, { allowFolders = false } = {}) => {
-    const [isOpening, setIsOpening] = useState(false);
-
-    const openPicker = useCallback(async () => {
-        setIsOpening(true);
-        try {
-            const [{ accessToken }] = await Promise.all([googleDriveApi.getPickerToken(), loadPickerLibrary()]);
-            const { picker } = window.google;
-
-            let releaseScroll = () => {};
-            return await new Promise((resolve) => {
-                const finish = (files) => {
-                    releaseScroll();
-                    resolve(files);
-                };
-                // Sin setParent, setIncludeFolders lista todas las carpetas de Drive en plano;
-                // con "root" se navega por carpetas igual que en Drive.
-                const folderView = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
-                    .setLabel("My Drive")
-                    .setParent("root")
-                    .setIncludeFolders(true)
-                    .setSelectFolderEnabled(allowFolders)
-                    .setMode(picker.DocsViewMode.GRID);
-                const allMediaView = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
-                    .setLabel("All photos and videos")
-                    .setIncludeFolders(false)
-                    .setMode(picker.DocsViewMode.GRID);
-
-                new picker.PickerBuilder()
-                    .setAppId(config.appId)
-                    .setOAuthToken(accessToken)
-                    .setDeveloperKey(config.apiKey)
-                    .setOrigin(window.location.origin)
-                    .setTitle(allowFolders ? "Select photos, videos or folders" : "Select photos and videos")
-                    .addView(folderView)
-                    .addView(allMediaView)
-                    .enableFeature(picker.Feature.MULTISELECT_ENABLED)
-                    .setMaxItems(MAX_DRIVE_SELECTION)
-                    .setCallback((data) => {
-                        const action = data[picker.Response.ACTION];
-                        if (action === picker.Action.CANCEL) finish([]);
-                        if (action !== picker.Action.PICKED) return;
-                        finish(
-                            data[picker.Response.DOCUMENTS].map((doc) => ({
-                                id: doc[picker.Document.ID],
-                                name: doc[picker.Document.NAME],
-                                mimeType: doc[picker.Document.MIME_TYPE],
-                                sizeBytes: Number(doc.sizeBytes) || 0,
-                            })),
-                        );
-                    })
-                    .build()
-                    .setVisible(true);
-                // El Picker no bloquea el scroll de la página que queda detrás.
-                releaseScroll = lockPageScroll();
-                setIsOpening(false);
-            });
-        } catch (error) {
-            // Los errores de la API ya muestran un toast desde apiClient; aquí solo los de carga del Picker.
-            if (!error?.isAxiosError) toast.error("Could not open Google Drive");
-            return [];
-        } finally {
-            setIsOpening(false);
-        }
-    }, [config?.appId, config?.apiKey, allowFolders]);
-
-    return { openPicker, isOpening };
-};
-
 // Una carpeta, vista o búsqueda del explorador de Drive, página a página.
 export const useDriveBrowse = ({ view, folderId, search }) =>
     useInfiniteQuery({
@@ -207,7 +126,7 @@ export const useDriveBrowse = ({ view, folderId, search }) =>
         staleTime: 60 * 1000,
     });
 
-// Convierte la selección del Picker (con carpetas) en la lista de fotos y vídeos, recorriendo subcarpetas.
+// Convierte la selección del explorador (con carpetas) en la lista de fotos y vídeos, recorriendo subcarpetas.
 export const useExpandDriveSelection = () =>
     useMutation({
         mutationFn: googleDriveApi.expandSelection,

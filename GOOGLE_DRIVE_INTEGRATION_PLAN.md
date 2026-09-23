@@ -12,7 +12,8 @@ Queremos que el usuario conecte su Google Drive desde una **pestaña nueva de la
 - su streaming con `Range`, para reproducir vídeo.
 
 Decisiones tomadas con el usuario:
-- **Selección con Google Picker** y permiso `drive.file`: la app solo accede a los archivos que el usuario elige, y Google no exige verificación de la app.
+- **Selección con un explorador propio** y permiso `drive.readonly`. Al principio se usó el Google Picker con `drive.file`, pero no mostraba miniaturas y desentonaba con la app; se sustituyó por un modal de Tagged. `drive.readonly` es un permiso restringido: la app funciona en modo *Prueba* de Google (el usuario y su familia como usuarios de prueba) y publicarla exigiría la verificación de Google.
+- **Carpetas enteras:** se pueden elegir carpetas, que se expanden con sus subcarpetas hasta 500 fotos y vídeos por vez.
 - **Duplicados:** un archivo de Drive no se vincula dos veces. Si una media local tiene el mismo MD5, se ofrece convertirla en referencia de Drive, conservando su id, tags, álbumes y favorito, y borrando la copia local.
 - Queda fuera el modo "importar copia" y la tabla de jobs del plan anterior.
 
@@ -30,10 +31,11 @@ La API se autentica con un Bearer en la cabecera, que `<img>` y `<video>` no pue
 ## Arquitectura
 
 ```
-Pestaña Drive (React) ──Picker (token de acceso corto, solo drive.file)──> Google
-        │ fileIds elegidos
+Explorador de Drive (modal de Tagged) ─> GET /google-drive/browse ─> files.list (carpeta, vista o búsqueda)
+        │ ids elegidos (archivos y carpetas) ─> POST /google-drive/expand ─> fotos y vídeos
         ▼
 apiClient ─> /api/v1/google-drive/*  ─> GoogleDrive.service ─> Drive API (refresh token cifrado)
+<img> del explorador ─> /api/v1/google-drive/thumbnails/<userId>/<fileId>?v&exp&sig ─> caché en uploads/drive-cache
 <img>/<video> ─> /api/v1/files/drive/<mediaId>?exp&sig ─> proxy en streaming con Range desde Drive
 Miniatura: se descarga de Drive una sola vez (thumbnailLink=s640) → /uploads/thumbnails/drive-<id>.jpg
 ```
@@ -41,9 +43,9 @@ Miniatura: se descarga de Drive una sola vez (thumbnailLink=s640) → /uploads/t
 - **OAuth:** flujo de *authorization code* con Google Identity Services en ventana emergente (`initCodeClient`, `redirect_uri: "postmessage"`). El frontend obtiene un `code` y lo envía al backend, que lo canjea, guarda el refresh token **cifrado** y nunca lo devuelve.
   - No hace falta una ruta de callback ni un `state` propio.
   - Limitación: Google solo acepta como orígenes `localhost` o dominios `https`. La conexión se hace desde `http://localhost:5173`, no desde la IP de la LAN. Una vez conectada, la cuenta funciona desde cualquier dispositivo.
-- **Picker:** el backend emite un access token de corta duración con alcance `drive.file` (endpoint `picker-token`). Es la única excepción a "no exponer tokens": nunca se expone el refresh token.
-  - El Picker se configura con `setAppId` (número del proyecto de Google Cloud), para que la selección conceda acceso al backend con el mismo cliente.
-  - Vista `DocsView` con tipos `image/*,video/*`, multiselección y navegación por carpetas. No se permite seleccionar carpetas: con `drive.file`, elegir una carpeta no da acceso a su contenido.
+- **Explorador:** `GET /google-drive/browse` (vistas *My Drive*, *Recent*, *Starred* y *Shared*, carpeta abierta, búsqueda por nombre y paginación de 60) marca con `inLibrary` los archivos ya vinculados. Ningún token de Google llega al cliente.
+  - Miniaturas: URL firmada por usuario, archivo y versión (fecha de modificación). El backend la descarga de Drive la primera vez (`=s480`), la guarda en `uploads/drive-cache` y la sirve desde ahí; al arrancar se borran las de más de 30 días.
+  - Los clientes OAuth se reutilizan por usuario para no renovar el access token en cada miniatura.
 
 ---
 
@@ -159,7 +161,8 @@ Siguiendo `.claude/CLAUDE.md`, `.claude/DESIGN.md` y las skills `migrate-to-axio
    *La app sigue funcionando igual, pero ningún archivo es accesible sin una URL firmada válida.*
 1. ✅ **Base de datos de Drive:** columnas y `ensureColumns`, `MEDIA_COLUMNS`, MD5 en subidas y script de backfill. Este documento sustituye al plan antiguo.
 2. ✅ **Conexión OAuth:** utilidades de cifrado, modelo, servicio y rutas `status`/`connect`/`disconnect`; página `/drive` con conectar y desconectar, y la pestaña en la sidebar.
-3. ✅ **Picker y vinculación:** `picker-token`, `linkFiles` con miniatura cacheada y deduplicación; `DriveSelectionReview` y `DriveLinkResult`.
+3. ✅ **Selección y vinculación:** `linkFiles` con miniatura cacheada y deduplicación, revisión en `UploadMediaModal` (variante `drive`) y carpetas enteras (`expand`).
+   - ✅ **Explorador propio** (sustituye al Google Picker): `browse`, miniaturas firmadas con caché y `DriveBrowserModal`.
 4. **Streaming:** proxy de Drive con `Range` en `/content`; detalle, montaje y portadas de álbum con medias de Drive.
 5. **Conversión de duplicados locales:** endpoint `convert` y su UI.
 6. **Borrado, descargas y métricas:** borrado seguro, migración de descargas a `apiClient` y métricas separadas.
@@ -183,7 +186,7 @@ Siguiendo `.claude/CLAUDE.md`, `.claude/DESIGN.md` y las skills `migrate-to-axio
   - Dejar el detalle abierto con una firma caducada fuerza la renovación y el vídeo continúa.
 - **Flujo completo en `http://localhost:5173`:**
   - Conectar la cuenta y comprobar que `status` muestra el email y que ninguna respuesta contiene el refresh token.
-  - Abrir el Picker, elegir 2 fotos, 1 GIF, 1 vídeo y 1 HEIC, y aplicar una plantilla con favorito.
+  - Abrir el explorador, elegir 2 fotos, 1 GIF, 1 vídeo y 1 HEIC, y aplicar una plantilla con favorito.
   - Las medias aparecen en la galería con badge, tags y favorito; no se crea nada en `server/uploads/media`, solo miniaturas `drive-*.jpg`.
   - El detalle de imagen carga. El vídeo se reproduce y se puede saltar a otro punto (comprobar en la pestaña de red: `206` con `Content-Range`).
   - Añadirlas a un álbum y usarlas como portada.

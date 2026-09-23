@@ -2,11 +2,6 @@ import { faCalendarDays, faEnvelope, faHardDrive, faKey, faLinkSlash } from "@fo
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { buttonClasses } from "../../../components/button/buttonClasses";
 
-const ACCESS_LABELS = {
-    file: { value: "Only files you select", detail: "Tagged can open the files you pick." },
-    readonly: { value: "Read-only, whole Drive", detail: "Browse with thumbnails and add whole folders." },
-};
-
 const formatDate = (value) => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(date);
@@ -25,14 +20,12 @@ const DetailRow = ({ icon, label, value, detail }) => (
     </div>
 );
 
-export const DriveConnectionDetails = ({ email, grantedAccess, connectedAt, isDisconnecting, onDisconnect }) => {
-    const access = ACCESS_LABELS[grantedAccess] || ACCESS_LABELS.file;
-
+export const DriveConnectionDetails = ({ email, connectedAt, isDisconnecting, onDisconnect }) => {
     return (
         <>
             <dl className="divide-y divide-neutral-200 border-y border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
                 <DetailRow icon={faEnvelope} label="Account" value={email || "Google account"} />
-                <DetailRow icon={faKey} label="Access" value={access.value} detail={access.detail} />
+                <DetailRow icon={faKey} label="Access" value="Read-only, whole Drive" detail="Tagged never changes or deletes anything in your Drive." />
                 <DetailRow icon={faCalendarDays} label="Connected on" value={formatDate(connectedAt)} />
                 <DetailRow icon={faHardDrive} label="On this server" value="Thumbnails and previews only" detail="Originals are read from Drive when you open or download them." />
             </dl>

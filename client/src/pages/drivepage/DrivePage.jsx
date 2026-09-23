@@ -153,7 +153,6 @@ export const DrivePage = () => {
                         <DriveSection id="drive-connection-title" title="Connection" description="The Google account linked to your library.">
                             <DriveConnectionDetails
                                 email={status.email}
-                                grantedAccess={status.grantedAccess}
                                 connectedAt={status.connectedAt}
                                 isDisconnecting={disconnectMutation.isPending}
                                 onDisconnect={() => setIsDisconnectOpen(true)}

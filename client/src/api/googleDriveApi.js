@@ -27,9 +27,6 @@ export const googleDriveApi = {
     async connect(code) {
         return unwrap(await apiClient.post("/google-drive/connect", { code }));
     },
-    async getPickerToken() {
-        return unwrap(await apiClient.get("/google-drive/picker-token"));
-    },
     async browse({ view, folderId, search, pageToken }) {
         return unwrap(await apiClient.get("/google-drive/browse", { params: { view, folderId: folderId || undefined, search: search || undefined, pageToken: pageToken || undefined } }));
     },
