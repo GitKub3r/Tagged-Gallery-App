@@ -46,6 +46,7 @@ Miniatura: se descarga de Drive una sola vez (thumbnailLink=s640) → /uploads/t
 - **Explorador:** `GET /google-drive/browse` (vistas *My Drive*, *Recent*, *Starred* y *Shared*, carpeta abierta, búsqueda por nombre y paginación de 60) marca con `inLibrary` los archivos ya vinculados. Ningún token de Google llega al cliente.
   - Miniaturas: URL firmada por usuario, archivo y versión (fecha de modificación). El backend la descarga de Drive la primera vez (`=s480`), la guarda en `uploads/drive-cache` y la sirve desde ahí; al arrancar se borran las de más de 30 días.
   - *Recent* y la búsqueda desde *My Drive* solo muestran archivos que cuelgan de "Mi unidad". `files.list` también devuelve las copias de seguridad de ordenadores de Drive para escritorio, que suelen traer cachés de programas (p. ej. `f_00010c`, `cache.dat`). Se comprueba la ruta de cada carpeta hasta la raíz, con caché de 1 h por usuario.
+  - Drive no genera miniatura de algunos vídeos (se quedan sin procesar: sin `thumbnailLink` ni `videoMediaMetadata`). En ese caso ffmpeg saca un fotograma leyendo solo los rangos necesarios a través de un proxy temporal en `127.0.0.1` (el ffmpeg estático no resuelve DNS y así no recibe el token), con un máximo de 3 a la vez. Vale para el explorador y para la miniatura de la media vinculada.
   - Los clientes OAuth se reutilizan por usuario para no renovar el access token en cada miniatura.
 
 ---

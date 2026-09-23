@@ -77,6 +77,37 @@ const createVideoThumbnail = async (inputFilePath, thumbnailFilePath) => {
     await fs.rename(thumbnailFilePath + ".tmp", thumbnailFilePath);
 };
 
+const REMOTE_FRAME_TIMEOUT_MS = 45 * 1000;
+
+const readRemoteFrame = (url, seconds) =>
+    new Promise((resolve, reject) => {
+        const chunks = [];
+        const command = ffmpeg(url)
+            .inputOptions(["-ss", String(seconds)])
+            .outputOptions(["-frames:v 1", "-f image2pipe", "-vcodec mjpeg"])
+            .on("error", (error) => {
+                clearTimeout(timeoutId);
+                reject(error);
+            })
+            .on("end", () => {
+                clearTimeout(timeoutId);
+                resolve(Buffer.concat(chunks));
+            });
+        const timeoutId = setTimeout(() => command.kill("SIGKILL"), REMOTE_FRAME_TIMEOUT_MS);
+        command.pipe().on("data", (chunk) => chunks.push(chunk));
+    });
+
+// Fotograma JPEG de un vídeo servido por HTTP sin descargarlo entero: ffmpeg pide solo los rangos que necesita
+// (también si el índice del MP4 está al final). Si el segundo 1 no existe (vídeo muy corto), se usa el inicio.
+// El ffmpeg estático no resuelve nombres de dominio: la URL debe ser local (ver GoogleDrive.service).
+const extractRemoteVideoFrame = async (url) => {
+    const frame = await readRemoteFrame(url, 1);
+    if (frame.length > 0) return frame;
+    const firstFrame = await readRemoteFrame(url, 0);
+    if (firstFrame.length === 0) throw new Error("Could not read a video frame");
+    return firstFrame;
+};
+
 const getDerivedFilename = (mediaFilename) => `${path.parse(mediaFilename).name}.jpg`;
 
 // Genera la miniatura y, para HEIC/HEIF, un preview JPEG que el navegador puede mostrar.
@@ -148,6 +179,7 @@ module.exports = {
     removeStoredMediaFiles,
     getDriveDerivedFilename,
     writeJpeg,
+    extractRemoteVideoFrame,
     THUMBNAIL_OPTIONS,
     PREVIEW_OPTIONS,
     getDerivedFilename,

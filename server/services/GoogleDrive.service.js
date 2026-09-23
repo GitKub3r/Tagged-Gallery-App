@@ -1,4 +1,5 @@
 const fs = require("fs/promises");
+const http = require("http");
 const path = require("path");
 const sharp = require("sharp");
 const { drive: createDriveApi } = require("@googleapis/drive");
@@ -8,7 +9,7 @@ const MediaModel = require("../models/Media.model");
 const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
-const { detectMediaType, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
+const { detectMediaType, extractRemoteVideoFrame, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
 const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
 const { signDriveThumbnail } = require("../utils/uploadUrls");
 
@@ -147,6 +148,65 @@ const toStatus = (connection) => ({
     connectedAt: connection?.updated_at || null,
 });
 
+const PROXIED_RESPONSE_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges"];
+
+// Sirve un archivo de Drive en 127.0.0.1 mientras dura fn(url), reenviando las peticiones Range con la
+// autorización del usuario. Lo usa ffmpeg, que no puede resolver dominios y así tampoco recibe el token.
+const withLocalDriveStream = async (client, fileId, fn) => {
+    const upstreams = new Set();
+    const server = http.createServer(async (req, res) => {
+        try {
+            const upstream = await client.request({
+                url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+                headers: req.headers.range ? { Range: req.headers.range } : {},
+                responseType: "stream",
+                validateStatus: () => true,
+            });
+            upstreams.add(upstream.data);
+            const getHeader = (name) => (typeof upstream.headers?.get === "function" ? upstream.headers.get(name) : upstream.headers?.[name]);
+            res.writeHead(upstream.status, Object.fromEntries(PROXIED_RESPONSE_HEADERS.map((name) => [name, getHeader(name)]).filter(([, value]) => value)));
+            upstream.data.pipe(res);
+            res.on("close", () => upstream.data.destroy());
+        } catch (error) {
+            res.writeHead(502);
+            res.end();
+        }
+    });
+    await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+    try {
+        return await fn(`http://127.0.0.1:${server.address().port}/`);
+    } finally {
+        upstreams.forEach((stream) => stream.destroy());
+        server.closeAllConnections();
+        server.close();
+    }
+};
+
+// Drive no genera miniatura de algunos vídeos (no llegan a procesarse). Se saca un fotograma con ffmpeg,
+// con pocos procesos a la vez: una carpeta de vídeos pide muchas miniaturas de golpe.
+const MAX_CONCURRENT_VIDEO_FRAMES = 3;
+let activeVideoFrames = 0;
+const videoFrameQueue = [];
+const extractDriveVideoFrame = async (client, fileId) => {
+    if (activeVideoFrames >= MAX_CONCURRENT_VIDEO_FRAMES) await new Promise((resolve) => videoFrameQueue.push(resolve));
+    activeVideoFrames += 1;
+    try {
+        return await withLocalDriveStream(client, fileId, extractRemoteVideoFrame);
+    } finally {
+        activeVideoFrames -= 1;
+        videoFrameQueue.shift()?.();
+    }
+};
+
+// Imagen de origen para las miniaturas: la que genera Drive o, si no hay, un fotograma del vídeo.
+const getDriveThumbnailSource = async (client, driveFile, size) => {
+    if (driveFile.thumbnailLink) {
+        const response = await client.request({ url: resizeThumbnailLink(driveFile.thumbnailLink, size), responseType: "arraybuffer" });
+        return Buffer.from(response.data);
+    }
+    return String(driveFile.mimeType).startsWith("video/") ? extractDriveVideoFrame(client, driveFile.id) : null;
+};
+
 class GoogleDriveService {
     // Cliente OAuth con el refresh token del usuario. El access token se renueva solo cuando caduca.
     static async getAuthorizedClient(userId) {
@@ -175,28 +235,24 @@ class GoogleDriveService {
         return { error: "Google Drive access was revoked. Please reconnect your account.", status: 409 };
     }
 
-    // Descarga la miniatura que Drive ya genera y la guarda como JPEG local (no se descarga el original).
-    static async cacheDerivative(client, thumbnailLink, size, outputFilePath, resizeOptions, quality) {
-        const response = await client.request({ url: resizeThumbnailLink(thumbnailLink, size), responseType: "arraybuffer" });
-        await writeJpeg(Buffer.from(response.data), outputFilePath, resizeOptions, quality);
-    }
-
+    // Guarda como JPEG local la miniatura de Drive (o un fotograma, en vídeos sin ella); el original no se descarga.
     static async cacheDriveDerivatives(client, driveFile, userId) {
         const derivedFilename = getDriveDerivedFilename(userId, driveFile.id);
         const derivatives = { thumbpath: null, previewpath: null };
-        if (!driveFile.thumbnailLink) return derivatives;
 
         try {
-            await this.cacheDerivative(client, driveFile.thumbnailLink, 640, path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), THUMBNAIL_OPTIONS, 72);
+            const thumbnailSource = await getDriveThumbnailSource(client, driveFile, 640);
+            if (!thumbnailSource) return derivatives;
+            await writeJpeg(thumbnailSource, path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), THUMBNAIL_OPTIONS, 72);
             derivatives.thumbpath = `/uploads/thumbnails/${derivedFilename}`;
 
             // Los navegadores no muestran HEIC: se guarda un preview grande generado por Drive.
-            if (HEIC_MIME_TYPES.has(driveFile.mimeType)) {
-                await this.cacheDerivative(client, driveFile.thumbnailLink, 2560, path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), PREVIEW_OPTIONS, 85);
+            if (HEIC_MIME_TYPES.has(driveFile.mimeType) && driveFile.thumbnailLink) {
+                await writeJpeg(await getDriveThumbnailSource(client, driveFile, 2560), path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), PREVIEW_OPTIONS, 85);
                 derivatives.previewpath = `/uploads/previews/${derivedFilename}`;
             }
         } catch (error) {
-            // Drive puede tardar en generar la miniatura de un vídeo recién subido; la media se vincula igualmente.
+            // Sin miniatura (Drive no la tiene y el vídeo no se pudo leer) la media se vincula igualmente.
             console.warn(`Could not cache Drive thumbnail for ${driveFile.id}:`, error.message);
         }
 
@@ -324,7 +380,8 @@ class GoogleDriveService {
                 size: Number(file.size) || 0,
                 modifiedTime: file.modifiedTime || null,
                 durationMs: Number(file.videoMediaMetadata?.durationMillis) || null,
-                thumbnailUrl: !isFolder && file.thumbnailLink ? signDriveThumbnail(user.id, file.id, version) : null,
+                // Los vídeos sin miniatura de Drive también la tienen: el servidor saca un fotograma.
+                thumbnailUrl: !isFolder && (file.thumbnailLink || file.mimeType.startsWith("video/")) ? signDriveThumbnail(user.id, file.id, version) : null,
                 inLibrary: linkedFileIds.has(file.id),
             };
         });
@@ -389,21 +446,21 @@ class GoogleDriveService {
     static async downloadBrowseThumbnail(client, userId, fileId, filePath) {
         try {
             const driveApi = createDriveApi({ version: "v3", auth: client });
-            const { data: driveFile } = await driveApi.files.get({ fileId, fields: "thumbnailLink", supportsAllDrives: true });
-            if (!driveFile.thumbnailLink) return { error: "Thumbnail not available", status: 404 };
+            const { data: driveFile } = await driveApi.files.get({ fileId, fields: "id, mimeType, thumbnailLink", supportsAllDrives: true });
+            const thumbnailSource = await getDriveThumbnailSource(client, driveFile, BROWSE_THUMBNAIL_SIZE);
+            if (!thumbnailSource) return { error: "Thumbnail not available", status: 404 };
 
-            const response = await client.request({ url: resizeThumbnailLink(driveFile.thumbnailLink, BROWSE_THUMBNAIL_SIZE), responseType: "arraybuffer" });
             // Se escribe en un temporal y se renombra, para no servir nunca un archivo a medias.
             const temporaryPath = `${filePath}.${process.pid}.tmp`;
-            await writeJpeg(Buffer.from(response.data), temporaryPath, { width: BROWSE_THUMBNAIL_SIZE, height: BROWSE_THUMBNAIL_SIZE, fit: "inside", withoutEnlargement: true }, 72);
+            await writeJpeg(thumbnailSource, temporaryPath, { width: BROWSE_THUMBNAIL_SIZE, height: BROWSE_THUMBNAIL_SIZE, fit: "inside", withoutEnlargement: true }, 72);
             await fs.rename(temporaryPath, filePath);
             return { data: { filePath } };
         } catch (error) {
             const revoked = await this.handleRevokedGrant(error, userId);
             if (revoked) return revoked;
-            const status = getGoogleErrorStatus(error);
-            if (status === 403 || status === 404) return { error: "Thumbnail not available", status: 404 };
-            throw error;
+            // Archivo inaccesible o vídeo que ffmpeg no puede leer: el explorador muestra el icono del tipo.
+            console.warn(`Could not create Drive browse thumbnail for ${fileId}:`, String(error.message).split("\n")[0]);
+            return { error: "Thumbnail not available", status: 404 };
         }
     }
 
