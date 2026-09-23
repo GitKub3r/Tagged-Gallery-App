@@ -7,6 +7,7 @@ const authRoutes = require("./auth.routes");
 const mediaRoutes = require("./media.routes");
 const tagRoutes = require("./tag.routes");
 const albumRoutes = require("./album.routes");
+const templateRoutes = require("./template.routes");
 const metricsRoutes = require("./metrics.routes");
 const logsRoutes = require("./logs.routes");
 
@@ -32,6 +33,7 @@ router.get("/", (req, res) => {
             tags: "/api/v1/tags",
             tagNames: "/api/v1/tags/names",
             albums: "/api/v1/albums",
+            templates: "/api/v1/templates",
             albumCover: "/api/v1/albums/:id/cover",
             albumMedia: "/api/v1/albums/:id/media",
             logs: "/api/v1/logs",
@@ -57,6 +59,7 @@ router.use("/auth", authRoutes);
 router.use("/media", mediaRoutes);
 router.use("/tags", tagRoutes);
 router.use("/albums", albumRoutes);
+router.use("/templates", templateRoutes);
 router.use("/metrics", metricsRoutes);
 router.use("/logs", logsRoutes);
 

@@ -10,6 +10,7 @@ const { ensureUploadDirs } = require("./middlewares/upload.middleware");
 const AuditService = require("./services/Audit.service");
 const UserModel = require("./models/User.model");
 const AlbumModel = require("./models/Album.model");
+const TemplateModel = require("./models/Template.model");
 
 const app = express();
 
@@ -96,6 +97,7 @@ const startServer = async () => {
         await UserModel.ensureSessionVersionColumn();
         await UserModel.ensureDevRole();
         await AlbumModel.ensureCoverAdjustmentColumns();
+        await TemplateModel.ensureTable();
 
         // Si la conexión fue exitosa, iniciar el servidor
         const port = process.env.PORT || 4000;
