@@ -173,6 +173,16 @@ export const useDrivePicker = (config) => {
     return { openPicker, isOpening };
 };
 
+// Miniaturas de los archivos elegidos (el Picker no las muestra con el permiso drive.file).
+export const useDrivePreviews = (fileIds) =>
+    useQuery({
+        queryKey: googleDriveQueryKeys.previews(fileIds),
+        queryFn: () => googleDriveApi.getPreviews(fileIds),
+        enabled: fileIds.length > 0,
+        staleTime: Infinity,
+        gcTime: 60 * 1000,
+    });
+
 export const useLinkDriveFiles = () => {
     const queryClient = useQueryClient();
     return useMutation({

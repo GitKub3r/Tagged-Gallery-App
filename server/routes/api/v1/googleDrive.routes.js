@@ -15,6 +15,9 @@ router.post("/connect", GoogleDriveController.connect);
 // GET /api/v1/google-drive/picker-token - Token de acceso corto (solo drive.file) para el Google Picker
 router.get("/picker-token", GoogleDriveController.getPickerToken);
 
+// POST /api/v1/google-drive/previews - Miniaturas de los archivos elegidos, para revisarlos antes de añadirlos
+router.post("/previews", GoogleDriveController.getPreviews);
+
 // POST /api/v1/google-drive/link - Vincular archivos de Drive elegidos como medias (sin copiar el original)
 router.post("/link", GoogleDriveController.linkFiles);
 

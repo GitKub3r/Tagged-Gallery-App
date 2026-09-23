@@ -4,7 +4,8 @@ import { faFilm, faImage } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CheckboxOption } from "../../../components/checkbox-control/CheckboxOption";
 import { MediaFormModal, MediaMetadataFields } from "../../../components/media-form-modal/MediaFormModal";
-import { useLinkDriveFiles } from "../../../hooks/useGoogleDrive";
+import { useDrivePreviews, useLinkDriveFiles } from "../../../hooks/useGoogleDrive";
+import { DriveSelectionGrid } from "./DriveSelectionGrid";
 import { useMediaMetadataForm } from "../../../hooks/useMediaMetadataForm";
 import { useMetadata } from "../../../hooks/useMetadata";
 import { applyTemplate } from "../../../utils/applyTemplate";
@@ -78,15 +79,26 @@ export const DriveLinkModal = ({ files, onClose }) => {
     const { metadata, tagNames, tagColorByName, tagTypeByName } = useMetadata();
     const form = useMediaMetadataForm({ metadata, tagNames });
     const [markFavourite, setMarkFavourite] = useState(false);
+    const [pickedFileIds] = useState(() => files.map((file) => file.id));
+    const [selectedIds, setSelectedIds] = useState(pickedFileIds);
+    const previewsQuery = useDrivePreviews(pickedFileIds);
     const linkMutation = useLinkDriveFiles();
     const result = linkMutation.data;
     const filesById = Object.fromEntries(files.map((file) => [file.id, file]));
+    const previewsById = Object.fromEntries((previewsQuery.data || []).map((preview) => [preview.id, preview]));
+    const selectedFiles = files.filter((file) => selectedIds.includes(file.id));
     const isLinking = linkMutation.isPending;
+
+    const removeFile = (fileId) => {
+        const nextIds = selectedIds.filter((id) => id !== fileId);
+        if (nextIds.length === 0) onClose();
+        else setSelectedIds(nextIds);
+    };
 
     const handleSubmit = (event) => {
         event.preventDefault();
         linkMutation.mutate({
-            fileIds: files.map((file) => file.id),
+            fileIds: selectedIds,
             displayname: form.displayName.trim(),
             author: form.author.trim(),
             tag_names: form.getTagsWithPending(),
@@ -98,7 +110,7 @@ export const DriveLinkModal = ({ files, onClose }) => {
         <MediaFormModal
             titleId="drive-link-title"
             title={result ? "Added from Google Drive" : "Add from Google Drive"}
-            subtitle={`${pluralize(files.length, "file")} selected`}
+            subtitle={`${pluralize(selectedFiles.length, "file")} selected`}
             onClose={onClose}
             closeDisabled={isLinking}
             compact
@@ -116,7 +128,13 @@ export const DriveLinkModal = ({ files, onClose }) => {
             ) : (
                 <form className="flex min-h-0 flex-col" onSubmit={handleSubmit}>
                     <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
-                        <DriveFileList files={files} />
+                        <DriveSelectionGrid
+                            files={selectedFiles}
+                            previewsById={previewsById}
+                            isLoadingPreviews={previewsQuery.isPending}
+                            disabled={isLinking}
+                            onRemove={removeFile}
+                        />
                         <div className="mb-4 mt-5 border-t border-neutral-200 pt-4 dark:border-neutral-800">
                             <p className="text-sm font-semibold">Media details</p>
                             <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Applied to every selected file. You can edit each one later.</p>
@@ -147,7 +165,7 @@ export const DriveLinkModal = ({ files, onClose }) => {
                             Cancel
                         </button>
                         <button type="submit" className={PRIMARY_BUTTON_CLASSES} disabled={isLinking}>
-                            {isLinking ? "Adding..." : `Add ${pluralize(files.length, "file")}`}
+                            {isLinking ? "Adding..." : `Add ${pluralize(selectedFiles.length, "file")}`}
                         </button>
                     </footer>
                 </form>

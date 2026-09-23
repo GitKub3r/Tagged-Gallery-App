@@ -1,4 +1,5 @@
 const path = require("path");
+const sharp = require("sharp");
 const { drive: createDriveApi } = require("@googleapis/drive");
 const { OAuth2Client } = require("google-auth-library");
 const GoogleDriveConnectionModel = require("../models/GoogleDriveConnection.model");
@@ -35,6 +36,34 @@ const getGoogleErrorStatus = (error) => Number(error?.response?.status || error?
 
 // thumbnailLink termina en "=s220"; se pide el tamaño que necesitamos.
 const resizeThumbnailLink = (link, size) => (/=s\d+$/.test(link) ? link.replace(/=s\d+$/, `=s${size}`) : `${link}=s${size}`);
+
+const PREVIEW_SIZE = 320;
+const PREVIEW_CONCURRENCY = 6;
+
+const parseFileIds = (rawFileIds) => {
+    const fileIds = [...new Set(Array.isArray(rawFileIds) ? rawFileIds : [])];
+    if (fileIds.length === 0 || fileIds.length > MAX_LINK_FILES) {
+        return { error: `Select between 1 and ${MAX_LINK_FILES} Drive files`, status: 400 };
+    }
+    if (!fileIds.every((fileId) => typeof fileId === "string" && DRIVE_FILE_ID_PATTERN.test(fileId))) {
+        return { error: "Invalid Drive file id", status: 400 };
+    }
+    return { fileIds };
+};
+
+// Ejecuta fn sobre items con un máximo de peticiones simultáneas a Google.
+const mapWithConcurrency = async (items, limit, fn) => {
+    const results = new Array(items.length);
+    let nextIndex = 0;
+    const worker = async () => {
+        while (nextIndex < items.length) {
+            const index = nextIndex++;
+            results[index] = await fn(items[index]);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    return results;
+};
 
 const forbidAdmin = (user) =>
     user.type === "admin" ? { error: "Google Drive is only available for library accounts", status: 403 } : null;
@@ -124,17 +153,60 @@ class GoogleDriveService {
         }
     }
 
+    // Miniaturas de los archivos recién elegidos en el Picker. El Picker no puede mostrarlas con drive.file,
+    // pero tras la selección Tagged ya tiene acceso a esos archivos. Se devuelven como data URL, sin guardarlas.
+    static async getPreviews(body, user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const { fileIds, ...fileIdsError } = parseFileIds(body?.fileIds);
+        if (!fileIds) return fileIdsError;
+
+        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+
+        try {
+            const previews = await mapWithConcurrency(fileIds, PREVIEW_CONCURRENCY, async (fileId) => {
+                let driveFile;
+                try {
+                    ({ data: driveFile } = await driveApi.files.get({ fileId, fields: "id, name, mimeType, size, thumbnailLink", supportsAllDrives: true }));
+                } catch (error) {
+                    if (isRevokedGrantError(error)) throw error;
+                    return { id: fileId, thumbnail: null };
+                }
+
+                let thumbnail = null;
+                if (driveFile.thumbnailLink) {
+                    try {
+                        const response = await client.request({ url: resizeThumbnailLink(driveFile.thumbnailLink, PREVIEW_SIZE), responseType: "arraybuffer" });
+                        const jpeg = await sharp(Buffer.from(response.data), { failOn: "none" })
+                            .rotate()
+                            .resize({ width: PREVIEW_SIZE, height: PREVIEW_SIZE, fit: "cover" })
+                            .jpeg({ quality: 70, mozjpeg: true })
+                            .toBuffer();
+                        thumbnail = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+                    } catch (error) {
+                        console.warn(`Could not load Drive preview for ${fileId}:`, error.message);
+                    }
+                }
+
+                return { id: driveFile.id, name: driveFile.name, mimeType: driveFile.mimeType, size: Number(driveFile.size) || 0, thumbnail };
+            });
+            return { data: previews };
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+    }
+
     static async linkFiles(body, user, req) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;
 
-        const fileIds = [...new Set(Array.isArray(body?.fileIds) ? body.fileIds : [])];
-        if (fileIds.length === 0 || fileIds.length > MAX_LINK_FILES) {
-            return { error: `Select between 1 and ${MAX_LINK_FILES} Drive files`, status: 400 };
-        }
-        if (!fileIds.every((fileId) => typeof fileId === "string" && DRIVE_FILE_ID_PATTERN.test(fileId))) {
-            return { error: "Invalid Drive file id", status: 400 };
-        }
+        const { fileIds, ...fileIdsError } = parseFileIds(body?.fileIds);
+        if (!fileIds) return fileIdsError;
 
         const validation = MediaService.validateCommonFields(body);
         if (!validation.success) return { error: validation.message, status: 400 };

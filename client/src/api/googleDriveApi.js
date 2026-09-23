@@ -10,6 +10,7 @@ const unwrap = (response) => {
 export const googleDriveQueryKeys = {
     all: ["google-drive"],
     status: (userId) => ["google-drive", "status", userId],
+    previews: (fileIds) => ["google-drive", "previews", fileIds],
 };
 
 export const googleDriveApi = {
@@ -21,6 +22,9 @@ export const googleDriveApi = {
     },
     async getPickerToken() {
         return unwrap(await apiClient.get("/google-drive/picker-token"));
+    },
+    async getPreviews(fileIds) {
+        return unwrap(await apiClient.post("/google-drive/previews", { fileIds }));
     },
     async linkFiles(payload) {
         return unwrap(await apiClient.post("/google-drive/link", payload));
