@@ -131,7 +131,8 @@ La pestaña **Google Drive** permite añadir fotos y vídeos de Drive sin copiar
    ```
 
    Genera la clave de cifrado con `openssl rand -base64 32`. No la cambies después: los tokens guardados dejarían de poder descifrarse y habría que reconectar.
-7. **Reinicia el backend** (`docker compose restart app`), porque `.env` solo se lee al arrancar.
+7. **Permiso sobre Drive (opcional).** Por defecto (`GOOGLE_DRIVE_ACCESS=file`) Tagged solo accede a los archivos que eliges, y el selector de Google no muestra miniaturas. Con `GOOGLE_DRIVE_ACCESS=readonly` puede leer todo tu Drive: es un permiso **restringido**, así que añade `.../auth/drive.readonly` en *Acceso a los datos* y deja la app en modo *Prueba* con tus usuarios de prueba (publicarla exigiría la verificación y la auditoría de seguridad de Google). Tras cambiarlo, pulsa **Reconnect** en `/drive`.
+8. **Reinicia el backend** (`docker compose restart app`), porque `.env` solo se lee al arrancar.
 
 Limitación: Google solo acepta como orígenes `localhost` o dominios `https`, así que la cuenta se conecta desde `http://localhost:5173` y no desde la IP de la red local. Una vez conectada, se usa desde cualquier dispositivo.
 

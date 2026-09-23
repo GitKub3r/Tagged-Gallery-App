@@ -85,8 +85,13 @@ export const DrivePage = () => {
                     <DriveConnectionCard
                         email={status.email}
                         connectedAt={status.connectedAt}
+                        grantedAccess={status.grantedAccess}
+                        requiredAccess={status.requiredAccess}
+                        needsReconnect={status.needsReconnect}
                         isDisconnecting={disconnectMutation.isPending}
+                        isReconnecting={isConnecting}
                         onDisconnect={() => setIsDisconnectOpen(true)}
+                        onReconnect={() => isReady && !isConnecting && connect()}
                     />
                 </div>
             ) : null}

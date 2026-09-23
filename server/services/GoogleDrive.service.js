@@ -10,9 +10,17 @@ const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
 const { detectMediaType, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
 const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 
-const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
-// drive.file: la app solo accede a los archivos que el usuario elige en el Picker.
-const OAUTH_SCOPES = [DRIVE_FILE_SCOPE, "openid", "email"];
+// GOOGLE_DRIVE_ACCESS elige el permiso sobre Drive:
+// - "file" (por defecto): solo los archivos elegidos en el Picker. No requiere verificación de Google.
+// - "readonly": lectura de todo el Drive. Permiso restringido: sin verificación solo sirve en modo Prueba
+//   (usuarios de prueba). Permite, por ejemplo, que el Picker muestre miniaturas.
+const DRIVE_SCOPES = {
+    file: "https://www.googleapis.com/auth/drive.file",
+    readonly: "https://www.googleapis.com/auth/drive.readonly",
+};
+const getDriveAccess = () => (process.env.GOOGLE_DRIVE_ACCESS === "readonly" ? "readonly" : "file");
+const getDriveScope = () => DRIVE_SCOPES[getDriveAccess()];
+const getOAuthScopes = () => [getDriveScope(), "openid", "email"];
 
 const isConfigured = () =>
     Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_API_KEY && process.env.GOOGLE_APP_ID) &&
@@ -77,9 +85,14 @@ const toStatus = (connection) => ({
         clientId: process.env.GOOGLE_CLIENT_ID,
         apiKey: process.env.GOOGLE_API_KEY,
         appId: process.env.GOOGLE_APP_ID,
-        scopes: OAUTH_SCOPES,
+        scopes: getOAuthScopes(),
     },
+    // Permiso que la app pide ahora y permiso que concedió el usuario al conectar.
+    requiredAccess: getDriveAccess(),
+    grantedAccess: String(connection?.scopes || "").split(" ").includes(DRIVE_SCOPES.readonly) ? "readonly" : "file",
     connected: Boolean(connection && connection.status === "connected"),
+    // La conexión se hizo con otro permiso (p. ej. se cambió GOOGLE_DRIVE_ACCESS): hay que volver a conectar.
+    needsReconnect: Boolean(connection && connection.status === "connected" && !String(connection.scopes).split(" ").includes(getDriveScope())),
     status: connection?.status || "disconnected",
     email: connection?.google_account_email || null,
     connectedAt: connection?.updated_at || null,
@@ -153,7 +166,7 @@ class GoogleDriveService {
         }
     }
 
-    // Miniaturas de los archivos recién elegidos en el Picker. El Picker no puede mostrarlas con drive.file,
+    // Miniaturas de los archivos recién elegidos en el Picker. Con drive.file el Picker no puede mostrarlas,
     // pero tras la selección Tagged ya tiene acceso a esos archivos. Se devuelven como data URL, sin guardarlas.
     static async getPreviews(body, user) {
         const forbidden = forbidAdmin(user);
@@ -329,11 +342,18 @@ class GoogleDriveService {
         }
 
         const grantedScopes = String(tokens.scope || "").split(" ");
-        if (!grantedScopes.includes(DRIVE_FILE_SCOPE)) {
-            return { error: "Tagged needs access to the Drive files you select. Please allow it and try again.", status: 400 };
+        if (!grantedScopes.includes(getDriveScope())) {
+            return { error: "Tagged needs access to your Google Drive. Please allow it and try again.", status: 400 };
         }
-        if (!tokens.refresh_token) {
-            return { error: "Google did not grant offline access. Please try connecting again.", status: 400 };
+
+        let refreshToken = tokens.refresh_token;
+        if (!refreshToken) {
+            // Al reconectar, Google puede no emitir un refresh token nuevo. Se reutiliza el guardado si ya cubre
+            // el permiso; si no, se revoca para que el siguiente intento muestre el consentimiento completo.
+            refreshToken = await this.reuseStoredRefreshToken(user.id);
+            if (!refreshToken) {
+                return { error: "Google did not grant offline access. Please connect again.", status: 400 };
+            }
         }
 
         let email = null;
@@ -345,7 +365,7 @@ class GoogleDriveService {
         const connection = await GoogleDriveConnectionModel.upsert({
             userId: user.id,
             email,
-            refreshTokenEncrypted: encrypt(tokens.refresh_token),
+            refreshTokenEncrypted: encrypt(refreshToken),
             scopes: grantedScopes.join(" "),
         });
         // Al reconectar, las medias de Drive vuelven a estar accesibles; la comprobación de estado corregirá las que falten.
@@ -353,6 +373,24 @@ class GoogleDriveService {
         await AuditService.logEvent({ actionCode: "GOOGLE_DRIVE_CONNECT", req, statusCode: 200, message: "Google Drive connected" });
 
         return { data: toStatus(connection) };
+    }
+
+    static async reuseStoredRefreshToken(userId) {
+        const connection = await GoogleDriveConnectionModel.findByUserId(userId);
+        if (!connection) return null;
+
+        const client = createOAuthClient();
+        const storedRefreshToken = decrypt(connection.refresh_token_encrypted);
+        try {
+            client.setCredentials({ refresh_token: storedRefreshToken });
+            const { token } = await client.getAccessToken();
+            const { scopes = [] } = await client.getTokenInfo(token);
+            if (scopes.includes(getDriveScope())) return storedRefreshToken;
+            await client.revokeToken(storedRefreshToken);
+        } catch (error) {
+            console.warn("Could not reuse stored Google Drive token:", error.response?.data || error.message);
+        }
+        return null;
     }
 
     static async disconnect(user, req) {
