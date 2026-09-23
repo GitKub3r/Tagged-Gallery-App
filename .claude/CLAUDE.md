@@ -138,22 +138,11 @@ Estas reglas se aplican a todo el repositorio. Son obligatorias para cualquier c
 - Cambios de esquema: además de `database.sql`, los modelos nuevos exponen `ensureTable()` (creación y `ALTER TABLE` idempotentes) que `server/index.js` ejecuta al arrancar, para que las bases ya creadas se actualicen.
 - Variables de entorno en `server/.env` (ver `.env.example`) y `client/.env`. No versionar `.env`.
 
-### Lenguaje visual observado
+### Guía de diseño
 
-- **Base neutra:** casi toda la UI usa `neutral-*` de Tailwind (`bg-neutral-*`, `text-neutral-*`, `border-neutral-*`). Rojo solo para errores y acciones destructivas; verde para éxito. No usar `zinc`, `gray` ni `slate` en código nuevo (quedan restos en `EmptyState`).
-- **Par claro/oscuro explícito:** cada color va acompañado de su variante `dark:`. El tema se guarda en `localStorage` (`tagged:theme`) y `index.html` fija `data-theme` antes de pintar (oscuro por defecto). La variante `dark` de Tailwind se define con `@custom-variant dark` sobre `[data-theme="dark"]`, no con `prefers-color-scheme`.
-- **Superficies:** modales y paneles `bg-neutral-50 dark:bg-neutral-900`; tarjetas `bg-white dark:bg-neutral-900`; bloques secundarios `bg-neutral-100 dark:bg-neutral-950`. Bordes `border-neutral-200`/`300` en claro y `neutral-800`/`700` en oscuro; los divisores internos usan `border-neutral-200 dark:border-neutral-800`.
-- **Radio:** `rounded-xl` en todo; `rounded-full` solo en avatares, indicadores y píldoras.
-- **Botón primario:** `h-11 rounded-xl bg-neutral-950 text-white hover:bg-neutral-800 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-white`, `text-sm font-bold`. **Secundario:** `border border-neutral-300 bg-transparent text-neutral-700 hover:bg-neutral-100 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800`, `font-semibold`. En móvil ocupan `w-full` y desde `sm:` `w-auto`; en pies de modal se apilan con `flex-col-reverse sm:flex-row sm:justify-end`.
-- **Botón solo icono:** `IconButton` (`h-10 w-10 rounded-xl`) con `aria-label`.
-- **Campos:** `mediaFormInputClasses` (`h-11 rounded-xl border-neutral-300 ... focus:border-neutral-500`) y etiquetas `text-xs font-semibold text-neutral-600 dark:text-neutral-300` con el texto en un `span mb-1.5 block`. Reutilizar siempre estas clases.
-- **Foco visible:** `focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500`.
-- **Tipografía:** Nunito Sans. Título de página `text-3xl font-black tracking-tight sm:text-4xl` con sobretítulo `text-xs font-bold uppercase tracking-widest text-neutral-500`. Texto secundario `text-xs`/`text-sm text-neutral-500 dark:text-neutral-400`.
-- **Cabecera de página:** `<section className="tagged-app-page ...">` con `<header>` con `border-b`, título y descripción a la izquierda y acción principal a la derecha (columna en móvil, fila desde `sm:`).
-- **Tags:** chips con `rounded-xl border px-2 py-1 text-xs font-semibold`, color y estilo de `utils/tagStyle.js` (`buildDefaultTagStyle`, contraste automático) e icono de `utils/tagIcon.js` (`getTagIcon`, con distinción de copyright). Nunca reimplementar el estilo de una tag.
-- **Feedback:** toasts con Sonner (`toast`, `useAppToast` para progreso/cancelación, `ErrorToast`). Estados de carga con `components/loading-skeletons/`, errores de carga con `LoadErrorState` (con reintento) y vacíos con `EmptyState`. Listados: `LibraryToolbar`, `SearchField`, `Pagination`.
-- **Iconos por acción:** favorito `faHeart` (sólido/regular), cerrar `faXmark`, tag `faTag`, imagen `faImage`, vídeo `faPlay`, seleccionado `faCheck`. Comprobar el icono existente antes de elegir otro.
-- **Responsive:** mobile-first con `sm:` (muy usado), `md:`, `lg:` y `xl:`. Alturas con `dvh`, modales con `max-h-[calc(100dvh-1rem)]` y `p-2 sm:p-4`, rejillas `grid-cols-1 sm:grid-cols-2 lg:grid-cols-2`.
+La guía visual completa y obligatoria está en `.claude/DESIGN.md`. Incluye paleta y roles de color, tipografía, espaciado, alturas de control, radios, sombras, capas, movimiento, recetas de cada componente, diccionario de iconos, textos, accesibilidad, antipatrones y checklist. Se importa aquí para que se aplique siempre:
+
+@DESIGN.md
 
 ### Deuda técnica conocida (no replicar)
 
@@ -162,7 +151,7 @@ Estos puntos incumplen las normas y deben corregirse al tocar la zona afectada; 
 - **`fetch` restante:** `AuthContext.jsx` (`fetchWithAuth`, que `useAccessControl`, `LogsPage`, `ActionsPage`, `UsersPage`, `MetricsPage`, `AlbumPage`, `MediaDetailPage`, `GalleryPage` y `AlbumDetailPage` siguen consumiendo) y las descargas de archivo de `GalleryPage.jsx` y `AlbumDetailPage.jsx`. Sustituir por `apiClient` (con `responseType: "blob"` para descargas) y hooks de React Query, migrando cada flujo completo. Ojo al buscar: `refetch(` no es `fetch(`.
 - **`useEffect` con datos remotos** en `AuthContext` y otros consumidores antiguos: migrar a `useQuery`/`useMutation`.
 - **CSS legado por página/componente:** `LogsPage.css`, `ActionsPage.css`, `UsersPage.css`, `MetricsPage.css`, `GalleryPage.css`, `MediaDetailPage.css`, `AlbumPage.css`, `AlbumDetailPage.css`, `MediaCard.css`, `Input.css`. Se migran a Tailwind cuando se toque cada pantalla y se elimina el archivo.
-- **Estilos globales que obligan a usar `!`:** `styles/index.css` define estilos base de `button`, `input`, etc.; por eso el código de plantillas y formularios usa modificadores importantes (`rounded-xl!`, `border-0!`). Al migrar, retirar esos estilos globales y los `!`.
+- **Modificadores `!` y estilo global de `button`:** `styles/index.css` define en `@layer base` un estilo de `button` (ancho 100 %, borde de 2 px, fondo oscuro). Las utilidades de Tailwind ya lo sobrescriben, así que los `!` del código actual sobran: no usarlos en código nuevo y retirarlos al tocar cada componente. El objetivo final es eliminar ese estilo global y las variables `--tagged-button-*`.
 - **Fondo decorativo:** `.tagged-shell-content` y `variables.css` contienen gradientes y orbes animados que contradicen la norma de sobriedad. No ampliarlos; retirarlos o simplificarlos al rediseñar el layout.
 - **SVG inline** en `LogsPage.jsx` y variables de color heredadas (`--tagged-*`, acento `#643aff`, `LEGACY_DEFAULT_TAG_COLOR`) frente a la paleta `neutral-*`.
 - **Excepciones de radio:** `rounded-none` en skeletons (`CollectionLoadingSkeleton`, `AlbumDetailPage`) y `rounded-lg` en `AlbumAddMediaModal`; pasar a `rounded-xl`.
