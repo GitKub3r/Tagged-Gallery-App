@@ -9,7 +9,7 @@ import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoad
 import { useDevTools } from "../../hooks/useDevTools";
 import { useConnectGoogleDrive, useDisconnectGoogleDrive, useDrivePicker, useGoogleDriveStatus } from "../../hooks/useGoogleDrive";
 import { DriveConnectionCard } from "./components/DriveConnectionCard";
-import { DriveLinkModal } from "./components/DriveLinkModal";
+import { DriveUploadModal } from "./components/DriveUploadModal";
 
 const NotConfiguredNotice = () => (
     <article className="flex min-w-0 items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
@@ -96,7 +96,7 @@ export const DrivePage = () => {
                 </div>
             ) : null}
 
-            {selectedFiles.length > 0 ? <DriveLinkModal files={selectedFiles} onClose={() => setSelectedFiles([])} /> : null}
+            {selectedFiles.length > 0 ? <DriveUploadModal files={selectedFiles} onChangeFiles={selectFromDrive} onClose={() => setSelectedFiles([])} /> : null}
 
             <DeleteConfirmationModal
                 isOpen={isDisconnectOpen}

@@ -45,7 +45,7 @@ const getGoogleErrorStatus = (error) => Number(error?.response?.status || error?
 // thumbnailLink termina en "=s220"; se pide el tamaño que necesitamos.
 const resizeThumbnailLink = (link, size) => (/=s\d+$/.test(link) ? link.replace(/=s\d+$/, `=s${size}`) : `${link}=s${size}`);
 
-const PREVIEW_SIZE = 320;
+const PREVIEW_SIZE = 1280;
 const PREVIEW_CONCURRENCY = 6;
 
 const parseFileIds = (rawFileIds) => {
@@ -57,6 +57,14 @@ const parseFileIds = (rawFileIds) => {
         return { error: "Invalid Drive file id", status: 400 };
     }
     return { fileIds };
+};
+
+// Resolución original del archivo según Drive (las fotos giradas 90° o 270° intercambian ancho y alto).
+const getDriveFileDimensions = (driveFile) => {
+    const media = driveFile.imageMediaMetadata || driveFile.videoMediaMetadata;
+    if (!media?.width || !media?.height) return null;
+    const isRotated = driveFile.imageMediaMetadata?.rotation === 1 || driveFile.imageMediaMetadata?.rotation === 3;
+    return isRotated ? { width: media.height, height: media.width } : { width: media.width, height: media.height };
 };
 
 // Ejecuta fn sobre items con un máximo de peticiones simultáneas a Google.
@@ -166,8 +174,8 @@ class GoogleDriveService {
         }
     }
 
-    // Miniaturas de los archivos recién elegidos en el Picker. Con drive.file el Picker no puede mostrarlas,
-    // pero tras la selección Tagged ya tiene acceso a esos archivos. Se devuelven como data URL, sin guardarlas.
+    // Vistas previas de los archivos elegidos en el Picker para el modal de revisión (tras la selección Tagged
+    // ya tiene acceso a ellos, también con drive.file). Se devuelven como data URL y no se guardan.
     static async getPreviews(body, user) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;
@@ -183,7 +191,11 @@ class GoogleDriveService {
             const previews = await mapWithConcurrency(fileIds, PREVIEW_CONCURRENCY, async (fileId) => {
                 let driveFile;
                 try {
-                    ({ data: driveFile } = await driveApi.files.get({ fileId, fields: "id, name, mimeType, size, thumbnailLink", supportsAllDrives: true }));
+                    ({ data: driveFile } = await driveApi.files.get({
+                        fileId,
+                        fields: "id, name, mimeType, size, thumbnailLink, imageMediaMetadata(width, height, rotation), videoMediaMetadata(width, height)",
+                        supportsAllDrives: true,
+                    }));
                 } catch (error) {
                     if (isRevokedGrantError(error)) throw error;
                     return { id: fileId, thumbnail: null };
@@ -195,8 +207,8 @@ class GoogleDriveService {
                         const response = await client.request({ url: resizeThumbnailLink(driveFile.thumbnailLink, PREVIEW_SIZE), responseType: "arraybuffer" });
                         const jpeg = await sharp(Buffer.from(response.data), { failOn: "none" })
                             .rotate()
-                            .resize({ width: PREVIEW_SIZE, height: PREVIEW_SIZE, fit: "cover" })
-                            .jpeg({ quality: 70, mozjpeg: true })
+                            .resize({ width: PREVIEW_SIZE, height: PREVIEW_SIZE, fit: "inside", withoutEnlargement: true })
+                            .jpeg({ quality: 78, mozjpeg: true })
                             .toBuffer();
                         thumbnail = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
                     } catch (error) {
@@ -204,7 +216,14 @@ class GoogleDriveService {
                     }
                 }
 
-                return { id: driveFile.id, name: driveFile.name, mimeType: driveFile.mimeType, size: Number(driveFile.size) || 0, thumbnail };
+                return {
+                    id: driveFile.id,
+                    name: driveFile.name,
+                    mimeType: driveFile.mimeType,
+                    size: Number(driveFile.size) || 0,
+                    dimensions: getDriveFileDimensions(driveFile),
+                    thumbnail,
+                };
             });
             return { data: previews };
         } catch (error) {

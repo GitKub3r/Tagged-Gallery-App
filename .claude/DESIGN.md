@@ -360,6 +360,8 @@ Todos los modales:
 - Pie: `flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end sm:px-6`.
 - El `<form>` envuelve cuerpo y pie (`flex min-h-0 flex-col`) para que Enter envíe.
 
+**Añadir medias:** todo flujo que añade medias a la biblioteca (subida desde el equipo, archivos de Google Drive) usa `UploadMediaModal` con su `variant` (`upload` o `drive`). Cambian el título, el icono y los textos; la estructura, el formulario, la vista previa y el progreso son los mismos. Un origen nuevo se añade como otra variante, no como otro modal.
+
 **Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
 
 **Modal anidado:** `z-[1300]`. Evitar más de dos niveles.

@@ -10,7 +10,7 @@ const unwrap = (response) => {
 export const googleDriveQueryKeys = {
     all: ["google-drive"],
     status: (userId) => ["google-drive", "status", userId],
-    previews: (fileIds) => ["google-drive", "previews", fileIds],
+    preview: (fileId) => ["google-drive", "preview", fileId],
 };
 
 export const googleDriveApi = {

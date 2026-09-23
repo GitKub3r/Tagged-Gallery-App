@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { googleDriveApi, googleDriveQueryKeys } from "../api/googleDriveApi";
 import { galleryQueryKeys } from "../api/galleryApi";
@@ -173,26 +173,76 @@ export const useDrivePicker = (config) => {
     return { openPicker, isOpening };
 };
 
-// Miniaturas de los archivos elegidos (el Picker no las muestra con el permiso drive.file).
+// Vista previa de cada archivo elegido, pedida por separado para mostrarlas según van llegando.
 export const useDrivePreviews = (fileIds) =>
-    useQuery({
-        queryKey: googleDriveQueryKeys.previews(fileIds),
-        queryFn: () => googleDriveApi.getPreviews(fileIds),
-        enabled: fileIds.length > 0,
-        staleTime: Infinity,
-        gcTime: 60 * 1000,
+    useQueries({
+        queries: fileIds.map((fileId) => ({
+            queryKey: googleDriveQueryKeys.preview(fileId),
+            queryFn: async () => (await googleDriveApi.getPreviews([fileId]))[0],
+            staleTime: Infinity,
+            gcTime: 5 * 60 * 1000,
+        })),
     });
 
+const LINK_BATCH_SIZE = 5;
+const EMPTY_LINK_RESULT = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
+
+const pluralize = (count, word) => `${count} ${count === 1 ? word : `${word}s`}`;
+
+const showLinkSummary = (result, wasStopped) => {
+    if (result.linked.length > 0) {
+        toast.success(`${pluralize(result.linked.length, "file")} added from Google Drive`);
+    }
+    const notes = [
+        result.alreadyLinked.length ? `${pluralize(result.alreadyLinked.length, "file")} already in your library` : null,
+        result.duplicates.length ? `${pluralize(result.duplicates.length, "file")} already uploaded to Tagged` : null,
+        result.skipped.length ? `${pluralize(result.skipped.length, "file")} could not be added` : null,
+        wasStopped ? "Adding was stopped before the end" : null,
+    ].filter(Boolean);
+    if (notes.length > 0) toast.info(result.linked.length ? "Some files were skipped" : "No new files were added", { description: notes.join(" · ") });
+};
+
+// Vincula los archivos por lotes para mostrar el progreso. Parar deja terminar el lote en curso,
+// así el resumen coincide con lo que el servidor ha vinculado.
 export const useLinkDriveFiles = () => {
     const queryClient = useQueryClient();
-    return useMutation({
-        mutationFn: googleDriveApi.linkFiles,
-        onSuccess: ({ linked }) => {
-            if (linked.length === 0) return;
+    const stopRequestedRef = useRef(false);
+    const [progress, setProgress] = useState({ processed: 0, total: 0 });
+
+    const mutation = useMutation({
+        mutationFn: async ({ fileIds, details }) => {
+            stopRequestedRef.current = false;
+            const result = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
+            setProgress({ processed: 0, total: fileIds.length });
+
+            for (let start = 0; start < fileIds.length && !stopRequestedRef.current; start += LINK_BATCH_SIZE) {
+                const batch = fileIds.slice(start, start + LINK_BATCH_SIZE);
+                try {
+                    const batchResult = await googleDriveApi.linkFiles({ ...details, fileIds: batch });
+                    Object.keys(EMPTY_LINK_RESULT).forEach((key) => result[key].push(...batchResult[key]));
+                } catch (error) {
+                    throw Object.assign(error, { partialResult: result });
+                }
+                setProgress({ processed: start + batch.length, total: fileIds.length });
+            }
+
+            return { result, wasStopped: result.linked.length + result.alreadyLinked.length + result.duplicates.length + result.skipped.length < fileIds.length };
+        },
+        onSuccess: ({ result, wasStopped }) => showLinkSummary(result, wasStopped),
+        onSettled: (data, error) => {
+            const linkedCount = (data?.result || error?.partialResult || EMPTY_LINK_RESULT).linked.length;
+            if (linkedCount === 0) return;
             queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: tagNameQueryKeys.all });
-            toast.success(`${linked.length} ${linked.length === 1 ? "file" : "files"} added from Google Drive`);
         },
     });
+
+    return {
+        ...mutation,
+        progress,
+        stop: () => {
+            stopRequestedRef.current = true;
+        },
+    };
 };

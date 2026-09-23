@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import {
     faArrowLeft,
     faArrowRight,
     faCloudArrowUp,
     faFile,
+    faPlay,
     faRotate,
     faSpinner,
     faXmark,
@@ -21,7 +23,31 @@ const isHeicFile = (file) => {
     return mimeType === "image/heic" || mimeType === "image/heif" || /\.hei[cf]$/i.test(fileName);
 };
 
+// Mismo modal para subir archivos del equipo y para añadir archivos de Google Drive. En "drive" las vistas
+// previas ya son imágenes generadas por el backend (sin conversión HEIC ni reproducción de vídeo).
+const VARIANTS = {
+    upload: {
+        titleId: "upload-media-title",
+        title: "Upload media",
+        icon: faCloudArrowUp,
+        submitLabel: "Upload",
+        progressTitle: (total) => `Uploading ${total === 1 ? "media" : "files"}`,
+        cancelLabel: "Cancel upload",
+        staticPreviews: false,
+    },
+    drive: {
+        titleId: "drive-media-title",
+        title: "Add from Google Drive",
+        icon: faGoogleDrive,
+        submitLabel: "Add to library",
+        progressTitle: (total) => `Adding ${total === 1 ? "media" : "files"} from Google Drive`,
+        cancelLabel: "Stop adding",
+        staticPreviews: true,
+    },
+};
+
 export const UploadMediaModal = ({
+    variant = "upload",
     files,
     previewUrls,
     displayNameInput,
@@ -66,16 +92,19 @@ export const UploadMediaModal = ({
     const [failedConversions, setFailedConversions] = useState({});
     const convertedPreviewUrlsRef = useRef(new Set());
     const touchStartRef = useRef({ x: 0, y: 0 });
+    const config = VARIANTS[variant] || VARIANTS.upload;
 
     const totalFiles = files.length;
     const safePreviewIndex = Math.min(previewIndex, Math.max(totalFiles - 1, 0));
     const activeFile = files[safePreviewIndex] || null;
+    // undefined: la vista previa aún se está generando (Drive); "": no hay vista previa.
+    const isWaitingForPreview = config.staticPreviews && previewUrls[safePreviewIndex] === undefined;
     const sourcePreviewUrl = previewUrls[safePreviewIndex] || "";
-    const requiresPreviewConversion = isHeicFile(activeFile);
+    const requiresPreviewConversion = !config.staticPreviews && isHeicFile(activeFile);
     const activePreviewUrl = requiresPreviewConversion
         ? convertedPreviewUrls[safePreviewIndex] || ""
         : sourcePreviewUrl;
-    const isPreparingPreview = requiresPreviewConversion && !activePreviewUrl && !failedConversions[safePreviewIndex];
+    const isPreparingPreview = isWaitingForPreview || (requiresPreviewConversion && !activePreviewUrl && !failedConversions[safePreviewIndex]);
     const isPreviewBroken = Boolean(activePreviewUrl) && brokenPreviewUrl === activePreviewUrl;
     const isVideo = String(activeFile?.type || "").toLowerCase().startsWith("video/");
 
@@ -181,7 +210,7 @@ export const UploadMediaModal = ({
             );
         }
 
-        if (isVideo) {
+        if (isVideo && !config.staticPreviews) {
             return (
                 <video
                     className={mediaClasses}
@@ -195,7 +224,7 @@ export const UploadMediaModal = ({
             );
         }
 
-        return (
+        const image = (
             <img
                 className={mediaClasses}
                 src={activePreviewUrl}
@@ -205,20 +234,27 @@ export const UploadMediaModal = ({
                 onError={() => setBrokenPreviewUrl(activePreviewUrl)}
             />
         );
+
+        return isVideo ? (
+            <span className="relative flex h-full w-full items-center justify-center">
+                {image}
+                <FontAwesomeIcon icon={faPlay} className="pointer-events-none absolute text-3xl text-white drop-shadow-lg" aria-hidden="true" />
+            </span>
+        ) : image;
     };
 
     return (
         <MediaFormModal
-            titleId="upload-media-title"
-            title="Upload media"
+            titleId={config.titleId}
+            title={config.title}
             subtitle={!isUploading ? fileSummary : ""}
             onClose={onClose}
         >
                 {isUploading ? (
                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-6 text-center" aria-live="polite">
-                        <FontAwesomeIcon icon={faCloudArrowUp} className="text-5xl text-neutral-400 dark:text-neutral-500" aria-hidden="true" />
+                        <FontAwesomeIcon icon={config.icon} className="text-5xl text-neutral-400 dark:text-neutral-500" aria-hidden="true" />
                         <div>
-                            <p className="text-lg font-semibold">Uploading {uploadTotal === 1 ? "media" : "files"}</p>
+                            <p className="text-lg font-semibold">{config.progressTitle(uploadTotal)}</p>
                             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
                                 {uploadedCount} of {uploadTotal} processed
                             </p>
@@ -237,7 +273,7 @@ export const UploadMediaModal = ({
                             className="h-10! w-auto! rounded-xl! border! border-red-500/40! bg-transparent! px-4! py-2! text-sm! font-semibold! text-red-600! shadow-none! hover:bg-red-500/10! dark:text-red-400! dark:hover:bg-red-500/10!"
                             onClick={onCancelUpload}
                         >
-                            Cancel upload
+                            {config.cancelLabel}
                         </button>
                     </div>
                 ) : (
@@ -328,7 +364,7 @@ export const UploadMediaModal = ({
 
                         <footer className="flex min-h-16 shrink-0 flex-col items-stretch justify-between gap-2 border-t border-neutral-200 px-4 py-2 dark:border-neutral-800 sm:h-16 sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-0">
                             <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs text-neutral-500 dark:text-neutral-400">
-                                <MediaFileMeta size={activeFile?.size} mediaUrl={activePreviewUrl} isVideo={isVideo} />
+                                <MediaFileMeta size={activeFile?.size} mediaUrl={activePreviewUrl} isVideo={isVideo && !config.staticPreviews} knownDimensions={activeFile?.dimensions} />
                             </div>
                             <div className="ml-auto flex items-center gap-2">
                                 <button
@@ -342,8 +378,8 @@ export const UploadMediaModal = ({
                                     type="submit"
                                     className="inline-flex! h-10! w-auto! items-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-4! py-2! text-sm! font-semibold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white!"
                                 >
-                                    <FontAwesomeIcon icon={faCloudArrowUp} aria-hidden="true" />
-                                    <span>Upload</span>
+                                    <FontAwesomeIcon icon={config.icon} aria-hidden="true" />
+                                    <span>{config.submitLabel}</span>
                                 </button>
                             </div>
                         </footer>
