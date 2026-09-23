@@ -9,6 +9,9 @@ router.use(authenticate);
 // GET /api/v1/google-drive/status - Estado de la conexión y configuración pública para el cliente
 router.get("/status", GoogleDriveController.getStatus);
 
+// GET /api/v1/google-drive/summary - Totales y últimas medias añadidas desde Drive
+router.get("/summary", GoogleDriveController.getSummary);
+
 // POST /api/v1/google-drive/connect - Canjear el código de autorización de Google
 router.post("/connect", GoogleDriveController.connect);
 

@@ -31,7 +31,8 @@ Etiquetas usadas en este documento:
 - Semánticos, solo cuando hay un estado que comunicar:
   - **Error y peligro:** `red`. Texto `text-red-600 dark:text-red-400`. Botón `bg-red-600 hover:bg-red-500`. Fondo suave `bg-red-500/10`, borde `border-red-500/30`–`/50`.
   - **Éxito:** `green`. Borde de toast `border-green-500/50` y texto `text-green-600`.
-  - **Aviso e información:** hoy no se usan. Si hacen falta, usar `amber` e `sky` con la misma estructura (`-600`/`-400`, `/10`, `/30`) y añadirlos aquí.
+  - **Aviso:** `amber`. Aviso en línea `border-amber-500/30 bg-amber-500/10` con icono `text-amber-600 dark:text-amber-400` (`DriveNotice`, tono `warning`); punto de estado `bg-amber-500`.
+  - **Información:** hoy no se usa. Si hace falta, `sky` con la misma estructura.
 - Los colores de las tags los elige el usuario. Solo se pintan mediante `utils/tagStyle.js` (sección 7.7).
 
 ### 2.2 Roles de color (canónico)
@@ -136,6 +137,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
 </header>
 ```
 
+- **Página de perfil o integración** (Account, Google Drive): sin tarjeta envolvente. Cabecera grande con icono o avatar (`h-24 w-24`) y punto de estado, eyebrow, `h1` con píldora de estado (`rounded-full bg-neutral-200 px-2.5 py-1 text-xs font-bold` con punto de color y texto), dato principal con icono y acción a la derecha; `border-b pb-8`. Debajo, `max-w-5xl` con secciones `py-8` separadas por `divide-y` (título `text-xl font-bold` y descripción), indicadores en rejilla `grid-cols-2 lg:grid-cols-4` y datos en filas `divide-y` con etiqueta en mayúsculas e icono (`w-44`) a la izquierda.
 - **Barra de herramientas de colección:** `LibraryToolbar` (búsqueda a la izquierda, controles a la derecha, `max-w-[92rem]` centrado).
 - **Fila buscador + contador:** `flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`, con búsqueda `max-w-sm` y contador `text-sm text-neutral-500` con `aria-live="polite"`.
 - **Layout con navegación lateral secundaria** (patrón de Metadata): `grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]`, con la navegación `sticky` desde `xl`.
@@ -226,7 +228,7 @@ Antes de maquetar, se busca el componente en esta lista. Si existe, se usa; si n
 
 ### 7.1 Botones
 
-No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
+**En código nuevo, usar `buttonClasses` (`components/button/buttonClasses.js`: `primary`, `secondary`, `dangerGhost`, `text`) en lugar de copiar las recetas.** No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
 
 **Primario:** una sola acción principal por vista o modal.
 

@@ -47,6 +47,7 @@ const resizeThumbnailLink = (link, size) => (/=s\d+$/.test(link) ? link.replace(
 
 const PREVIEW_SIZE = 1280;
 const LINK_CONCURRENCY = 4;
+const RECENT_DRIVE_MEDIA_LIMIT = 6;
 // Máximo de archivos que se añaden de una vez al expandir carpetas elegidas en el Picker.
 const MAX_FOLDER_EXPANSION = 500;
 const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
@@ -235,6 +236,17 @@ class GoogleDriveService {
             if (revoked) return revoked;
             throw error;
         }
+    }
+
+    static async getSummary(user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const [stats, recentRows] = await Promise.all([
+            MediaModel.getDriveSummary(user.id),
+            MediaModel.findRecentDriveMedia(user.id, RECENT_DRIVE_MEDIA_LIMIT),
+        ]);
+        return { data: { ...stats, recent: await MediaService.enrichMediaListWithTags(recentRows) } };
     }
 
     // Convierte la selección del Picker (archivos y carpetas) en la lista de fotos y vídeos a añadir.

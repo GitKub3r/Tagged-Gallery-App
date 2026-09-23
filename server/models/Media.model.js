@@ -500,6 +500,37 @@ class MediaModel {
         return new Set(rows.map((row) => row.source_file_id));
     }
 
+    // Resumen de las medias del usuario cuyo original vive en Google Drive.
+    static async getDriveSummary(userId) {
+        const [[row]] = await pool.query(
+            `SELECT COUNT(*) AS total,
+                    COALESCE(SUM(mediatype IN ('image', 'gif')), 0) AS photos,
+                    COALESCE(SUM(mediatype = 'video'), 0) AS videos,
+                    COALESCE(SUM(size), 0) AS total_bytes,
+                    COALESCE(SUM(storage_status <> 'available'), 0) AS unavailable,
+                    MAX(created_at) AS last_added_at
+             FROM media
+             WHERE user_id = ? AND storage_provider = 'google_drive'`,
+            [userId],
+        );
+        return {
+            total: Number(row.total),
+            photos: Number(row.photos),
+            videos: Number(row.videos),
+            totalBytes: Number(row.total_bytes),
+            unavailable: Number(row.unavailable),
+            lastAddedAt: row.last_added_at,
+        };
+    }
+
+    static async findRecentDriveMedia(userId, limit) {
+        const [rows] = await pool.query(
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? AND storage_provider = 'google_drive' ORDER BY id DESC LIMIT ?`,
+            [userId, limit],
+        );
+        return rows;
+    }
+
     // Medias locales del usuario con alguno de estos MD5 (posibles duplicados de archivos de Drive).
     static async findLocalByChecksums(userId, checksums) {
         if (!checksums.length) return [];

@@ -1,34 +1,52 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
-import { faLinkSlash, faPlus, faScrewdriverWrench } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRight, faLinkSlash, faPlus, faRotate, faScrewdriverWrench, faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { buttonClasses } from "../../components/button/buttonClasses";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { useDevTools } from "../../hooks/useDevTools";
-import { DRIVE_FOLDER_MIME_TYPE, useConnectGoogleDrive, useDisconnectGoogleDrive, useDrivePicker, useExpandDriveSelection, useGoogleDriveStatus } from "../../hooks/useGoogleDrive";
-import { DriveConnectionCard } from "./components/DriveConnectionCard";
+import {
+    DRIVE_FOLDER_MIME_TYPE,
+    useConnectGoogleDrive,
+    useDisconnectGoogleDrive,
+    useDrivePicker,
+    useExpandDriveSelection,
+    useGoogleDriveStatus,
+    useGoogleDriveSummary,
+} from "../../hooks/useGoogleDrive";
+import { DriveConnectionDetails } from "./components/DriveConnectionDetails";
+import { DriveHero } from "./components/DriveHero";
+import { DriveHowItWorks } from "./components/DriveHowItWorks";
+import { DriveNotice } from "./components/DriveNotice";
+import { DriveRecentMedia } from "./components/DriveRecentMedia";
+import { DriveSection } from "./components/DriveSection";
+import { DriveStats } from "./components/DriveStats";
 import { DriveUploadModal } from "./components/DriveUploadModal";
 
-const NotConfiguredNotice = () => (
-    <article className="flex min-w-0 items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-neutral-100 text-neutral-600 dark:bg-neutral-950 dark:text-neutral-300">
-            <FontAwesomeIcon icon={faScrewdriverWrench} aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-            <h2 className="text-lg font-bold">Google Drive is not set up yet</h2>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-                The server is missing its Google credentials. Once they are added, you can connect your account here.
-            </p>
-        </div>
-    </article>
+const getHeroState = (status) => {
+    if (!status?.configured) return "unconfigured";
+    if (!status.connected) return "disconnected";
+    return status.needsReconnect ? "reconnect" : "connected";
+};
+
+const StatsSkeleton = () => (
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-hidden="true">
+        {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-[7.25rem] w-full" />)}
+    </div>
 );
 
 export const DrivePage = () => {
     const { forceLoading } = useDevTools();
     const statusQuery = useGoogleDriveStatus();
     const status = statusQuery.data;
+    // También sin conexión: las medias de Drive siguen en la biblioteca y conviene avisar de que esperan reconexión.
+    const summaryQuery = useGoogleDriveSummary(Boolean(status?.configured));
+    const summary = summaryQuery.data;
     const { connect, isReady, isConnecting } = useConnectGoogleDrive(status?.configured ? status.config : null);
     const disconnectMutation = useDisconnectGoogleDrive();
     const { openPicker, isOpening } = useDrivePicker(status?.config, { allowFolders: status?.grantedAccess === "readonly" });
@@ -51,61 +69,105 @@ export const DrivePage = () => {
     };
     const isSelecting = isOpening || expandMutation.isPending;
 
-    if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced Google Drive loading preview" /></section>;
+    if (forceLoading || statusQuery.isPending) {
+        return <section className="tagged-app-page"><PageLoadingSkeleton variant="detail" ariaLabel="Loading Google Drive" /></section>;
+    }
+    if (statusQuery.isError) {
+        return <section className="tagged-app-page"><LoadErrorState title="Could not load Google Drive" onRetry={() => statusQuery.refetch()} /></section>;
+    }
+
+    const heroState = getHeroState(status);
+    const heroAction = status.connected ? (
+        <button type="button" className={buttonClasses.primary} onClick={selectFromDrive} disabled={isSelecting}>
+            <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
+            {expandMutation.isPending ? "Reading folders..." : isOpening ? "Opening Drive..." : "Select from Drive"}
+        </button>
+    ) : status.configured ? (
+        <button type="button" className={buttonClasses.primary} onClick={() => !isConnecting && connect()} disabled={!isReady || isConnecting}>
+            <FontAwesomeIcon icon={faGoogleDrive} aria-hidden="true" />
+            {isConnecting ? "Waiting for Google..." : isReady ? "Connect Google Drive" : "Preparing Google sign-in..."}
+        </button>
+    ) : null;
 
     return (
         <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">
-            <header className="mb-6 flex flex-col gap-5 border-b border-neutral-200 pb-6 dark:border-neutral-800 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Integrations</p>
-                    <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Google Drive</h1>
-                    <p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">
-                        Add photos and videos from your Drive to your library. Files stay in Drive; Tagged keeps a reference with your tags, albums and favourites.
-                    </p>
-                </div>
-                {status?.connected ? (
-                    <button
-                        type="button"
-                        className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl border-0 bg-neutral-950 px-4 text-sm font-bold text-white shadow-none transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-white sm:w-auto"
-                        onClick={selectFromDrive}
-                        disabled={isSelecting}
-                    >
-                        <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
-                        {expandMutation.isPending ? "Reading folders..." : isOpening ? "Opening Drive..." : "Select from Drive"}
-                    </button>
-                ) : null}
-            </header>
+            <DriveHero state={heroState} email={status.email} action={heroAction} />
 
-            {statusQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading Google Drive status" /> : null}
-            {statusQuery.isError ? <LoadErrorState title="Could not load Google Drive status" onRetry={() => statusQuery.refetch()} placement="section" /> : null}
-
-            {status && !status.configured ? <NotConfiguredNotice /> : null}
-
-            {status?.configured && !status.connected ? (
-                <EmptyState
-                    title={isConnecting ? "Waiting for Google..." : "Connect your Google Drive"}
-                    icon={faGoogleDrive}
-                    placement="section"
-                    actionLabel={isReady ? "Connect Google Drive" : "Preparing Google sign-in..."}
-                    onAction={() => !isConnecting && connect()}
-                />
-            ) : null}
-
-            {status?.connected ? (
-                <div className="grid max-w-3xl gap-4">
-                    <DriveConnectionCard
-                        email={status.email}
-                        connectedAt={status.connectedAt}
-                        grantedAccess={status.grantedAccess}
-                        requiredAccess={status.requiredAccess}
-                        needsReconnect={status.needsReconnect}
-                        isDisconnecting={disconnectMutation.isPending}
-                        isReconnecting={isConnecting}
-                        onDisconnect={() => setIsDisconnectOpen(true)}
-                        onReconnect={() => isReady && !isConnecting && connect()}
+            <div className="mx-auto max-w-5xl">
+                {status.needsReconnect ? (
+                    <DriveNotice
+                        tone="warning"
+                        icon={faTriangleExclamation}
+                        title="Reconnect to update access"
+                        text="Tagged now needs a different Drive permission. Your linked media are kept."
+                        action={
+                            <button type="button" className={buttonClasses.secondary} onClick={() => isReady && !isConnecting && connect()} disabled={isConnecting}>
+                                <FontAwesomeIcon icon={faRotate} aria-hidden="true" />
+                                {isConnecting ? "Waiting for Google..." : "Reconnect"}
+                            </button>
+                        }
                     />
-                </div>
-            ) : null}
+                ) : null}
+
+                {status.configured && !status.connected && summary?.total > 0 ? (
+                    <DriveNotice
+                        tone="warning"
+                        icon={faTriangleExclamation}
+                        title={`${summary.total} ${summary.total === 1 ? "media is" : "media are"} waiting for Google Drive`}
+                        text="They keep their tags, albums and favourites, and open again as soon as you reconnect this account."
+                    />
+                ) : null}
+
+                {!status.configured ? (
+                    <DriveNotice
+                        icon={faScrewdriverWrench}
+                        title="Google Drive is not set up yet"
+                        text="The server is missing its Google credentials. Once they are added, you can connect your account here."
+                    />
+                ) : null}
+
+                {status.connected ? (
+                    <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                        <DriveSection id="drive-overview-title" title="Overview" description="Media in your library whose originals live in Google Drive.">
+                            {summary ? <DriveStats summary={summary} /> : summaryQuery.isError ? <LoadErrorState title="Could not load the overview" onRetry={() => summaryQuery.refetch()} placement="section" /> : <StatsSkeleton />}
+                        </DriveSection>
+
+                        <DriveSection
+                            id="drive-recent-title"
+                            title="Recently added"
+                            description="The latest photos and videos you added from Drive."
+                            aside={summary?.recent.length ? (
+                                <Link to="/gallery" className={buttonClasses.text}>
+                                    Open gallery
+                                    <FontAwesomeIcon icon={faArrowRight} className="text-xs" aria-hidden="true" />
+                                </Link>
+                            ) : null}
+                        >
+                            {summary?.recent.length ? (
+                                <DriveRecentMedia media={summary.recent} />
+                            ) : summary ? (
+                                <EmptyState title="Nothing added from Drive yet" icon={faGoogleDrive} placement="section" actionLabel="Select from Drive" onAction={selectFromDrive} />
+                            ) : (
+                                <StatsSkeleton />
+                            )}
+                        </DriveSection>
+
+                        <DriveSection id="drive-connection-title" title="Connection" description="The Google account linked to your library.">
+                            <DriveConnectionDetails
+                                email={status.email}
+                                grantedAccess={status.grantedAccess}
+                                connectedAt={status.connectedAt}
+                                isDisconnecting={disconnectMutation.isPending}
+                                onDisconnect={() => setIsDisconnectOpen(true)}
+                            />
+                        </DriveSection>
+                    </div>
+                ) : (
+                    <DriveSection id="drive-how-title" title="How it works" description="Bring your Drive photos and videos into Tagged without duplicating them.">
+                        <DriveHowItWorks />
+                    </DriveSection>
+                )}
+            </div>
 
             {selectedFiles.length > 0 ? <DriveUploadModal files={selectedFiles} onChangeFiles={selectFromDrive} onClose={() => setSelectedFiles([])} /> : null}
 

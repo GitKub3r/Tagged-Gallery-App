@@ -27,6 +27,15 @@ export const useGoogleDriveStatus = () => {
     });
 };
 
+export const useGoogleDriveSummary = (enabled = true) => {
+    const { user, accessToken } = useAuth();
+    return useQuery({
+        queryKey: googleDriveQueryKeys.summary(user?.id),
+        queryFn: googleDriveApi.getSummary,
+        enabled: enabled && Boolean(user?.id && accessToken && user.type !== "admin"),
+    });
+};
+
 const useSetStatus = () => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
@@ -101,10 +110,14 @@ export const useConnectGoogleDrive = (config) => {
 
 export const useDisconnectGoogleDrive = () => {
     const setStatus = useSetStatus();
+    const queryClient = useQueryClient();
     return useMutation({
         mutationFn: googleDriveApi.disconnect,
         onSuccess: (status) => {
             setStatus(status);
+            // Las medias de Drive pasan a "revoked".
+            queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.summaryAll });
+            queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
             toast.success("Google Drive disconnected");
         },
     });
@@ -252,6 +265,7 @@ export const useLinkDriveFiles = () => {
             queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: tagNameQueryKeys.all });
+            queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.summaryAll });
         },
     });
 

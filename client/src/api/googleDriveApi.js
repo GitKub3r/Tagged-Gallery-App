@@ -10,12 +10,17 @@ const unwrap = (response) => {
 export const googleDriveQueryKeys = {
     all: ["google-drive"],
     status: (userId) => ["google-drive", "status", userId],
+    summaryAll: ["google-drive", "summary"],
+    summary: (userId) => ["google-drive", "summary", userId],
     preview: (fileId) => ["google-drive", "preview", fileId],
 };
 
 export const googleDriveApi = {
     async getStatus() {
         return unwrap(await apiClient.get("/google-drive/status"));
+    },
+    async getSummary() {
+        return unwrap(await apiClient.get("/google-drive/summary"));
     },
     async connect(code) {
         return unwrap(await apiClient.post("/google-drive/connect", { code }));
