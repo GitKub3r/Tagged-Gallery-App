@@ -5,7 +5,8 @@
     "private": true,
     "scripts": {
         "dev": "nodemon index.js",
-        "start": "node index.js"
+        "start": "node index.js",
+        "previews:heic": "node scripts/generateHeicPreviews.js"
     },
     "dependencies": {
         "bcrypt": "^6.0.0",

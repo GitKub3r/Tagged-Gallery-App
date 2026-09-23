@@ -236,6 +236,7 @@ class MetricsModel {
                 m.size,
                 m.filepath,
                 m.thumbpath,
+                m.previewpath,
                 m.mediatype,
                 m.is_favourite,
                 m.updatedAt,

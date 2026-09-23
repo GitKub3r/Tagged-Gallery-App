@@ -47,6 +47,7 @@ CREATE TABLE media (
     size BIGINT UNSIGNED NOT NULL, -- bytes
     filepath VARCHAR(500) NOT NULL,
     thumbpath VARCHAR(500),
+    previewpath VARCHAR(500) NULL, -- JPEG para visualizar formatos no soportados por el navegador (HEIC)
     mediatype ENUM('image', 'video', 'gif') NOT NULL,
     is_favourite BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

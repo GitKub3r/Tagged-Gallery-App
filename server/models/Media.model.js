@@ -1,6 +1,13 @@
 const { pool } = require("../config/database");
 
 class MediaModel {
+    static async ensurePreviewColumn() {
+        const [columns] = await pool.query("SHOW COLUMNS FROM media LIKE 'previewpath'");
+        if (columns.length === 0) {
+            await pool.query("ALTER TABLE media ADD COLUMN previewpath VARCHAR(500) NULL AFTER thumbpath");
+        }
+    }
+
     static async ensureManagedValuesTables() {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS media_displayname_values (
@@ -31,7 +38,7 @@ class MediaModel {
 
     static async findAll() {
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media ORDER BY id DESC",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media ORDER BY id DESC",
         );
         return rows;
     }
@@ -44,7 +51,7 @@ class MediaModel {
     static async findAllPaginated(page, limit) {
         const offset = (page - 1) * limit;
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media ORDER BY id DESC LIMIT ? OFFSET ?",
             [limit, offset],
         );
         return rows;
@@ -52,7 +59,7 @@ class MediaModel {
 
     static async findAllByUserId(userId) {
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media WHERE user_id = ? ORDER BY id DESC",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media WHERE user_id = ? ORDER BY id DESC",
             [userId],
         );
         return rows;
@@ -66,7 +73,7 @@ class MediaModel {
     static async findAllByUserIdPaginated(userId, page, limit) {
         const offset = (page - 1) * limit;
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
             [userId, limit, offset],
         );
         return rows;
@@ -147,7 +154,7 @@ class MediaModel {
         const [[countRow], [rows]] = await Promise.all([
             pool.query(`SELECT COUNT(*) AS total FROM media m ${whereClause}`, values).then(([countRows]) => countRows),
             pool.query(
-                `SELECT m.id, m.user_id, m.displayname, m.author, m.filename, m.size, m.filepath, m.thumbpath, m.mediatype, m.is_favourite, m.updatedAt
+                `SELECT m.id, m.user_id, m.displayname, m.author, m.filename, m.size, m.filepath, m.thumbpath, m.previewpath, m.mediatype, m.is_favourite, m.updatedAt
                  FROM media m
                  ${whereClause}
                  ${orderClause}
@@ -392,14 +399,14 @@ class MediaModel {
     }
 
     static async create(mediaData) {
-        const { user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite } =
+        const { user_id, displayname, author, filename, size, filepath, thumbpath, previewpath = null, mediatype, is_favourite } =
             mediaData;
         const normalizedDisplayName =
             displayname === undefined || displayname === null || displayname === "" ? null : displayname;
         const normalizedAuthor = author === undefined || author === null || author === "" ? null : author;
 
         const [result] = await pool.query(
-            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 user_id,
                 normalizedDisplayName,
@@ -408,6 +415,7 @@ class MediaModel {
                 size,
                 filepath,
                 thumbpath,
+                previewpath,
                 mediatype,
                 Boolean(is_favourite),
             ],
@@ -422,6 +430,7 @@ class MediaModel {
             size,
             filepath,
             thumbpath,
+            previewpath,
             mediatype,
             is_favourite: Boolean(is_favourite),
         };
@@ -429,7 +438,7 @@ class MediaModel {
 
     static async findByIdForUser(id, userId) {
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media WHERE id = ? AND user_id = ?",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media WHERE id = ? AND user_id = ?",
             [id, userId],
         );
         return rows[0];
@@ -437,7 +446,7 @@ class MediaModel {
 
     static async findById(id) {
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media WHERE id = ?",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media WHERE id = ?",
             [id],
         );
         return rows[0];
@@ -449,7 +458,7 @@ class MediaModel {
         }
 
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media WHERE id IN (?)",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media WHERE id IN (?)",
             [ids],
         );
         return rows;
@@ -461,7 +470,7 @@ class MediaModel {
         }
 
         const [rows] = await pool.query(
-            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite, updatedAt FROM media WHERE id IN (?) AND user_id = ?",
+            "SELECT id, user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, updatedAt FROM media WHERE id IN (?) AND user_id = ?",
             [ids, userId],
         );
         return rows;
@@ -525,12 +534,13 @@ class MediaModel {
             item.size,
             item.filepath,
             item.thumbpath,
+            item.previewpath || null,
             item.mediatype,
             Boolean(item.is_favourite),
         ]);
 
         const [result] = await pool.query(
-            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, mediatype, is_favourite) VALUES ?",
+            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite) VALUES ?",
             [values],
         );
 

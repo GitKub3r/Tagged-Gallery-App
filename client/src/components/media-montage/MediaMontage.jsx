@@ -8,7 +8,6 @@ const SETTINGS_STORAGE_KEY = "tagged_album_detail_montage_settings";
 const TRANSITION_DURATION_MS = 820;
 
 const isVideoMedia = (media) => String(media?.mediatype || "").toLowerCase().includes("video");
-const isHeicMedia = (media) => /\.hei[cf](?:$|[?#])/i.test(String(media?.filepath || media?.filename || ""));
 
 const getStoredSettings = () => {
     if (typeof window === "undefined") return { imageDurationMs: DEFAULT_IMAGE_DURATION_MS, animationType: "slide" };
@@ -53,9 +52,7 @@ export const MediaMontage = ({ items, getAssetUrl, onClose, onOpenMedia }) => {
     const currentMedia = items[index] || null;
     const currentIsVideo = isVideoMedia(currentMedia);
 
-    const resolveMediaUrl = useCallback((media) => getAssetUrl(
-        isHeicMedia(media) ? media?.thumbpath || media?.filepath || "" : media?.filepath || media?.thumbpath || "",
-    ), [getAssetUrl]);
+    const resolveMediaUrl = useCallback((media) => getAssetUrl(media?.previewpath || media?.filepath || media?.thumbpath || ""), [getAssetUrl]);
     const resolvePosterUrl = useCallback((media) => getAssetUrl(media?.thumbpath || ""), [getAssetUrl]);
     const resolveBackgroundUrl = useCallback((media) => getAssetUrl(media?.thumbpath || media?.filepath || ""), [getAssetUrl]);
 

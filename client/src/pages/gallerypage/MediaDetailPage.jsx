@@ -224,6 +224,15 @@ const getMediaUrl = (media) => {
     return `${UPLOADS_BASE_URL}${mediaPath}`;
 };
 
+// URL para mostrar la media: el preview JPEG si existe (HEIC) o el original.
+// El original (getMediaUrl) se reserva para descargas y vídeo.
+const getDisplayUrl = (media) => {
+    const displayPath = media?.previewpath || media?.filepath;
+    if (!displayPath) return "";
+    if (displayPath.startsWith("http://") || displayPath.startsWith("https://")) return displayPath;
+    return `${UPLOADS_BASE_URL}${displayPath}`;
+};
+
 const getThumbnailUrl = (media) => {
     const thumbnailPath = media?.thumbpath;
 
@@ -256,7 +265,7 @@ const preloadMediaForNavigation = (media, distance) => {
     const mediaUrl = getMediaUrl(media);
     const thumbnailUrl = getThumbnailUrl(media);
     const isVideo = String(media?.mediatype || "").toLowerCase().includes("video");
-    const previewUrl = mediaUrl;
+    const previewUrl = isVideo ? mediaUrl : getDisplayUrl(media);
 
     if (!previewUrl || mediaDetailPreloadCache.has(previewUrl)) return;
 
@@ -286,11 +295,6 @@ const preloadMediaForNavigation = (media, distance) => {
     image.fetchPriority = "low";
     image.src = previewUrl;
     rememberPreloadedMedia(previewUrl, image);
-};
-
-const isHeicMedia = (media) => {
-    const fileReference = String(media?.filepath || media?.filename || "");
-    return /\.hei[cf](?:$|[?#])/i.test(fileReference);
 };
 
 const parseApiResponse = async (response, fallbackMessage) => {
@@ -874,14 +878,13 @@ export const MediaDetailPage = () => {
     const currentMedia = currentIndex >= 0 ? filteredMediaItems[currentIndex] : null;
     const mediaUrl = currentMedia ? getMediaUrl(currentMedia) : "";
     const thumbnailUrl = currentMedia ? getThumbnailUrl(currentMedia) : "";
-    const isHeic = isHeicMedia(currentMedia);
     const isVideo = String(currentMedia?.mediatype || "")
         .toLowerCase()
         .includes("video");
-    const viewerUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
-    const lightboxMediaUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
+    const viewerUrl = isVideo ? mediaUrl : currentMedia ? getDisplayUrl(currentMedia) : "";
+    const lightboxMediaUrl = viewerUrl;
     const viewerIsVideo = isVideo;
-    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : mediaUrl;
+    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : viewerUrl;
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < filteredMediaItems.length - 1;
     const shouldShowCounter = filteredMediaItems.length > 1;

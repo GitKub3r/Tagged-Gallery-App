@@ -117,17 +117,7 @@ const getAssetUrl = (assetPath) => {
     return `${UPLOADS_BASE_URL}${assetPath}`;
 };
 
-const isHeicMedia = (media) => {
-    const fileReference = String(media?.filepath || media?.filename || "");
-    return /\.hei[cf](?:$|[?#])/i.test(fileReference);
-};
-
-const getMontageMediaUrl = (media) =>
-    getAssetUrl(
-        isHeicMedia(media)
-            ? media?.thumbpath || media?.filepath || ""
-            : media?.filepath || media?.thumbpath || "",
-    );
+const getMontageMediaUrl = (media) => getAssetUrl(media?.previewpath || media?.filepath || media?.thumbpath || "");
 const getMontagePosterUrl = (media) => getAssetUrl(media?.thumbpath || "");
 const getMontageBackgroundUrl = (media) => getAssetUrl(media?.thumbpath || media?.filepath || "");
 

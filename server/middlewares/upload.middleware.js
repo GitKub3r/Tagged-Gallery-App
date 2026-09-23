@@ -7,11 +7,13 @@ const MAX_UPLOAD_FILE_SIZE_BYTES = 1024 * 1024 * 1024; // 1GB
 const UPLOADS_ROOT = path.join(__dirname, "..", "uploads");
 const MEDIA_UPLOAD_DIR = path.join(UPLOADS_ROOT, "media");
 const THUMBNAILS_UPLOAD_DIR = path.join(UPLOADS_ROOT, "thumbnails");
+const PREVIEWS_UPLOAD_DIR = path.join(UPLOADS_ROOT, "previews");
 const AVATARS_UPLOAD_DIR = path.join(UPLOADS_ROOT, "avatars");
 
 const ensureUploadDirs = () => {
     fs.mkdirSync(MEDIA_UPLOAD_DIR, { recursive: true });
     fs.mkdirSync(THUMBNAILS_UPLOAD_DIR, { recursive: true });
+    fs.mkdirSync(PREVIEWS_UPLOAD_DIR, { recursive: true });
     fs.mkdirSync(AVATARS_UPLOAD_DIR, { recursive: true });
 };
 
@@ -85,6 +87,7 @@ module.exports = {
     UPLOADS_ROOT,
     MEDIA_UPLOAD_DIR,
     THUMBNAILS_UPLOAD_DIR,
+    PREVIEWS_UPLOAD_DIR,
     AVATARS_UPLOAD_DIR,
     avatarUpload,
     trackUploadCancellation,

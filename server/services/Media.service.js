@@ -3,8 +3,8 @@ const path = require("path");
 const MediaModel = require("../models/Media.model");
 const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
-const { detectMediaType, generateThumbnail } = require("../utils/media");
-const { MEDIA_UPLOAD_DIR, THUMBNAILS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
+const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives } = require("../utils/media");
+const { MEDIA_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 const MAX_MEDIA_PAGE_SIZE = 500;
 
 const removeFileIfExists = async (filePath) => {
@@ -541,7 +541,7 @@ class MediaService {
         try {
             if (shouldCancel()) throw new Error("Upload cancelled");
             const mediatype = detectMediaType(file.mimetype, file.originalname || file.filename);
-            const thumbnail = await generateThumbnail(file, mediatype);
+            const derivatives = await generateMediaDerivatives(file, mediatype);
             if (shouldCancel()) throw new Error("Upload cancelled");
             const normalizedDisplayName = this.normalizeOptionalText(payload.displayname);
             const normalizedAuthor = this.normalizeOptionalText(payload.author);
@@ -553,7 +553,8 @@ class MediaService {
                 filename: file.filename,
                 size: file.size,
                 filepath: `/uploads/media/${file.filename}`,
-                thumbpath: thumbnail.thumbnailPath,
+                thumbpath: derivatives.thumbnailPath,
+                previewpath: derivatives.previewPath,
                 mediatype,
                 is_favourite: validation.isFavourite,
             };
@@ -575,8 +576,7 @@ class MediaService {
             }
 
             await removeFileIfExists(file.path);
-            const thumbnailPath = path.join(THUMBNAILS_UPLOAD_DIR, `${path.parse(file.filename).name}.jpg`);
-            await removeFileIfExists(thumbnailPath);
+            await removeMediaDerivatives(file.filename);
 
             console.error("Error in uploadSingle:", error);
             throw new Error("Error uploading media");
@@ -614,7 +614,7 @@ class MediaService {
             for (const file of files) {
                 if (shouldCancel()) throw new Error("Upload cancelled");
                 const mediatype = detectMediaType(file.mimetype, file.originalname || file.filename);
-                const thumbnail = await generateThumbnail(file, mediatype);
+                const derivatives = await generateMediaDerivatives(file, mediatype);
                 if (shouldCancel()) throw new Error("Upload cancelled");
 
                 processedFiles.push({
@@ -624,7 +624,8 @@ class MediaService {
                     filename: file.filename,
                     size: file.size,
                     filepath: `/uploads/media/${file.filename}`,
-                    thumbpath: thumbnail.thumbnailPath,
+                    thumbpath: derivatives.thumbnailPath,
+                    previewpath: derivatives.previewPath,
                     mediatype,
                     is_favourite: validation.isFavourite,
                 });
@@ -667,7 +668,7 @@ class MediaService {
             await Promise.all(
                 files.map(async (file) => {
                     await removeFileIfExists(path.join(MEDIA_UPLOAD_DIR, file.filename));
-                    await removeFileIfExists(path.join(THUMBNAILS_UPLOAD_DIR, `${path.parse(file.filename).name}.jpg`));
+                    await removeMediaDerivatives(file.filename);
                 }),
             );
 
@@ -785,12 +786,8 @@ class MediaService {
 
             await MediaModel.delete(id);
 
-            const mediaFilePath = path.join(MEDIA_UPLOAD_DIR, existing.filename);
-            const thumbFilename = `${path.parse(existing.filename).name}.jpg`;
-            const thumbFilePath = path.join(THUMBNAILS_UPLOAD_DIR, thumbFilename);
-
-            await removeFileIfExists(mediaFilePath);
-            await removeFileIfExists(thumbFilePath);
+            await removeFileIfExists(path.join(MEDIA_UPLOAD_DIR, existing.filename));
+            await removeMediaDerivatives(existing.filename);
 
             return { success: true, message: "Media deleted successfully" };
         } catch (error) {
@@ -834,13 +831,10 @@ class MediaService {
             await MediaModel.deleteMany(items.map((item) => item.id));
 
             await Promise.all(
-                items.flatMap((item) => {
-                    const mediaFilePath = path.join(MEDIA_UPLOAD_DIR, item.filename);
-                    const thumbFilename = `${path.parse(item.filename).name}.jpg`;
-                    const thumbFilePath = path.join(THUMBNAILS_UPLOAD_DIR, thumbFilename);
-
-                    return [removeFileIfExists(mediaFilePath), removeFileIfExists(thumbFilePath)];
-                }),
+                items.flatMap((item) => [
+                    removeFileIfExists(path.join(MEDIA_UPLOAD_DIR, item.filename)),
+                    removeMediaDerivatives(item.filename),
+                ]),
             );
 
             return {

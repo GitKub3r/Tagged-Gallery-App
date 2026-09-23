@@ -7,13 +7,13 @@ const FILES_ROUTE = "/api/v1/files/";
 
 // Claves de respuesta que contienen rutas internas de /uploads. Solo se firman estas,
 // nunca textos introducidos por el usuario (nombres, tags...), para no emitir enlaces ajenos.
-const SIGNED_KEYS = new Set(["filepath", "thumbpath", "albumcoverpath", "albumthumbpath", "avatar_path"]);
+const SIGNED_KEYS = new Set(["filepath", "thumbpath", "previewpath", "albumcoverpath", "albumthumbpath", "avatar_path"]);
 
 // Las URLs caducan al final de una franja fija para que sean estables y el navegador pueda cachearlas.
 const WINDOW_SECONDS = 12 * 60 * 60;
 const MIN_REMAINING_SECONDS = 6 * 60 * 60;
 
-const RELATIVE_PATH_PATTERN = /^(media|thumbnails|avatars)\/[A-Za-z0-9._-]+$/;
+const RELATIVE_PATH_PATTERN = /^(media|thumbnails|previews|avatars)\/[A-Za-z0-9._-]+$/;
 
 const getSigningSecret = () => {
     const secret = process.env.MEDIA_URL_SIGNING_SECRET || process.env.JWT_SECRET;

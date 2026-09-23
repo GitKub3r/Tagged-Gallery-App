@@ -107,7 +107,8 @@ class AlbumService {
             return { success: false, message: "Album cover media must be a static image" };
         }
 
-        const coverpath = media.filepath || null;
+        // La portada usa el preview si existe (HEIC), porque el navegador no puede mostrar el original.
+        const coverpath = media.previewpath || media.filepath || null;
         const thumbpath = media.thumbpath || null;
 
         await AlbumModel.updateCover(id, coverpath, thumbpath);

@@ -12,7 +12,7 @@ class MediaAlbumModel {
     static async findMediaByAlbumId(albumId) {
         const [rows] = await pool.query(
             `SELECT m.id, m.user_id, m.displayname, m.author, m.filename, m.size,
-                    m.filepath, m.thumbpath, m.mediatype, m.is_favourite, m.updatedAt
+                    m.filepath, m.thumbpath, m.previewpath, m.mediatype, m.is_favourite, m.updatedAt
              FROM media m
              INNER JOIN media_albums ma ON ma.mediaid = m.id
              WHERE ma.albumid = ?

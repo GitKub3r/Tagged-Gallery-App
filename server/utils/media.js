@@ -4,7 +4,7 @@ const sharp = require("sharp");
 const heicConvert = require("heic-convert");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
-const { THUMBNAILS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
+const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 
 if (ffmpegPath) {
     ffmpeg.setFfmpegPath(ffmpegPath);
@@ -35,32 +35,24 @@ const isHeicFile = (uploadedFile) => {
     return mimeType === "image/heic" || mimeType === "image/heif" || extension === ".heic" || extension === ".heif";
 };
 
-const createHeicThumbnail = async (inputFilePath, thumbnailFilePath) => {
-    const inputBuffer = await fs.readFile(inputFilePath);
-    const jpegBuffer = await heicConvert({
-        buffer: inputBuffer,
+const THUMBNAIL_OPTIONS = { width: 640, height: 640, fit: "inside", withoutEnlargement: true };
+// Versión de visualización para formatos que los navegadores no muestran (HEIC/HEIF).
+const PREVIEW_OPTIONS = { width: 2560, height: 2560, fit: "inside", withoutEnlargement: true };
+
+const decodeHeicToJpeg = async (inputFilePath) =>
+    heicConvert({
+        buffer: await fs.readFile(inputFilePath),
         format: "JPEG",
-        quality: 0.82,
+        quality: 0.92,
     });
 
-    await sharp(jpegBuffer, { failOn: "none" })
-        .rotate()
-        .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality: 72, mozjpeg: true })
-        .toFile(thumbnailFilePath);
-};
+const writeJpeg = (input, outputFilePath, resizeOptions, quality) =>
+    sharp(input, { failOn: "none" }).rotate().resize(resizeOptions).jpeg({ quality, mozjpeg: true }).toFile(outputFilePath);
 
-const createImageThumbnail = async (uploadedFile, thumbnailFilePath) => {
-    if (isHeicFile(uploadedFile)) {
-        await createHeicThumbnail(uploadedFile.path, thumbnailFilePath);
-        return;
-    }
-
-    await sharp(uploadedFile.path, { failOn: "none" })
-        .rotate()
-        .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality: 72, mozjpeg: true })
-        .toFile(thumbnailFilePath);
+const createHeicDerivatives = async (inputFilePath, thumbnailFilePath, previewFilePath) => {
+    const jpegBuffer = await decodeHeicToJpeg(inputFilePath);
+    await writeJpeg(jpegBuffer, previewFilePath, PREVIEW_OPTIONS, 85);
+    await writeJpeg(jpegBuffer, thumbnailFilePath, THUMBNAIL_OPTIONS, 72);
 };
 
 const createVideoThumbnail = async (inputFilePath, thumbnailFilePath) => {
@@ -78,32 +70,48 @@ const createVideoThumbnail = async (inputFilePath, thumbnailFilePath) => {
             });
     });
 
-    await sharp(thumbnailFilePath)
-        .resize({ width: 640, height: 640, fit: "inside", withoutEnlargement: true })
-        .jpeg({ quality: 72, mozjpeg: true })
-        .toFile(thumbnailFilePath + ".tmp");
+    await sharp(thumbnailFilePath).resize(THUMBNAIL_OPTIONS).jpeg({ quality: 72, mozjpeg: true }).toFile(thumbnailFilePath + ".tmp");
 
     await fs.rename(thumbnailFilePath + ".tmp", thumbnailFilePath);
 };
 
-const generateThumbnail = async (uploadedFile, mediaType) => {
-    const basenameWithoutExt = path.parse(uploadedFile.filename).name;
-    const thumbnailFilename = `${basenameWithoutExt}.jpg`;
-    const thumbnailFilePath = path.join(THUMBNAILS_UPLOAD_DIR, thumbnailFilename);
+const getDerivedFilename = (mediaFilename) => `${path.parse(mediaFilename).name}.jpg`;
+
+// Genera la miniatura y, para HEIC/HEIF, un preview JPEG que el navegador puede mostrar.
+// El original se conserva intacto para las descargas.
+const generateMediaDerivatives = async (uploadedFile, mediaType) => {
+    const derivedFilename = getDerivedFilename(uploadedFile.filename);
+    const thumbnailFilePath = path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename);
+    let previewPath = null;
 
     if (mediaType === "video") {
         await createVideoThumbnail(uploadedFile.path, thumbnailFilePath);
+    } else if (isHeicFile(uploadedFile)) {
+        await createHeicDerivatives(uploadedFile.path, thumbnailFilePath, path.join(PREVIEWS_UPLOAD_DIR, derivedFilename));
+        previewPath = `/uploads/previews/${derivedFilename}`;
     } else {
-        await createImageThumbnail(uploadedFile, thumbnailFilePath);
+        await writeJpeg(uploadedFile.path, thumbnailFilePath, THUMBNAIL_OPTIONS, 72);
     }
 
     return {
-        thumbnailFilename,
-        thumbnailPath: `/uploads/thumbnails/${thumbnailFilename}`,
+        thumbnailPath: `/uploads/thumbnails/${derivedFilename}`,
+        previewPath,
     };
+};
+
+const removeMediaDerivatives = async (mediaFilename) => {
+    const derivedFilename = getDerivedFilename(mediaFilename);
+    await Promise.all([
+        fs.rm(path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), { force: true }),
+        fs.rm(path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), { force: true }),
+    ]);
 };
 
 module.exports = {
     detectMediaType,
-    generateThumbnail,
+    isHeicFile,
+    createHeicDerivatives,
+    generateMediaDerivatives,
+    removeMediaDerivatives,
+    getDerivedFilename,
 };
