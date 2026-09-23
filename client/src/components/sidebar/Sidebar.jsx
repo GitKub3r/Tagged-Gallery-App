@@ -26,7 +26,7 @@ import {
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useMatch, useNavigate } from "react-router-dom";
-import { sidebarApi } from "../../api/sidebarApi";
+import { sidebarApi, tagNameQueryKeys } from "../../api/sidebarApi";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useDevTools } from "../../hooks/useDevTools";
@@ -95,7 +95,7 @@ export const Sidebar = () => {
     const sectionOneNavItems = user?.type === "admin" ? adminNavItems : navItems;
 
     const { data: allTagNames = [] } = useQuery({
-        queryKey: ["tags", "names"],
+        queryKey: tagNameQueryKeys.all,
         queryFn: () => sidebarApi.getTagNames(accessToken),
         enabled: Boolean(user && user.type !== "admin" && shouldShowTagPanel && accessToken),
         staleTime: 5 * 60 * 1000,

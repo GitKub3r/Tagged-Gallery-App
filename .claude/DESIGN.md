@@ -298,7 +298,7 @@ El foco de un campo se muestra cambiando el borde a `neutral-500`, porque el CSS
 
 **Select:** `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
 
-**Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se envuelve en una tarjeta clicable:
+**Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se usa `CheckboxOption` (`title`, `description`), que la envuelve en una tarjeta clicable:
 
 ```
 flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-100/60 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950/50
@@ -351,7 +351,7 @@ Todos los modales:
 - Llevan `role="dialog"`, `aria-modal="true"` y `aria-labelledby` (más `aria-describedby` si hay descripción).
 - Se cierran con Escape, con clic en el fondo (`onMouseDown` sobre el overlay) y con un `IconButton` `faXmark` en la cabecera. Las tres vías se desactivan mientras hay una operación en curso.
 
-**Modal de formulario:** reutilizar `MediaFormModal`:
+**Modal de formulario:** reutilizar `MediaFormModal`. Para nombre, autor y tags se usa `MediaMetadataFields` con el estado de `useMediaMetadataForm` y los datos de `useMetadata`:
 
 - Overlay: `fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm sm:p-4`.
 - Caja: `rounded-xl border border-neutral-300 bg-neutral-50 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900`, `max-h-[calc(100dvh-1rem)]`, `max-w-2xl` si es compacto.

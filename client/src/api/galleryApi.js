@@ -1,5 +1,9 @@
 import { apiClient } from "./apiClient";
 
+export const galleryQueryKeys = {
+    all: ["gallery-media"],
+};
+
 export const galleryApi = {
     async getMedia(params, accessToken) {
         const searchParams = new URLSearchParams();

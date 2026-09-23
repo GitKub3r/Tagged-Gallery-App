@@ -1,5 +1,9 @@
 import { apiClient } from "./apiClient";
 
+export const tagNameQueryKeys = {
+    all: ["tags", "names"],
+};
+
 export const sidebarApi = {
     async getTagNames(accessToken) {
         const { data } = await apiClient.get("/tags/names", {

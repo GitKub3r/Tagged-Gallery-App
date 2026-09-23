@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { faCopy, faHeart, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { metadataApi, metadataQueryKeys } from "../../api/metadataApi";
 import { templateApi, templateQueryKeys } from "../../api/templateApi";
-import { CheckboxControl } from "../../components/checkbox-control/CheckboxControl";
+import { CheckboxOption } from "../../components/checkbox-control/CheckboxOption";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { IconButton } from "../../components/icon-button/IconButton";
@@ -16,7 +15,8 @@ import { ErrorToast } from "../../components/toast/ErrorToast";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useTemplates } from "../../hooks/useTemplates";
-import { uniqueNames, useMediaMetadataForm } from "../../hooks/useMediaMetadataForm";
+import { useMediaMetadataForm } from "../../hooks/useMediaMetadataForm";
+import { useMetadata } from "../../hooks/useMetadata";
 import { getTagIcon } from "../../utils/tagIcon";
 import { buildTagChipStyle } from "../../utils/tagStyle";
 
@@ -62,13 +62,9 @@ const TemplateEditor = ({ template, metadata, tagNames, tagColorByName, tagTypeB
                         error={localError || error}
                         getTagStyle={buildTagChipStyle}
                     />
-                    <label className="mt-4 flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-100/60 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950/50">
-                        <CheckboxControl checked={markFavourite} onChange={setMarkFavourite} disabled={isSaving} />
-                        <span className="min-w-0">
-                            <span className="block text-sm font-semibold">Mark media as favourite</span>
-                            <span className="mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400">Applied media will be added to favourites when saved.</span>
-                        </span>
-                    </label>
+                    <div className="mt-4">
+                        <CheckboxOption checked={markFavourite} onChange={setMarkFavourite} disabled={isSaving} title="Mark media as favourite" description="Applied media will be added to favourites when saved." />
+                    </div>
                 </div>
                 <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-neutral-200 p-4 dark:border-neutral-800 sm:flex-row sm:justify-end sm:px-6">
                     <button type="button" className="h-11! w-full! rounded-xl! border! border-neutral-300! bg-transparent! px-4! text-sm! font-semibold! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-200! dark:hover:bg-neutral-800! sm:w-auto!" onClick={onCancel} disabled={isSaving}>Cancel</button>
@@ -112,15 +108,11 @@ const TemplateCard = ({ template, tagNameSet, tagColorByName, tagTypeByName, met
 };
 
 export const TemplatesPage = () => {
-    const { user, accessToken } = useAuth();
+    const { user } = useAuth();
     const { forceLoading } = useDevTools();
     const queryClient = useQueryClient();
     const templatesQuery = useTemplates();
-    const metadataQuery = useQuery({
-        queryKey: metadataQueryKeys.all,
-        queryFn: () => metadataApi.getAll(accessToken),
-        enabled: Boolean(accessToken),
-    });
+    const { metadata, tagNames, tagNameSet, tagColorByName, tagTypeByName } = useMetadata();
     const [editingTemplate, setEditingTemplate] = useState(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState(null);
@@ -142,12 +134,6 @@ export const TemplatesPage = () => {
         },
     });
     const templates = templatesQuery.data || [];
-    const metadata = metadataQuery.data;
-    const knownTags = (metadata?.tags || []).filter((tag) => typeof tag?.tagname === "string" && tag.tagname.trim());
-    const tagNames = uniqueNames(knownTags.map((tag) => tag.tagname));
-    const tagNameSet = new Set(tagNames.map((tag) => tag.toLowerCase()));
-    const tagColorByName = Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.tagcolor_hex]));
-    const tagTypeByName = Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.type]));
     const searchTerm = search.trim().toLowerCase();
     const filteredTemplates = searchTerm ? templates.filter((template) => [template.name, template.displayname, template.author, ...template.tags].some((value) => value.toLowerCase().includes(searchTerm))) : templates;
     const openEditor = (template = null) => { saveMutation.reset(); setEditingTemplate(template); setIsEditorOpen(true); };

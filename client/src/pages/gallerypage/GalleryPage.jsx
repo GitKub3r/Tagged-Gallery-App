@@ -27,7 +27,7 @@ import { LoadErrorState } from "../../components/load-error-state/LoadErrorState
 import { UploadMediaModal } from "../../components/upload-media-modal/UploadMediaModal";
 import { uploadMedia } from "../../api/mediaUploadRequest";
 import { applyTemplate } from "../../utils/applyTemplate";
-import { galleryApi } from "../../api/galleryApi";
+import { galleryApi, galleryQueryKeys } from "../../api/galleryApi";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
@@ -2560,7 +2560,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
     const mediaQuery = useQuery({
         queryKey: [
-            "gallery-media",
+            ...galleryQueryKeys.all,
             user?.id,
             currentPage,
             pageSize,
