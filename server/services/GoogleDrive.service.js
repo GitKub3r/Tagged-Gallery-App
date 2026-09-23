@@ -56,7 +56,13 @@ const BROWSE_THUMBNAIL_MAX_AGE_DAYS = 30;
 const MEDIA_QUERY = "(mimeType contains 'image/' or mimeType contains 'video/')";
 const FOLDER_OR_MEDIA_QUERY = `(mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or ${MEDIA_QUERY.slice(1, -1)})`;
 const BROWSE_FIELDS =
-    "nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, videoMediaMetadata(durationMillis))";
+    "nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, parents, videoMediaMetadata(durationMillis))";
+// Recent y la búsqueda de My Drive se quedan con lo que cuelga de "Mi unidad": files.list también devuelve las
+// copias de seguridad de ordenadores (Drive para escritorio), que suelen incluir cachés y archivos de programas.
+const MY_DRIVE_ONLY_VIEWS = new Set(["my-drive", "recent"]);
+// Si el filtro deja una página vacía se leen más, hasta este máximo (Drive tarda más cuanto mayor es la página).
+const MAX_FILTERED_PAGE_READS = 5;
+const FOLDER_CACHE_TTL_MS = 60 * 60 * 1000;
 
 // Comillas y barras escapadas para la sintaxis de consultas de Drive.
 const escapeDriveQuery = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -83,6 +89,8 @@ const getBrowseThumbnailPath = (userId, fileId, version) => path.join(DRIVE_CACH
 // Clientes OAuth por usuario: reutilizarlos evita renovar el access token en cada petición
 // (el explorador pide muchas miniaturas seguidas). Se descartan si cambia el refresh token guardado.
 const authorizedClients = new Map();
+// Por usuario: id de "Mi unidad" y, por carpeta, si cuelga de ella (promesas, para compartir consultas en curso).
+const myDriveFolderCache = new Map();
 // Miniaturas que se están descargando, para no pedir la misma dos veces a la vez.
 const pendingThumbnails = new Map();
 
@@ -283,15 +291,19 @@ class GoogleDriveService {
         }
         const driveApi = createDriveApi({ version: "v3", auth: client });
 
-        let data;
+        const listQuery = buildBrowseQuery({ view, folderId, search });
+        const onlyMyDrive = !folderId && MY_DRIVE_ONLY_VIEWS.has(view);
+        const files = [];
+        let nextPageToken = pageToken;
         try {
-            ({ data } = await driveApi.files.list({
-                ...buildBrowseQuery({ view, folderId, search }),
-                fields: BROWSE_FIELDS,
-                pageSize: BROWSE_PAGE_SIZE,
-                pageToken,
-                spaces: "drive",
-            }));
+            let pageReads = 0;
+            do {
+                const { data } = await driveApi.files.list({ ...listQuery, fields: BROWSE_FIELDS, pageSize: BROWSE_PAGE_SIZE, pageToken: nextPageToken, spaces: "drive" });
+                const pageFiles = data.files || [];
+                files.push(...(onlyMyDrive ? await this.filterMyDriveFiles(driveApi, user.id, pageFiles) : pageFiles));
+                nextPageToken = data.nextPageToken || null;
+                pageReads += 1;
+            } while (onlyMyDrive && nextPageToken && files.length === 0 && pageReads < MAX_FILTERED_PAGE_READS);
         } catch (error) {
             const revoked = await this.handleRevokedGrant(error, user.id);
             if (revoked) return revoked;
@@ -300,7 +312,6 @@ class GoogleDriveService {
             throw error;
         }
 
-        const files = data.files || [];
         const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, files.map((file) => file.id));
         const items = files.map((file) => {
             const isFolder = file.mimeType === DRIVE_FOLDER_MIME_TYPE;
@@ -318,7 +329,37 @@ class GoogleDriveService {
             };
         });
 
-        return { data: { items, nextPageToken: data.nextPageToken || null } };
+        return { data: { items, nextPageToken } };
+    }
+
+    // Deja solo los archivos cuya carpeta cuelga de "Mi unidad".
+    static async filterMyDriveFiles(driveApi, userId, files) {
+        let cache = myDriveFolderCache.get(userId);
+        if (!cache || cache.expiresAt < Date.now()) {
+            cache = { expiresAt: Date.now() + FOLDER_CACHE_TTL_MS, rootId: driveApi.files.get({ fileId: "root", fields: "id" }).then(({ data }) => data.id), folders: new Map() };
+            myDriveFolderCache.set(userId, cache);
+            // Si falla, no se guarda el error: el siguiente intento vuelve a preguntar a Drive.
+            cache.rootId.catch(() => myDriveFolderCache.delete(userId));
+        }
+        const rootId = await cache.rootId;
+
+        const isInMyDrive = (folderId, depth = 0) => {
+            if (folderId === rootId) return Promise.resolve(true);
+            if (depth > 30) return Promise.resolve(false);
+            if (!cache.folders.has(folderId)) {
+                cache.folders.set(
+                    folderId,
+                    driveApi.files
+                        .get({ fileId: folderId, fields: "parents" })
+                        .then(({ data }) => (data.parents?.[0] ? isInMyDrive(data.parents[0], depth + 1) : false))
+                        .catch(() => false),
+                );
+            }
+            return cache.folders.get(folderId);
+        };
+
+        const checks = await Promise.all(files.map((file) => (file.parents?.[0] ? isInMyDrive(file.parents[0]) : false)));
+        return files.filter((_, index) => checks[index]);
     }
 
     // Miniatura de un archivo del explorador. Se descarga de Drive la primera vez y se guarda en
