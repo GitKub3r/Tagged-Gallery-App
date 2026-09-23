@@ -17,6 +17,7 @@ const toTemplate = (row) => row && ({
     displayname: row.displayname,
     author: row.author,
     tags: parseTags(row.tag_names),
+    mark_favourite: Boolean(row.mark_favourite),
     created_at: row.created_at,
     updated_at: row.updated_at,
 });
@@ -31,6 +32,7 @@ class TemplateModel {
                 displayname VARCHAR(255) NOT NULL DEFAULT '',
                 author VARCHAR(100) NOT NULL DEFAULT '',
                 tag_names JSON NOT NULL,
+                mark_favourite BOOLEAN NOT NULL DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 UNIQUE KEY unique_user_template_name (user_id, name),
@@ -40,11 +42,15 @@ class TemplateModel {
                     ON DELETE CASCADE
             )
         `);
+        const [columns] = await pool.query("SHOW COLUMNS FROM media_templates LIKE 'mark_favourite'");
+        if (columns.length === 0) {
+            await pool.query("ALTER TABLE media_templates ADD COLUMN mark_favourite BOOLEAN NOT NULL DEFAULT FALSE AFTER tag_names");
+        }
     }
 
     static async findAllByUserId(userId) {
         const [rows] = await pool.query(
-            "SELECT id, name, displayname, author, tag_names, created_at, updated_at FROM media_templates WHERE user_id = ? ORDER BY name ASC, id ASC",
+            "SELECT id, name, displayname, author, tag_names, mark_favourite, created_at, updated_at FROM media_templates WHERE user_id = ? ORDER BY name ASC, id ASC",
             [userId],
         );
         return rows.map(toTemplate);
@@ -52,7 +58,7 @@ class TemplateModel {
 
     static async findByIdForUser(id, userId) {
         const [rows] = await pool.query(
-            "SELECT id, name, displayname, author, tag_names, created_at, updated_at FROM media_templates WHERE id = ? AND user_id = ?",
+            "SELECT id, name, displayname, author, tag_names, mark_favourite, created_at, updated_at FROM media_templates WHERE id = ? AND user_id = ?",
             [id, userId],
         );
         return toTemplate(rows[0]);
@@ -60,16 +66,16 @@ class TemplateModel {
 
     static async create(userId, template) {
         const [result] = await pool.query(
-            "INSERT INTO media_templates (user_id, name, displayname, author, tag_names) VALUES (?, ?, ?, ?, ?)",
-            [userId, template.name, template.displayname, template.author, JSON.stringify(template.tags)],
+            "INSERT INTO media_templates (user_id, name, displayname, author, tag_names, mark_favourite) VALUES (?, ?, ?, ?, ?, ?)",
+            [userId, template.name, template.displayname, template.author, JSON.stringify(template.tags), Boolean(template.mark_favourite)],
         );
         return this.findByIdForUser(result.insertId, userId);
     }
 
     static async update(id, userId, template) {
         const [result] = await pool.query(
-            "UPDATE media_templates SET name = ?, displayname = ?, author = ?, tag_names = ? WHERE id = ? AND user_id = ?",
-            [template.name, template.displayname, template.author, JSON.stringify(template.tags), id, userId],
+            "UPDATE media_templates SET name = ?, displayname = ?, author = ?, tag_names = ?, mark_favourite = COALESCE(?, mark_favourite) WHERE id = ? AND user_id = ?",
+            [template.name, template.displayname, template.author, JSON.stringify(template.tags), template.mark_favourite ?? null, id, userId],
         );
         return result.affectedRows ? this.findByIdForUser(id, userId) : null;
     }

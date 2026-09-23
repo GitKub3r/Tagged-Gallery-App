@@ -20,6 +20,9 @@ const validateTemplate = (body) => {
     const displayname = body.displayname.trim();
     const author = body.author.trim();
     if (!name) return { error: "Template name is required" };
+    if (body.mark_favourite !== undefined && typeof body.mark_favourite !== "boolean") {
+        return { error: "mark_favourite must be a boolean" };
+    }
     if (!Array.isArray(body.tags) || body.tags.length > 50) {
         return { error: "tags must be an array of at most 50 names" };
     }
@@ -38,11 +41,11 @@ const validateTemplate = (body) => {
         }
     }
 
-    if (!displayname && !author && tags.length === 0) {
-        return { error: "Add a media name, author or tag to the template" };
+    if (!displayname && !author && tags.length === 0 && !body.mark_favourite) {
+        return { error: "Add a media name, author, tag or favourite action to the template" };
     }
 
-    return { data: { name, displayname, author, tags } };
+    return { data: { name, displayname, author, tags, mark_favourite: body.mark_favourite } };
 };
 
 class TemplateService {

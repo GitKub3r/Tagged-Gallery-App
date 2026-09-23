@@ -127,6 +127,7 @@ CREATE TABLE media_templates (
     displayname VARCHAR(255) NOT NULL DEFAULT '',
     author VARCHAR(100) NOT NULL DEFAULT '',
     tag_names JSON NOT NULL,
+    mark_favourite BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY unique_user_template_name (user_id, name),

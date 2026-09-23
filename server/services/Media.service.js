@@ -18,6 +18,13 @@ const removeFileIfExists = async (filePath) => {
 };
 
 class MediaService {
+    static parseFavouriteFlag(value) {
+        if (value === undefined) return { success: true, data: undefined };
+        if (value === true || value === "true") return { success: true, data: true };
+        if (value === false || value === "false") return { success: true, data: false };
+        return { success: false, message: "is_favourite must be a boolean" };
+    }
+
     static normalizeOptionalText(value) {
         if (value === undefined || value === null) {
             return null;
@@ -55,7 +62,10 @@ class MediaService {
             };
         }
 
-        return { success: true };
+        const favourite = this.parseFavouriteFlag(payload?.is_favourite);
+        if (!favourite.success) return favourite;
+
+        return { success: true, isFavourite: favourite.data === true };
     }
 
     static parseTagNames(rawTagNames) {
@@ -545,7 +555,7 @@ class MediaService {
                 filepath: `/uploads/media/${file.filename}`,
                 thumbpath: thumbnail.thumbnailPath,
                 mediatype,
-                is_favourite: false,
+                is_favourite: validation.isFavourite,
             };
 
             createdMedia = await MediaModel.create(mediaData);
@@ -616,7 +626,7 @@ class MediaService {
                     filepath: `/uploads/media/${file.filename}`,
                     thumbpath: thumbnail.thumbnailPath,
                     mediatype,
-                    is_favourite: false,
+                    is_favourite: validation.isFavourite,
                 });
             }
 
@@ -698,6 +708,12 @@ class MediaService {
                 } else {
                     fields.author = null;
                 }
+            }
+
+            if (payload.is_favourite !== undefined) {
+                const favourite = this.parseFavouriteFlag(payload.is_favourite);
+                if (!favourite.success) return favourite;
+                fields.is_favourite = favourite.data;
             }
 
             if (shouldUpdateTags) {
