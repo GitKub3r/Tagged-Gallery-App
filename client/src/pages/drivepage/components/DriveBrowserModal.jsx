@@ -209,7 +209,7 @@ export const DriveBrowserModal = ({ initialSelection = [], layer = "base", isCon
                             <button
                                 key={option.id}
                                 type="button"
-                                className={`inline-flex h-9 w-auto flex-1 items-center justify-center gap-2 rounded-xl border-0 px-3 text-sm font-bold shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 ${isActive ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
+                                className={`inline-flex h-9 w-auto flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-0 px-3 text-sm font-bold shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 ${isActive ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
                                 onClick={() => changeView(option.id)}
                                 aria-pressed={isActive}
                                 aria-label={option.label}
