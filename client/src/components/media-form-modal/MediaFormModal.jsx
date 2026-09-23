@@ -4,9 +4,8 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/IconButton";
 import { ErrorToast } from "../toast/ErrorToast";
-
-export const mediaFormInputClasses =
-    "h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600 dark:focus:border-neutral-500";
+import { TemplateSelector } from "../template-selector/TemplateSelector";
+import { mediaFormInputClasses } from "./mediaFormStyles";
 
 const MediaSuggestionList = ({ items, activeIndex, onSelect }) => {
     if (!items.length) return null;
@@ -95,6 +94,8 @@ export const MediaMetadataFields = ({
     onAddTag,
     onRemoveTag,
     getTagStyle,
+    onApplyTemplate,
+    templateResetKey,
 }) => {
     const selectedTagsContainerRef = useRef(null);
     const existingTagNameSet = new Set(existingTagNames.map((tag) => String(tag).trim().toLowerCase()));
@@ -105,12 +106,13 @@ export const MediaMetadataFields = ({
     }, [selectedTags.length]);
 
     return (
-    <div className="flex h-full min-h-0 flex-col justify-start gap-3">
-        <div className="grid grid-cols-2 gap-3">
+    <div className="flex min-h-full flex-col justify-start gap-3">
+        {onApplyTemplate ? <TemplateSelector key={templateResetKey} onApply={onApplyTemplate} /> : null}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                 <span className="mb-1.5 block">Media name</span>
                 <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} />
+                    <input className={mediaFormInputClasses} type="text" maxLength={255} value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} />
                     {activeSuggestionField === "displayname" ? <MediaSuggestionList items={displayNameSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectDisplayName} /> : null}
                 </div>
             </label>
@@ -118,7 +120,7 @@ export const MediaMetadataFields = ({
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                 <span className="mb-1.5 block">Author</span>
                 <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" value={authorInput} onChange={onAuthorChange} onFocus={() => onOpenSuggestions("author")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "author")} placeholder={authorPlaceholder} />
+                    <input className={mediaFormInputClasses} type="text" maxLength={100} value={authorInput} onChange={onAuthorChange} onFocus={() => onOpenSuggestions("author")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "author")} placeholder={authorPlaceholder} />
                     {activeSuggestionField === "author" ? <MediaSuggestionList items={authorSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectAuthor} /> : null}
                 </div>
             </label>
@@ -132,7 +134,7 @@ export const MediaMetadataFields = ({
                 </span>
             </span>
             <div className="relative">
-                <input className={mediaFormInputClasses} type="text" value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} />
+                <input className={mediaFormInputClasses} type="text" maxLength={100} value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} />
                 {activeSuggestionField === "tag" ? <MediaSuggestionList items={tagSuggestions} activeIndex={activeSuggestionIndex} onSelect={onAddTag} /> : null}
             </div>
         </label>

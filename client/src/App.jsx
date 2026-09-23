@@ -5,6 +5,7 @@ import { GalleryPage } from "./pages/gallerypage/GalleryPage";
 import { MediaDetailPage } from "./pages/gallerypage/MediaDetailPage";
 import { FavouritesPage } from "./pages/favouritespage/FavouritesPage";
 import { MetadataPage } from "./pages/tagspage/TagsPage";
+import { TemplatesPage } from "./pages/templatespage/TemplatesPage";
 import { DashboardPage } from "./pages/metricspage/MetricsPage";
 import { AccountPage } from "./pages/accountpage/AccountPage";
 import { ProtectedLayout } from "./components/layout/ProtectedLayout";
@@ -44,6 +45,7 @@ function App() {
                         <Route path="/albums" element={<AlbumPage />} />
                         <Route path="/albums/:albumId" element={<AlbumDetailPage />} />
                         <Route path="/metadata" element={<MetadataPage />} />
+                        <Route path="/templates" element={<TemplatesPage />} />
                         <Route path="/tags" element={<Navigate to="/metadata" replace />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/metrics" element={<Navigate to="/dashboard" replace />} />

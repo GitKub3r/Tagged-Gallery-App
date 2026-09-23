@@ -26,6 +26,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { UploadMediaModal } from "../../components/upload-media-modal/UploadMediaModal";
 import { uploadMedia } from "../../api/mediaUploadRequest";
+import { applyTemplate } from "../../utils/applyTemplate";
 import { galleryApi } from "../../api/galleryApi";
 import { MediaCard } from "../../components/media-card/MediaCard";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
@@ -1454,8 +1455,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         }
         const payloadInput = inputPayload || {};
-        const { displayname, author, tags } = payloadInput;
+        const { displayname, author, tags, replaceAllTags } = payloadInput;
         const hasDisplayNameInput = Object.prototype.hasOwnProperty.call(payloadInput, "displayname");
+        const hasAuthorInput = Object.prototype.hasOwnProperty.call(payloadInput, "author");
         const selectedItems = mediaItems.filter((media) => selectedMediaIds.has(media.id));
 
         if (selectedItems.length === 0) {
@@ -1497,7 +1499,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             const results = await Promise.allSettled(
                 selectedItems.map(async (media) => {
                     const payload = {
-                        author: isSingleEdit ? trimmedAuthor : trimmedAuthor || String(media.author || ""),
+                        author: isSingleEdit || hasAuthorInput ? trimmedAuthor : String(media.author || ""),
                     };
                     if (isSingleEdit || hasDisplayNameInput) {
                         payload.displayname = trimmedDisplayName;
@@ -1505,7 +1507,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         payload.displayname = String(media.displayname || "");
                     }
 
-                    if (isSingleEdit) {
+                    if (isSingleEdit || replaceAllTags) {
                         payload.tag_names = JSON.stringify(nextTags);
                     } else {
                         if (tagsToAdd.length > 0) {
@@ -3446,6 +3448,14 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     }}
                     onAddTag={addTag}
                     onRemoveTag={removeTag}
+                    onApplyTemplate={(template) => {
+                        const applied = applyTemplate(template, { displayname: displayNameInput, author: authorInput, tags: selectedTags });
+                        setDisplayNameInput(applied.displayname);
+                        setAuthorInput(applied.author);
+                        setSelectedTags(applied.tags);
+                        setTagInput("");
+                        setActiveSuggestionField(null);
+                    }}
                     getTagStyle={buildTagChipStyle}
                 />
             ) : null}

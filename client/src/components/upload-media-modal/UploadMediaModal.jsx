@@ -57,6 +57,7 @@ export const UploadMediaModal = ({
     onAddTag,
     onRemoveTag,
     getTagStyle,
+    onApplyTemplate,
 }) => {
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -242,7 +243,7 @@ export const UploadMediaModal = ({
                 ) : (
                     <form className="flex min-h-0 flex-1 flex-col" onSubmit={onSubmit}>
                         <div className="grid min-h-0 flex-1 grid-rows-[minmax(7rem,0.8fr)_minmax(0,1.2fr)] gap-3 p-3 sm:gap-4 sm:p-4 md:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] md:grid-rows-1 md:p-6">
-                            <div className="order-2 min-h-0 md:order-1">
+                            <div className="order-2 min-h-0 overflow-y-auto overscroll-contain md:order-1">
                                 <MediaMetadataFields
                                     displayNameInput={displayNameInput}
                                     authorInput={authorInput}
@@ -269,6 +270,7 @@ export const UploadMediaModal = ({
                                     onAddTag={onAddTag}
                                     onRemoveTag={onRemoveTag}
                                     getTagStyle={getTagStyle}
+                                    onApplyTemplate={onApplyTemplate}
                                 />
                             </div>
 

@@ -6,6 +6,7 @@ import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { rankSuggestions } from "../../utils/suggestionRanking";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
+import { applyTemplate } from "../../utils/applyTemplate";
 
 const MAX_SUGGESTIONS = 8;
 const isVideoLike = (media) => {
@@ -137,6 +138,8 @@ export const MediaEditModal = ({
     const [displayNameInput, setDisplayNameInput] = useState("");
     const [authorInput, setAuthorInput] = useState("");
     const [isDisplayNameTouched, setIsDisplayNameTouched] = useState(false);
+    const [isAuthorTouched, setIsAuthorTouched] = useState(false);
+    const [templateReplacesTags, setTemplateReplacesTags] = useState(false);
     const [tagInput, setTagInput] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
     const [activeSuggestionField, setActiveSuggestionField] = useState(null);
@@ -160,6 +163,8 @@ export const MediaEditModal = ({
         setDisplayNameInput(initialDisplayName);
         setAuthorInput(initialAuthor);
         setIsDisplayNameTouched(false);
+        setIsAuthorTouched(false);
+        setTemplateReplacesTags(false);
         setTagInput("");
         setSelectedTags(JSON.parse(initialTagsKey));
         setActiveSuggestionField(null);
@@ -480,12 +485,12 @@ export const MediaEditModal = ({
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        let payload = { tags: selectedTags };
+        let payload = { tags: selectedTags, replaceAllTags: templateReplacesTags };
 
         if (!isMultiMode || isDisplayNameTouched || displayNameInput.trim() !== "") {
             payload.displayname = displayNameInput;
         }
-        if (!isMultiMode || authorInput.trim() !== "") {
+        if (!isMultiMode || isAuthorTouched || authorInput.trim() !== "") {
             payload.author = authorInput;
         }
 
@@ -579,6 +584,7 @@ export const MediaEditModal = ({
 
         if (field === "author") {
             handleSuggestionKeyboard(event, field, visibleAuthorSuggestions, (value) => {
+                setIsAuthorTouched(true);
                 setAuthorInput(value || "");
                 closeSuggestions();
             });
@@ -638,7 +644,7 @@ export const MediaEditModal = ({
         >
             <form className="flex min-h-0 flex-1 flex-col" id="tagged-media-edit-form" onSubmit={handleSubmit}>
                 <div className="grid min-h-0 flex-1 grid-rows-[minmax(7rem,0.8fr)_minmax(0,1.2fr)] gap-3 p-3 sm:gap-4 sm:p-4 md:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] md:grid-rows-1 md:p-6">
-                    <div className="order-2 min-h-0 md:order-1">
+                    <div className="order-2 min-h-0 overflow-y-auto overscroll-contain md:order-1">
                         <MediaMetadataFields
                             displayNameInput={displayNameInput}
                             authorInput={authorInput}
@@ -661,6 +667,7 @@ export const MediaEditModal = ({
                                 openSuggestions("displayname");
                             }}
                             onAuthorChange={(event) => {
+                                setIsAuthorTouched(true);
                                 setAuthorInput(event.target.value);
                                 openSuggestions("author");
                             }}
@@ -677,15 +684,31 @@ export const MediaEditModal = ({
                                 closeSuggestions();
                             }}
                             onSelectAuthor={(value) => {
+                                setIsAuthorTouched(true);
                                 setAuthorInput(value || "");
                                 closeSuggestions();
                             }}
                             onAddTag={addTag}
                             onRemoveTag={removeTag}
                             getTagStyle={buildTagStyle}
+                            templateResetKey={hasExternalNavigation ? activePreviewItem?.id : undefined}
+                            onApplyTemplate={(template) => {
+                                const applied = applyTemplate(template, { displayname: displayNameInput, author: authorInput, tags: selectedTags });
+                                setDisplayNameInput(applied.displayname);
+                                setAuthorInput(applied.author);
+                                setSelectedTags(applied.tags);
+                                if (template.displayname) setIsDisplayNameTouched(true);
+                                if (template.author) setIsAuthorTouched(true);
+                                if (template.tags.length > 0) setTemplateReplacesTags(true);
+                                setTagInput("");
+                                closeSuggestions();
+                            }}
                         />
 
-                        {isMultiMode && (tagsToAddPreview.length > 0 || tagsToRemovePreview.length > 0) ? (
+                        {isMultiMode && templateReplacesTags ? (
+                            <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">These tags will replace the tags on every selected item.</p>
+                        ) : null}
+                        {isMultiMode && !templateReplacesTags && (tagsToAddPreview.length > 0 || tagsToRemovePreview.length > 0) ? (
                             <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                                 {tagsToAddPreview.length > 0 ? <span>Add {tagsToAddPreview.length} tag(s)</span> : null}
                                 {tagsToRemovePreview.length > 0 ? <span>Remove {tagsToRemovePreview.length} tag(s)</span> : null}
