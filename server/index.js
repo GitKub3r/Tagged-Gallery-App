@@ -100,7 +100,7 @@ const startServer = async () => {
         await UserModel.ensureDevRole();
         await AlbumModel.ensureCoverAdjustmentColumns();
         await TemplateModel.ensureTable();
-        await MediaModel.ensurePreviewColumn();
+        await MediaModel.ensureColumns();
 
         // Si la conexión fue exitosa, iniciar el servidor
         const port = process.env.PORT || 4000;

@@ -3,7 +3,7 @@ const path = require("path");
 const MediaModel = require("../models/Media.model");
 const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
-const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives } = require("../utils/media");
+const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives, computeFileMd5 } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 const MAX_MEDIA_PAGE_SIZE = 500;
 
@@ -557,6 +557,7 @@ class MediaService {
                 previewpath: derivatives.previewPath,
                 mediatype,
                 is_favourite: validation.isFavourite,
+                checksum_md5: await computeFileMd5(file.path),
             };
 
             createdMedia = await MediaModel.create(mediaData);
@@ -628,6 +629,7 @@ class MediaService {
                     previewpath: derivatives.previewPath,
                     mediatype,
                     is_favourite: validation.isFavourite,
+                    checksum_md5: await computeFileMd5(file.path),
                 });
             }
 

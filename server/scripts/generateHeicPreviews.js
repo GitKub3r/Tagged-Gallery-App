@@ -12,7 +12,7 @@ const { isHeicFile, createHeicDerivatives, getDerivedFilename } = require("../ut
 
 const run = async () => {
     ensureUploadDirs();
-    await MediaModel.ensurePreviewColumn();
+    await MediaModel.ensureColumns();
 
     const [rows] = await pool.query(
         "SELECT id, filename, filepath FROM media WHERE previewpath IS NULL AND (LOWER(filename) LIKE '%.heic' OR LOWER(filename) LIKE '%.heif')",

@@ -50,9 +50,18 @@ CREATE TABLE media (
     previewpath VARCHAR(500) NULL, -- JPEG para visualizar formatos no soportados por el navegador (HEIC)
     mediatype ENUM('image', 'video', 'gif') NOT NULL,
     is_favourite BOOLEAN NOT NULL DEFAULT FALSE,
+    storage_provider ENUM('local', 'google_drive') NOT NULL DEFAULT 'local', -- dónde vive el original
+    storage_status ENUM('available', 'missing', 'revoked', 'error') NOT NULL DEFAULT 'available',
+    source_file_id VARCHAR(255) NULL, -- id del archivo en Google Drive
+    source_mime_type VARCHAR(255) NULL,
+    source_modified_time DATETIME NULL,
+    last_synced_at DATETIME NULL,
+    checksum_md5 CHAR(32) NULL, -- detecta duplicados entre medias locales y de Drive
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_media_user_id (user_id),
+    UNIQUE KEY uq_media_user_source (user_id, storage_provider, source_file_id),
+    INDEX idx_media_user_checksum (user_id, checksum_md5),
     CONSTRAINT fk_media_user
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE

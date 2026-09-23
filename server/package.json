@@ -6,7 +6,8 @@
     "scripts": {
         "dev": "nodemon index.js",
         "start": "node index.js",
-        "previews:heic": "node scripts/generateHeicPreviews.js"
+        "previews:heic": "node scripts/generateHeicPreviews.js",
+        "checksums:backfill": "node scripts/backfillMediaChecksums.js"
     },
     "dependencies": {
         "bcrypt": "^6.0.0",

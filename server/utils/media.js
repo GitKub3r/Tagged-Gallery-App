@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+const { createReadStream } = require("fs");
 const fs = require("fs/promises");
 const path = require("path");
 const sharp = require("sharp");
@@ -107,8 +109,20 @@ const removeMediaDerivatives = async (mediaFilename) => {
     ]);
 };
 
+// MD5 del archivo en streaming (sin cargarlo en memoria). Coincide con md5Checksum de Google Drive
+// y permite detectar duplicados entre medias locales y archivos de Drive.
+const computeFileMd5 = (filePath) =>
+    new Promise((resolve, reject) => {
+        const hash = crypto.createHash("md5");
+        createReadStream(filePath)
+            .on("error", reject)
+            .on("data", (chunk) => hash.update(chunk))
+            .on("end", () => resolve(hash.digest("hex")));
+    });
+
 module.exports = {
     detectMediaType,
+    computeFileMd5,
     isHeicFile,
     createHeicDerivatives,
     generateMediaDerivatives,
