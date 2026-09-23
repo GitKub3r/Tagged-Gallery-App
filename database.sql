@@ -270,7 +270,8 @@ VALUES
     ('Remove media from album', 'ALBUM_REMOVE_MEDIA', 'Remove one media item from an album', TRUE),
     ('Remove multiple media from album', 'ALBUM_REMOVE_MEDIA_BATCH', 'Remove several media items from an album', TRUE),
     ('Connect Google Drive', 'GOOGLE_DRIVE_CONNECT', 'Connect a Google Drive account', TRUE),
-    ('Disconnect Google Drive', 'GOOGLE_DRIVE_DISCONNECT', 'Disconnect a Google Drive account', TRUE)
+    ('Disconnect Google Drive', 'GOOGLE_DRIVE_DISCONNECT', 'Disconnect a Google Drive account', TRUE),
+    ('Link Google Drive files', 'GOOGLE_DRIVE_LINK', 'Add Google Drive files to the library without copying them', TRUE)
 ON DUPLICATE KEY UPDATE
     actionname = VALUES(actionname),
     description = VALUES(description),

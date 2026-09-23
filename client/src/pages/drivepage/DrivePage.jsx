@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
-import { faLinkSlash, faScrewdriverWrench } from "@fortawesome/free-solid-svg-icons";
+import { faLinkSlash, faPlus, faScrewdriverWrench } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useDevTools } from "../../hooks/useDevTools";
-import { useConnectGoogleDrive, useDisconnectGoogleDrive, useGoogleDriveStatus } from "../../hooks/useGoogleDrive";
+import { useConnectGoogleDrive, useDisconnectGoogleDrive, useDrivePicker, useGoogleDriveStatus } from "../../hooks/useGoogleDrive";
 import { DriveConnectionCard } from "./components/DriveConnectionCard";
+import { DriveLinkModal } from "./components/DriveLinkModal";
 
 const NotConfiguredNotice = () => (
     <article className="flex min-w-0 items-start gap-3 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
@@ -30,18 +31,38 @@ export const DrivePage = () => {
     const status = statusQuery.data;
     const { connect, isReady, isConnecting } = useConnectGoogleDrive(status?.configured ? status.config : null);
     const disconnectMutation = useDisconnectGoogleDrive();
+    const { openPicker, isOpening } = useDrivePicker(status?.config);
     const [isDisconnectOpen, setIsDisconnectOpen] = useState(false);
+    const [selectedFiles, setSelectedFiles] = useState([]);
+
+    const selectFromDrive = async () => {
+        const files = await openPicker();
+        if (files.length > 0) setSelectedFiles(files);
+    };
 
     if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced Google Drive loading preview" /></section>;
 
     return (
         <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">
-            <header className="mb-6 border-b border-neutral-200 pb-6 dark:border-neutral-800">
-                <p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Integrations</p>
-                <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Google Drive</h1>
-                <p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">
-                    Add photos and videos from your Drive to your library. Files stay in Drive; Tagged keeps a reference with your tags, albums and favourites.
-                </p>
+            <header className="mb-6 flex flex-col gap-5 border-b border-neutral-200 pb-6 dark:border-neutral-800 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                    <p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Integrations</p>
+                    <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Google Drive</h1>
+                    <p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">
+                        Add photos and videos from your Drive to your library. Files stay in Drive; Tagged keeps a reference with your tags, albums and favourites.
+                    </p>
+                </div>
+                {status?.connected ? (
+                    <button
+                        type="button"
+                        className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl border-0 bg-neutral-950 px-4 text-sm font-bold text-white shadow-none transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-white sm:w-auto"
+                        onClick={selectFromDrive}
+                        disabled={isOpening}
+                    >
+                        <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
+                        {isOpening ? "Opening Drive..." : "Select from Drive"}
+                    </button>
+                ) : null}
             </header>
 
             {statusQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading Google Drive status" /> : null}
@@ -69,6 +90,8 @@ export const DrivePage = () => {
                     />
                 </div>
             ) : null}
+
+            {selectedFiles.length > 0 ? <DriveLinkModal files={selectedFiles} onClose={() => setSelectedFiles([])} /> : null}
 
             <DeleteConfirmationModal
                 isOpen={isDisconnectOpen}

@@ -159,7 +159,7 @@ Siguiendo `.claude/CLAUDE.md`, `.claude/DESIGN.md` y las skills `migrate-to-axio
    *La app sigue funcionando igual, pero ningún archivo es accesible sin una URL firmada válida.*
 1. ✅ **Base de datos de Drive:** columnas y `ensureColumns`, `MEDIA_COLUMNS`, MD5 en subidas y script de backfill. Este documento sustituye al plan antiguo.
 2. ✅ **Conexión OAuth:** utilidades de cifrado, modelo, servicio y rutas `status`/`connect`/`disconnect`; página `/drive` con conectar y desconectar, y la pestaña en la sidebar.
-3. **Picker y vinculación:** `picker-token`, `linkFiles` con miniatura cacheada y deduplicación; `DriveSelectionReview` y `DriveLinkResult`.
+3. ✅ **Picker y vinculación:** `picker-token`, `linkFiles` con miniatura cacheada y deduplicación; `DriveSelectionReview` y `DriveLinkResult`.
 4. **Streaming:** proxy de Drive con `Range` en `/content`; detalle, montaje y portadas de álbum con medias de Drive.
 5. **Conversión de duplicados locales:** endpoint `convert` y su UI.
 6. **Borrado, descargas y métricas:** borrado seguro, migración de descargas a `apiClient` y métricas separadas.

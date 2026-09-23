@@ -27,6 +27,7 @@ const DEFAULT_ACTION_NAMES = {
     PROFILE_PASSWORD_UPDATE: "Change account password",
     GOOGLE_DRIVE_CONNECT: "Connect Google Drive",
     GOOGLE_DRIVE_DISCONNECT: "Disconnect Google Drive",
+    GOOGLE_DRIVE_LINK: "Link Google Drive files",
 };
 
 class AuditService {

@@ -3,7 +3,7 @@ const path = require("path");
 const MediaModel = require("../models/Media.model");
 const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
-const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives, computeFileMd5 } = require("../utils/media");
+const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives, removeStoredMediaFiles, computeFileMd5 } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 const MAX_MEDIA_PAGE_SIZE = 500;
 
@@ -788,8 +788,7 @@ class MediaService {
 
             await MediaModel.delete(id);
 
-            await removeFileIfExists(path.join(MEDIA_UPLOAD_DIR, existing.filename));
-            await removeMediaDerivatives(existing.filename);
+            await removeStoredMediaFiles(existing);
 
             return { success: true, message: "Media deleted successfully" };
         } catch (error) {
@@ -832,12 +831,7 @@ class MediaService {
 
             await MediaModel.deleteMany(items.map((item) => item.id));
 
-            await Promise.all(
-                items.flatMap((item) => [
-                    removeFileIfExists(path.join(MEDIA_UPLOAD_DIR, item.filename)),
-                    removeMediaDerivatives(item.filename),
-                ]),
-            );
+            await Promise.all(items.map(removeStoredMediaFiles));
 
             return {
                 success: true,

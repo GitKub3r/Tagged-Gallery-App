@@ -426,14 +426,32 @@ class MediaModel {
     }
 
     static async create(mediaData) {
-        const { user_id, displayname, author, filename, size, filepath, thumbpath, previewpath = null, mediatype, is_favourite, checksum_md5 = null } =
-            mediaData;
+        const {
+            user_id,
+            displayname,
+            author,
+            filename,
+            size,
+            filepath,
+            thumbpath,
+            previewpath = null,
+            mediatype,
+            is_favourite,
+            checksum_md5 = null,
+            storage_provider = "local",
+            source_file_id = null,
+            source_mime_type = null,
+            source_modified_time = null,
+            last_synced_at = null,
+        } = mediaData;
         const normalizedDisplayName =
             displayname === undefined || displayname === null || displayname === "" ? null : displayname;
         const normalizedAuthor = author === undefined || author === null || author === "" ? null : author;
 
         const [result] = await pool.query(
-            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            `INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5,
+                storage_provider, source_file_id, source_mime_type, source_modified_time, last_synced_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 user_id,
                 normalizedDisplayName,
@@ -446,6 +464,11 @@ class MediaModel {
                 mediatype,
                 Boolean(is_favourite),
                 checksum_md5,
+                storage_provider,
+                source_file_id,
+                source_mime_type,
+                source_modified_time,
+                last_synced_at,
             ],
         );
 
@@ -461,7 +484,30 @@ class MediaModel {
             previewpath,
             mediatype,
             is_favourite: Boolean(is_favourite),
+            storage_provider,
+            storage_status: "available",
+            source_file_id,
         };
+    }
+
+    // Ids de Drive que el usuario ya tiene vinculados, para no vincularlos dos veces.
+    static async findLinkedDriveFileIds(userId, fileIds) {
+        if (!fileIds.length) return new Set();
+        const [rows] = await pool.query(
+            "SELECT source_file_id FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND source_file_id IN (?)",
+            [userId, fileIds],
+        );
+        return new Set(rows.map((row) => row.source_file_id));
+    }
+
+    // Medias locales del usuario con alguno de estos MD5 (posibles duplicados de archivos de Drive).
+    static async findLocalByChecksums(userId, checksums) {
+        if (!checksums.length) return [];
+        const [rows] = await pool.query(
+            `SELECT ${MEDIA_COLUMNS}, checksum_md5 FROM media WHERE user_id = ? AND storage_provider = 'local' AND checksum_md5 IN (?)`,
+            [userId, checksums],
+        );
+        return rows;
     }
 
     static async findByIdForUser(id, userId) {

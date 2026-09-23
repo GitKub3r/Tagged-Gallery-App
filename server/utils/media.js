@@ -6,7 +6,7 @@ const sharp = require("sharp");
 const heicConvert = require("heic-convert");
 const ffmpeg = require("fluent-ffmpeg");
 const ffmpegPath = require("ffmpeg-static");
-const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
+const { MEDIA_UPLOAD_DIR, THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 
 if (ffmpegPath) {
     ffmpeg.setFfmpegPath(ffmpegPath);
@@ -109,6 +109,24 @@ const removeMediaDerivatives = async (mediaFilename) => {
     ]);
 };
 
+// Derivados cacheados de una media de Google Drive (miniatura y preview). El original vive en Drive.
+const getDriveDerivedFilename = (userId, fileId) => `drive-${userId}-${fileId}.jpg`;
+
+// Borra los archivos que Tagged guarda en disco para una media. En las de Drive solo se borran los
+// derivados cacheados: el original nunca se toca y su filename (nombre en Drive) no se usa como ruta.
+const removeStoredMediaFiles = async (media) => {
+    if (media.storage_provider === "google_drive") {
+        const derivedFilename = getDriveDerivedFilename(media.user_id, media.source_file_id);
+        await Promise.all([
+            fs.rm(path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), { force: true }),
+            fs.rm(path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), { force: true }),
+        ]);
+        return;
+    }
+
+    await Promise.all([fs.rm(path.join(MEDIA_UPLOAD_DIR, media.filename), { force: true }), removeMediaDerivatives(media.filename)]);
+};
+
 // MD5 del archivo en streaming (sin cargarlo en memoria). Coincide con md5Checksum de Google Drive
 // y permite detectar duplicados entre medias locales y archivos de Drive.
 const computeFileMd5 = (filePath) =>
@@ -127,5 +145,10 @@ module.exports = {
     createHeicDerivatives,
     generateMediaDerivatives,
     removeMediaDerivatives,
+    removeStoredMediaFiles,
+    getDriveDerivedFilename,
+    writeJpeg,
+    THUMBNAIL_OPTIONS,
+    PREVIEW_OPTIONS,
     getDerivedFilename,
 };

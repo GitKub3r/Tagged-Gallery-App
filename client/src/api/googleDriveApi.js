@@ -19,6 +19,12 @@ export const googleDriveApi = {
     async connect(code) {
         return unwrap(await apiClient.post("/google-drive/connect", { code }));
     },
+    async getPickerToken() {
+        return unwrap(await apiClient.get("/google-drive/picker-token"));
+    },
+    async linkFiles(payload) {
+        return unwrap(await apiClient.post("/google-drive/link", payload));
+    },
     async disconnect() {
         return unwrap(await apiClient.post("/google-drive/disconnect"));
     },

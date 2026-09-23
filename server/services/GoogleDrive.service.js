@@ -1,7 +1,13 @@
+const path = require("path");
+const { drive: createDriveApi } = require("@googleapis/drive");
 const { OAuth2Client } = require("google-auth-library");
 const GoogleDriveConnectionModel = require("../models/GoogleDriveConnection.model");
+const MediaModel = require("../models/Media.model");
 const AuditService = require("./Audit.service");
+const MediaService = require("./Media.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
+const { detectMediaType, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
+const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 
 const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 // drive.file: la app solo accede a los archivos que el usuario elige en el Picker.
@@ -14,6 +20,21 @@ const isConfigured = () =>
 // Con el flujo de código en ventana emergente de Google Identity Services, el redirect_uri es "postmessage".
 const createOAuthClient = () =>
     new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, "postmessage");
+
+const MAX_LINK_FILES = 50;
+const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{10,200}$/;
+const DRIVE_FILE_FIELDS = "id, name, mimeType, size, md5Checksum, modifiedTime, thumbnailLink, trashed";
+const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
+
+const isSupportedDriveMimeType = (mimeType = "") => mimeType.startsWith("image/") || mimeType.startsWith("video/");
+
+const isRevokedGrantError = (error) =>
+    error?.response?.data?.error === "invalid_grant" || String(error?.message || "").includes("invalid_grant");
+
+const getGoogleErrorStatus = (error) => Number(error?.response?.status || error?.code) || null;
+
+// thumbnailLink termina en "=s220"; se pide el tamaño que necesitamos.
+const resizeThumbnailLink = (link, size) => (/=s\d+$/.test(link) ? link.replace(/=s\d+$/, `=s${size}`) : `${link}=s${size}`);
 
 const forbidAdmin = (user) =>
     user.type === "admin" ? { error: "Google Drive is only available for library accounts", status: 403 } : null;
@@ -36,6 +57,182 @@ const toStatus = (connection) => ({
 });
 
 class GoogleDriveService {
+    // Cliente OAuth con el refresh token del usuario. El access token se renueva solo cuando caduca.
+    static async getAuthorizedClient(userId) {
+        if (!isConfigured()) return notConfigured();
+
+        const connection = await GoogleDriveConnectionModel.findByUserId(userId);
+        if (!connection || connection.status !== "connected") {
+            return { error: "Google Drive is not connected", status: 409 };
+        }
+
+        const client = createOAuthClient();
+        client.setCredentials({ refresh_token: decrypt(connection.refresh_token_encrypted) });
+        return { client };
+    }
+
+    // Si Google invalida el acceso (el usuario lo revocó desde su cuenta), la conexión y sus medias pasan a "revoked".
+    static async handleRevokedGrant(error, userId) {
+        if (!isRevokedGrantError(error)) return null;
+        await GoogleDriveConnectionModel.updateStatus(userId, "revoked");
+        await GoogleDriveConnectionModel.markUserMediaStatus(userId, "revoked");
+        return { error: "Google Drive access was revoked. Please reconnect your account.", status: 409 };
+    }
+
+    // Descarga la miniatura que Drive ya genera y la guarda como JPEG local (no se descarga el original).
+    static async cacheDerivative(client, thumbnailLink, size, outputFilePath, resizeOptions, quality) {
+        const response = await client.request({ url: resizeThumbnailLink(thumbnailLink, size), responseType: "arraybuffer" });
+        await writeJpeg(Buffer.from(response.data), outputFilePath, resizeOptions, quality);
+    }
+
+    static async cacheDriveDerivatives(client, driveFile, userId) {
+        const derivedFilename = getDriveDerivedFilename(userId, driveFile.id);
+        const derivatives = { thumbpath: null, previewpath: null };
+        if (!driveFile.thumbnailLink) return derivatives;
+
+        try {
+            await this.cacheDerivative(client, driveFile.thumbnailLink, 640, path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), THUMBNAIL_OPTIONS, 72);
+            derivatives.thumbpath = `/uploads/thumbnails/${derivedFilename}`;
+
+            // Los navegadores no muestran HEIC: se guarda un preview grande generado por Drive.
+            if (HEIC_MIME_TYPES.has(driveFile.mimeType)) {
+                await this.cacheDerivative(client, driveFile.thumbnailLink, 2560, path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), PREVIEW_OPTIONS, 85);
+                derivatives.previewpath = `/uploads/previews/${derivedFilename}`;
+            }
+        } catch (error) {
+            // Drive puede tardar en generar la miniatura de un vídeo recién subido; la media se vincula igualmente.
+            console.warn(`Could not cache Drive thumbnail for ${driveFile.id}:`, error.message);
+        }
+
+        return derivatives;
+    }
+
+    static async getPickerToken(user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+
+        try {
+            const { token } = await client.getAccessToken();
+            return { data: { accessToken: token, expiresAt: client.credentials.expiry_date || null } };
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+    }
+
+    static async linkFiles(body, user, req) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const fileIds = [...new Set(Array.isArray(body?.fileIds) ? body.fileIds : [])];
+        if (fileIds.length === 0 || fileIds.length > MAX_LINK_FILES) {
+            return { error: `Select between 1 and ${MAX_LINK_FILES} Drive files`, status: 400 };
+        }
+        if (!fileIds.every((fileId) => typeof fileId === "string" && DRIVE_FILE_ID_PATTERN.test(fileId))) {
+            return { error: "Invalid Drive file id", status: 400 };
+        }
+
+        const validation = MediaService.validateCommonFields(body);
+        if (!validation.success) return { error: validation.message, status: 400 };
+        const parsedTagNames = MediaService.parseTagNames(body.tag_names);
+        if (!parsedTagNames.success) return { error: parsedTagNames.message, status: 400 };
+
+        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+
+        const result = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
+        const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, fileIds);
+        const now = new Date();
+
+        for (const fileId of fileIds) {
+            if (linkedFileIds.has(fileId)) {
+                result.alreadyLinked.push({ fileId });
+                continue;
+            }
+
+            let driveFile;
+            try {
+                ({ data: driveFile } = await driveApi.files.get({ fileId, fields: DRIVE_FILE_FIELDS, supportsAllDrives: true }));
+            } catch (error) {
+                const revoked = await this.handleRevokedGrant(error, user.id);
+                if (revoked) return revoked;
+                const status = getGoogleErrorStatus(error);
+                if (status === 403 || status === 404) {
+                    result.skipped.push({ fileId, reason: "not_accessible" });
+                    continue;
+                }
+                throw error;
+            }
+
+            if (driveFile.trashed || !isSupportedDriveMimeType(driveFile.mimeType)) {
+                result.skipped.push({ fileId, name: driveFile.name, reason: driveFile.trashed ? "trashed" : "unsupported_type" });
+                continue;
+            }
+
+            // Si ya existe la misma media como archivo local, se ofrece convertirla en lugar de duplicarla.
+            const [localDuplicate] = driveFile.md5Checksum
+                ? await MediaModel.findLocalByChecksums(user.id, [driveFile.md5Checksum])
+                : [];
+            if (localDuplicate) {
+                result.duplicates.push({
+                    driveFile: { id: driveFile.id, name: driveFile.name, mimeType: driveFile.mimeType, size: Number(driveFile.size) || 0 },
+                    media: { id: localDuplicate.id, displayname: localDuplicate.displayname, thumbpath: localDuplicate.thumbpath },
+                });
+                continue;
+            }
+
+            const derivatives = await this.cacheDriveDerivatives(client, driveFile, user.id);
+            let created;
+            try {
+                created = await MediaModel.create({
+                    user_id: user.id,
+                    displayname: MediaService.normalizeOptionalText(body.displayname),
+                    author: MediaService.normalizeOptionalText(body.author),
+                    filename: driveFile.name,
+                    size: Number(driveFile.size) || 0,
+                    // Ruta interna virtual: el original se sirve desde Drive, nunca desde el disco.
+                    filepath: `/uploads/drive/${user.id}-${driveFile.id}`,
+                    thumbpath: derivatives.thumbpath,
+                    previewpath: derivatives.previewpath,
+                    mediatype: detectMediaType(driveFile.mimeType, driveFile.name),
+                    is_favourite: validation.isFavourite,
+                    checksum_md5: driveFile.md5Checksum || null,
+                    storage_provider: "google_drive",
+                    source_file_id: driveFile.id,
+                    source_mime_type: driveFile.mimeType,
+                    source_modified_time: driveFile.modifiedTime ? new Date(driveFile.modifiedTime) : null,
+                    last_synced_at: now,
+                });
+            } catch (error) {
+                // Otra petición simultánea lo vinculó antes (índice único usuario + archivo de Drive).
+                if (error.code === "ER_DUP_ENTRY") {
+                    result.alreadyLinked.push({ fileId });
+                    continue;
+                }
+                throw error;
+            }
+            await MediaService.attachTagsToMedia(created.id, parsedTagNames.data, user.id);
+            result.linked.push({ id: created.id, name: driveFile.name });
+        }
+
+        if (result.linked.length > 0) {
+            await AuditService.logEvent({
+                actionCode: "GOOGLE_DRIVE_LINK",
+                req,
+                statusCode: 201,
+                message: `Linked ${result.linked.length} Google Drive file(s)`,
+                metadata: { mediaIds: result.linked.map((item) => item.id) },
+            });
+        }
+
+        return { data: result };
+    }
+
     static async getStatus(user) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;
