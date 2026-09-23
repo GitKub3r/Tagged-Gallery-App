@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { googleDriveApi, googleDriveQueryKeys } from "../api/googleDriveApi";
 import { galleryQueryKeys } from "../api/galleryApi";
@@ -196,6 +196,17 @@ export const useDrivePicker = (config, { allowFolders = false } = {}) => {
     return { openPicker, isOpening };
 };
 
+// Una carpeta, vista o búsqueda del explorador de Drive, página a página.
+export const useDriveBrowse = ({ view, folderId, search }) =>
+    useInfiniteQuery({
+        queryKey: googleDriveQueryKeys.browse({ view, folderId, search }),
+        queryFn: ({ pageParam }) => googleDriveApi.browse({ view, folderId, search, pageToken: pageParam }),
+        initialPageParam: null,
+        getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+        // Las URLs de miniatura firmadas duran horas; basta con refrescar al volver a abrir la carpeta pasado un rato.
+        staleTime: 60 * 1000,
+    });
+
 // Convierte la selección del Picker (con carpetas) en la lista de fotos y vídeos, recorriendo subcarpetas.
 export const useExpandDriveSelection = () =>
     useMutation({
@@ -274,6 +285,8 @@ export const useLinkDriveFiles = () => {
             queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: tagNameQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.summaryAll });
+            // El explorador marca qué archivos ya están en la biblioteca.
+            queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.browseAll });
         },
     });
 

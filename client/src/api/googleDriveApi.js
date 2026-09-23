@@ -13,6 +13,8 @@ export const googleDriveQueryKeys = {
     summaryAll: ["google-drive", "summary"],
     summary: (userId) => ["google-drive", "summary", userId],
     preview: (fileId) => ["google-drive", "preview", fileId],
+    browseAll: ["google-drive", "browse"],
+    browse: ({ view, folderId, search }) => ["google-drive", "browse", view, folderId || null, search || ""],
 };
 
 export const googleDriveApi = {
@@ -27,6 +29,9 @@ export const googleDriveApi = {
     },
     async getPickerToken() {
         return unwrap(await apiClient.get("/google-drive/picker-token"));
+    },
+    async browse({ view, folderId, search, pageToken }) {
+        return unwrap(await apiClient.get("/google-drive/browse", { params: { view, folderId: folderId || undefined, search: search || undefined, pageToken: pageToken || undefined } }));
     },
     async expandSelection(items) {
         return unwrap(await apiClient.post("/google-drive/expand", { items }));

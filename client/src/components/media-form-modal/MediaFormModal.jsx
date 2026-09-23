@@ -29,19 +29,25 @@ const MediaSuggestionList = ({ items, activeIndex, onSelect }) => {
     );
 };
 
-export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisabled = false, compact = false, children }) => {
+// layer="nested": modal abierto desde otro modal (z-[1300]). Atiende Escape antes que el modal de debajo
+// (fase de captura) y lo marca como gestionado para que solo se cierre el de arriba.
+export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisabled = false, compact = false, layer = "base", children }) => {
+    const isNested = layer === "nested";
+
     useEffect(() => {
         const handleKeyDown = (event) => {
-            if (event.key === "Escape" && !event.defaultPrevented && !closeDisabled) onClose();
+            if (event.key !== "Escape" || event.defaultPrevented) return;
+            if (isNested) event.preventDefault();
+            if (!closeDisabled) onClose();
         };
 
-        window.addEventListener("keydown", handleKeyDown);
-        return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [closeDisabled, onClose]);
+        window.addEventListener("keydown", handleKeyDown, isNested);
+        return () => window.removeEventListener("keydown", handleKeyDown, isNested);
+    }, [closeDisabled, isNested, onClose]);
 
     return createPortal(
         <div
-        className="fixed inset-0 z-[1200] flex items-center justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:p-4"
+        className={`fixed inset-0 ${isNested ? "z-[1300]" : "z-[1200]"} flex items-center justify-center overflow-hidden bg-black/70 p-2 backdrop-blur-sm sm:p-4`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

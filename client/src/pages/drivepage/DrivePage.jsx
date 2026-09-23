@@ -11,14 +11,13 @@ import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoad
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { useDevTools } from "../../hooks/useDevTools";
 import {
-    DRIVE_FOLDER_MIME_TYPE,
     useConnectGoogleDrive,
     useDisconnectGoogleDrive,
-    useDrivePicker,
     useExpandDriveSelection,
     useGoogleDriveStatus,
     useGoogleDriveSummary,
 } from "../../hooks/useGoogleDrive";
+import { DriveBrowserModal } from "./components/DriveBrowserModal";
 import { DriveConnectionDetails } from "./components/DriveConnectionDetails";
 import { DriveHero } from "./components/DriveHero";
 import { DriveHowItWorks } from "./components/DriveHowItWorks";
@@ -49,25 +48,24 @@ export const DrivePage = () => {
     const summary = summaryQuery.data;
     const { connect, isReady, isConnecting } = useConnectGoogleDrive(status?.configured ? status.config : null);
     const disconnectMutation = useDisconnectGoogleDrive();
-    const { openPicker, isOpening } = useDrivePicker(status?.config, { allowFolders: status?.grantedAccess === "readonly" });
     const expandMutation = useExpandDriveSelection();
     const [isDisconnectOpen, setIsDisconnectOpen] = useState(false);
+    const [isBrowserOpen, setIsBrowserOpen] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState([]);
 
-    const selectFromDrive = async () => {
-        const picked = await openPicker();
-        if (picked.length === 0) return;
-        if (!picked.some((item) => item.mimeType === DRIVE_FOLDER_MIME_TYPE)) {
-            setSelectedFiles(picked);
+    // Las carpetas elegidas se convierten en sus fotos y vídeos (con subcarpetas) antes de revisar la selección.
+    const confirmBrowserSelection = (items) => {
+        const applyFiles = (files) => {
+            if (files.length === 0) return;
+            setSelectedFiles(files);
+            setIsBrowserOpen(false);
+        };
+        if (!items.some((item) => item.isFolder)) {
+            applyFiles(items.map((item) => ({ id: item.id, name: item.name, mimeType: item.mimeType, sizeBytes: item.size })));
             return;
         }
-        expandMutation.mutate(picked, {
-            onSuccess: ({ files }) => {
-                if (files.length > 0) setSelectedFiles(files);
-            },
-        });
+        expandMutation.mutate(items, { onSuccess: ({ files }) => applyFiles(files) });
     };
-    const isSelecting = isOpening || expandMutation.isPending;
 
     if (forceLoading || statusQuery.isPending) {
         return <section className="tagged-app-page"><PageLoadingSkeleton variant="detail" ariaLabel="Loading Google Drive" /></section>;
@@ -78,9 +76,9 @@ export const DrivePage = () => {
 
     const heroState = getHeroState(status);
     const heroAction = status.connected ? (
-        <button type="button" className={buttonClasses.primary} onClick={selectFromDrive} disabled={isSelecting}>
+        <button type="button" className={buttonClasses.primary} onClick={() => setIsBrowserOpen(true)} disabled={status.needsReconnect}>
             <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
-            {expandMutation.isPending ? "Reading folders..." : isOpening ? "Opening Drive..." : "Select from Drive"}
+            Select from Drive
         </button>
     ) : status.configured ? (
         <button type="button" className={buttonClasses.primary} onClick={() => !isConnecting && connect()} disabled={!isReady || isConnecting}>
@@ -146,7 +144,7 @@ export const DrivePage = () => {
                             {summary?.recent.length ? (
                                 <DriveRecentMedia media={summary.recent} />
                             ) : summary ? (
-                                <EmptyState title="Nothing added from Drive yet" icon={faGoogleDrive} placement="section" actionLabel="Select from Drive" onAction={selectFromDrive} />
+                                <EmptyState title="Nothing added from Drive yet" icon={faGoogleDrive} placement="section" actionLabel="Select from Drive" onAction={() => setIsBrowserOpen(true)} />
                             ) : (
                                 <StatsSkeleton />
                             )}
@@ -169,7 +167,17 @@ export const DrivePage = () => {
                 )}
             </div>
 
-            {selectedFiles.length > 0 ? <DriveUploadModal files={selectedFiles} onChangeFiles={selectFromDrive} onClose={() => setSelectedFiles([])} /> : null}
+            {selectedFiles.length > 0 ? <DriveUploadModal files={selectedFiles} onChangeFiles={() => setIsBrowserOpen(true)} onClose={() => setSelectedFiles([])} /> : null}
+
+            {isBrowserOpen ? (
+                <DriveBrowserModal
+                    initialSelection={selectedFiles}
+                    layer={selectedFiles.length > 0 ? "nested" : "base"}
+                    isConfirming={expandMutation.isPending}
+                    onConfirm={confirmBrowserSelection}
+                    onClose={() => setIsBrowserOpen(false)}
+                />
+            ) : null}
 
             <DeleteConfirmationModal
                 isOpen={isDisconnectOpen}
