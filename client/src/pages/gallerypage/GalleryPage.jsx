@@ -29,6 +29,7 @@ import { uploadMedia } from "../../api/mediaUploadRequest";
 import { applyTemplate } from "../../utils/applyTemplate";
 import { galleryApi, galleryQueryKeys } from "../../api/galleryApi";
 import { MediaCard } from "../../components/media-card/MediaCard";
+import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
@@ -377,6 +378,7 @@ export const GalleryListItem = ({
                         <FontAwesomeIcon icon={faTag} aria-hidden="true" />
                         {mediaTagCount}
                     </span>
+                    <MediaSourceBadge media={media} withSeparator />
                 </p>
             </div>
 

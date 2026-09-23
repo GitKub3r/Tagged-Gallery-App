@@ -17,6 +17,8 @@ import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { formatMediaSize } from "../../utils/mediaFormat";
 import "./MediaDetailPage.css";
+import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
+import { isDriveMedia } from "../../utils/mediaSource";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -2239,6 +2241,11 @@ export const MediaDetailPage = () => {
                                     <span className="tagged-media-detail-desktop-tag tagged-media-detail-desktop-tag--meta">
                                         {formatMediaSize(currentMedia.size)}
                                     </span>
+                                    {isDriveMedia(currentMedia) ? (
+                                        <span className="tagged-media-detail-desktop-tag tagged-media-detail-desktop-tag--meta">
+                                            <MediaSourceBadge media={currentMedia} withLabel />
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <div className="tagged-media-detail-desktop-top-right">
                                     <h1 className="tagged-media-detail-desktop-name" title={currentMedia.displayname || "Undefined"}>{currentMedia.displayname || "Undefined"}</h1>
@@ -2421,8 +2428,9 @@ export const MediaDetailPage = () => {
                         </div>
 
                         <div className="tagged-media-detail-mobile-meta-row">
-                            <p className="tagged-media-detail-upload-date">
-                                {formatUploadDate(currentMedia.updatedAt)}
+                            <p className="tagged-media-detail-upload-date flex flex-wrap items-center gap-2">
+                                <span>{formatUploadDate(currentMedia.updatedAt)}</span>
+                                <MediaSourceBadge media={currentMedia} withLabel withSeparator />
                             </p>
                         </div>
                     </header>

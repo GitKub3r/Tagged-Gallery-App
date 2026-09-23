@@ -343,6 +343,8 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
 - **Contador o badge neutro:** `rounded-full bg-neutral-200 px-2 text-xs font-bold tabular-nums dark:bg-neutral-800`.
 - **Incluir / excluir tag en filtros:** botones `h-7 w-7 rounded-xl border`. Incluir activo en invertido; excluir activo en `border-red-500/50 bg-red-500/15 text-red-500`, con iconos `faPlus` y `faMinus`.
 
+**Origen de la media:** `MediaSourceBadge` marca las medias cuyo original vive en Google Drive (`isDriveMedia` en `utils/mediaSource.js`). En tarjetas y listas es solo el icono `faGoogleDrive`, al final de la línea de metadatos (`autor · tags · icono`) con `withSeparator`, heredando tamaño y color, con `title` y texto `sr-only`. En el detalle va con etiqueta (`withLabel`): como chip junto al autor y el tamaño en escritorio, y tras la fecha en móvil. No se añaden badges ni colores nuevos para el origen.
+
 ### 7.5 Modales
 
 Todos los modales:
