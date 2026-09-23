@@ -46,6 +46,10 @@ const getGoogleErrorStatus = (error) => Number(error?.response?.status || error?
 const resizeThumbnailLink = (link, size) => (/=s\d+$/.test(link) ? link.replace(/=s\d+$/, `=s${size}`) : `${link}=s${size}`);
 
 const PREVIEW_SIZE = 1280;
+const LINK_CONCURRENCY = 4;
+// Máximo de archivos que se añaden de una vez al expandir carpetas elegidas en el Picker.
+const MAX_FOLDER_EXPANSION = 500;
+const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 const PREVIEW_CONCURRENCY = 6;
 
 const parseFileIds = (rawFileIds) => {
@@ -233,6 +237,138 @@ class GoogleDriveService {
         }
     }
 
+    // Convierte la selección del Picker (archivos y carpetas) en la lista de fotos y vídeos a añadir.
+    // Las carpetas se recorren con sus subcarpetas y el total se limita a MAX_FOLDER_EXPANSION.
+    static async expandSelection(body, user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const items = Array.isArray(body?.items) ? body.items : [];
+        if (items.length === 0 || items.length > MAX_LINK_FILES) {
+            return { error: `Select between 1 and ${MAX_LINK_FILES} Drive items`, status: 400 };
+        }
+        if (!items.every((item) => typeof item?.id === "string" && DRIVE_FILE_ID_PATTERN.test(item.id))) {
+            return { error: "Invalid Drive file id", status: 400 };
+        }
+
+        const folderIds = items.filter((item) => item.mimeType === DRIVE_FOLDER_MIME_TYPE).map((item) => item.id);
+        const connection = await GoogleDriveConnectionModel.findByUserId(user.id);
+        if (folderIds.length > 0 && !String(connection?.scopes || "").split(" ").includes(DRIVE_SCOPES.readonly)) {
+            return { error: "Adding whole folders needs read-only access to your Drive. Reconnect Google Drive and try again.", status: 409 };
+        }
+
+        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+
+        const files = [];
+        const seenFileIds = new Set();
+        let truncated = false;
+        const addFile = (file) => {
+            if (seenFileIds.has(file.id) || !isSupportedDriveMimeType(file.mimeType)) return;
+            if (files.length >= MAX_FOLDER_EXPANSION) {
+                truncated = true;
+                return;
+            }
+            seenFileIds.add(file.id);
+            files.push({ id: file.id, name: file.name, mimeType: file.mimeType, sizeBytes: Number(file.size ?? file.sizeBytes) || 0 });
+        };
+
+        items.filter((item) => item.mimeType !== DRIVE_FOLDER_MIME_TYPE).forEach(addFile);
+
+        const pendingFolders = [...folderIds];
+        const visitedFolders = new Set();
+        try {
+            while (pendingFolders.length > 0 && !truncated) {
+                const folderId = pendingFolders.shift();
+                if (visitedFolders.has(folderId)) continue;
+                visitedFolders.add(folderId);
+
+                let pageToken;
+                do {
+                    const { data } = await driveApi.files.list({
+                        q: `'${folderId}' in parents and trashed = false and (mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or mimeType contains 'image/' or mimeType contains 'video/')`,
+                        fields: "nextPageToken, files(id, name, mimeType, size)",
+                        orderBy: "folder, name",
+                        pageSize: 1000,
+                        pageToken,
+                        supportsAllDrives: true,
+                        includeItemsFromAllDrives: true,
+                    });
+                    (data.files || []).forEach((file) => (file.mimeType === DRIVE_FOLDER_MIME_TYPE ? pendingFolders.push(file.id) : addFile(file)));
+                    pageToken = data.nextPageToken;
+                } while (pageToken && !truncated);
+            }
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+
+        return { data: { files, truncated, limit: MAX_FOLDER_EXPANSION } };
+    }
+
+    // Vincula un archivo de Drive como media. Devuelve en qué grupo del resultado va (linked, duplicates...).
+    static async linkSingleFile(fileId, { client, driveApi, user, body, isFavourite, tagNames, now }) {
+        let driveFile;
+        try {
+            ({ data: driveFile } = await driveApi.files.get({ fileId, fields: DRIVE_FILE_FIELDS, supportsAllDrives: true }));
+        } catch (error) {
+            const status = getGoogleErrorStatus(error);
+            if (!isRevokedGrantError(error) && (status === 403 || status === 404)) {
+                return { type: "skipped", item: { fileId, reason: "not_accessible" } };
+            }
+            throw error;
+        }
+
+        if (driveFile.trashed || !isSupportedDriveMimeType(driveFile.mimeType)) {
+            return { type: "skipped", item: { fileId, name: driveFile.name, reason: driveFile.trashed ? "trashed" : "unsupported_type" } };
+        }
+
+        // Si ya existe la misma media como archivo local, no se duplica.
+        const [localDuplicate] = driveFile.md5Checksum ? await MediaModel.findLocalByChecksums(user.id, [driveFile.md5Checksum]) : [];
+        if (localDuplicate) {
+            return {
+                type: "duplicates",
+                item: {
+                    driveFile: { id: driveFile.id, name: driveFile.name, mimeType: driveFile.mimeType, size: Number(driveFile.size) || 0 },
+                    media: { id: localDuplicate.id, displayname: localDuplicate.displayname, thumbpath: localDuplicate.thumbpath },
+                },
+            };
+        }
+
+        const derivatives = await this.cacheDriveDerivatives(client, driveFile, user.id);
+        let created;
+        try {
+            created = await MediaModel.create({
+                user_id: user.id,
+                displayname: MediaService.normalizeOptionalText(body.displayname),
+                author: MediaService.normalizeOptionalText(body.author),
+                filename: driveFile.name,
+                size: Number(driveFile.size) || 0,
+                // Ruta interna virtual: el original se sirve desde Drive, nunca desde el disco.
+                filepath: `/uploads/drive/${user.id}-${driveFile.id}`,
+                thumbpath: derivatives.thumbpath,
+                previewpath: derivatives.previewpath,
+                mediatype: detectMediaType(driveFile.mimeType, driveFile.name),
+                is_favourite: isFavourite,
+                checksum_md5: driveFile.md5Checksum || null,
+                storage_provider: "google_drive",
+                source_file_id: driveFile.id,
+                source_mime_type: driveFile.mimeType,
+                source_modified_time: driveFile.modifiedTime ? new Date(driveFile.modifiedTime) : null,
+                last_synced_at: now,
+            });
+        } catch (error) {
+            // Otra petición simultánea lo vinculó antes (índice único usuario + archivo de Drive).
+            if (error.code === "ER_DUP_ENTRY") return { type: "alreadyLinked", item: { fileId } };
+            throw error;
+        }
+
+        await MediaService.attachTagsToMedia(created.id, tagNames, user.id);
+        return { type: "linked", item: { id: created.id, name: driveFile.name } };
+    }
+
     static async linkFiles(body, user, req) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;
@@ -251,77 +387,17 @@ class GoogleDriveService {
 
         const result = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
         const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, fileIds);
-        const now = new Date();
+        const context = { client, driveApi, user, body, isFavourite: validation.isFavourite, tagNames: parsedTagNames.data, now: new Date() };
 
-        for (const fileId of fileIds) {
-            if (linkedFileIds.has(fileId)) {
-                result.alreadyLinked.push({ fileId });
-                continue;
-            }
-
-            let driveFile;
-            try {
-                ({ data: driveFile } = await driveApi.files.get({ fileId, fields: DRIVE_FILE_FIELDS, supportsAllDrives: true }));
-            } catch (error) {
-                const revoked = await this.handleRevokedGrant(error, user.id);
-                if (revoked) return revoked;
-                const status = getGoogleErrorStatus(error);
-                if (status === 403 || status === 404) {
-                    result.skipped.push({ fileId, reason: "not_accessible" });
-                    continue;
-                }
-                throw error;
-            }
-
-            if (driveFile.trashed || !isSupportedDriveMimeType(driveFile.mimeType)) {
-                result.skipped.push({ fileId, name: driveFile.name, reason: driveFile.trashed ? "trashed" : "unsupported_type" });
-                continue;
-            }
-
-            // Si ya existe la misma media como archivo local, se ofrece convertirla en lugar de duplicarla.
-            const [localDuplicate] = driveFile.md5Checksum
-                ? await MediaModel.findLocalByChecksums(user.id, [driveFile.md5Checksum])
-                : [];
-            if (localDuplicate) {
-                result.duplicates.push({
-                    driveFile: { id: driveFile.id, name: driveFile.name, mimeType: driveFile.mimeType, size: Number(driveFile.size) || 0 },
-                    media: { id: localDuplicate.id, displayname: localDuplicate.displayname, thumbpath: localDuplicate.thumbpath },
-                });
-                continue;
-            }
-
-            const derivatives = await this.cacheDriveDerivatives(client, driveFile, user.id);
-            let created;
-            try {
-                created = await MediaModel.create({
-                    user_id: user.id,
-                    displayname: MediaService.normalizeOptionalText(body.displayname),
-                    author: MediaService.normalizeOptionalText(body.author),
-                    filename: driveFile.name,
-                    size: Number(driveFile.size) || 0,
-                    // Ruta interna virtual: el original se sirve desde Drive, nunca desde el disco.
-                    filepath: `/uploads/drive/${user.id}-${driveFile.id}`,
-                    thumbpath: derivatives.thumbpath,
-                    previewpath: derivatives.previewpath,
-                    mediatype: detectMediaType(driveFile.mimeType, driveFile.name),
-                    is_favourite: validation.isFavourite,
-                    checksum_md5: driveFile.md5Checksum || null,
-                    storage_provider: "google_drive",
-                    source_file_id: driveFile.id,
-                    source_mime_type: driveFile.mimeType,
-                    source_modified_time: driveFile.modifiedTime ? new Date(driveFile.modifiedTime) : null,
-                    last_synced_at: now,
-                });
-            } catch (error) {
-                // Otra petición simultánea lo vinculó antes (índice único usuario + archivo de Drive).
-                if (error.code === "ER_DUP_ENTRY") {
-                    result.alreadyLinked.push({ fileId });
-                    continue;
-                }
-                throw error;
-            }
-            await MediaService.attachTagsToMedia(created.id, parsedTagNames.data, user.id);
-            result.linked.push({ id: created.id, name: driveFile.name });
+        try {
+            const outcomes = await mapWithConcurrency(fileIds, LINK_CONCURRENCY, (fileId) =>
+                linkedFileIds.has(fileId) ? { type: "alreadyLinked", item: { fileId } } : this.linkSingleFile(fileId, context),
+            );
+            outcomes.forEach(({ type, item }) => result[type].push(item));
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
         }
 
         if (result.linked.length > 0) {

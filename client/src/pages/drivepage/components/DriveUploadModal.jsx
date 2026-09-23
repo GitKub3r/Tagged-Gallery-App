@@ -11,7 +11,8 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
     const { metadata, tagNames, tagColorByName, tagTypeByName } = useMetadata();
     const form = useMediaMetadataForm({ metadata, tagNames });
     const [markFavourite, setMarkFavourite] = useState(false);
-    const previewQueries = useDrivePreviews(files.map((file) => file.id));
+    const [activeIndex, setActiveIndex] = useState(0);
+    const previewQueries = useDrivePreviews(files.map((file) => file.id), activeIndex);
     const linkMutation = useLinkDriveFiles();
     const { processed, total } = linkMutation.progress;
 
@@ -24,8 +25,8 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
             dimensions: preview?.dimensions || null,
         };
     });
-    // undefined mientras carga, "" si Drive no tiene vista previa.
-    const previewUrls = previewQueries.map((query) => (query.isPending ? undefined : query.data?.thumbnail || ""));
+    // undefined mientras carga (o aún no se ha pedido), "" si Drive no tiene vista previa.
+    const previewUrls = previewQueries.map((query) => (query.isSuccess ? query.data?.thumbnail || "" : query.isError ? "" : undefined));
 
     const handleSubmit = (event) => {
         event.preventDefault();
@@ -59,6 +60,7 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
             onClose={() => !linkMutation.isPending && onClose()}
             onCancelUpload={linkMutation.stop}
             onChangeFiles={onChangeFiles}
+            onActiveIndexChange={setActiveIndex}
             onSubmit={handleSubmit}
             onApplyTemplate={(template) => {
                 const applied = applyTemplate(template, { displayname: form.displayName, author: form.author, tags: form.tags });

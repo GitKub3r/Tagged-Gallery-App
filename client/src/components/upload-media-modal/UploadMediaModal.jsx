@@ -84,6 +84,7 @@ export const UploadMediaModal = ({
     onRemoveTag,
     getTagStyle,
     onApplyTemplate,
+    onActiveIndexChange,
 }) => {
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -115,6 +116,11 @@ export const UploadMediaModal = ({
 
         return `${totalFiles} files selected`;
     }, [files, totalFiles]);
+
+    // Permite al contenedor cargar bajo demanda la vista previa del archivo que se está viendo.
+    useEffect(() => {
+        onActiveIndexChange?.(safePreviewIndex);
+    }, [onActiveIndexChange, safePreviewIndex]);
 
     const goToPreviousPreview = () => {
         setPreviewIndex((current) => Math.max(0, current - 1));

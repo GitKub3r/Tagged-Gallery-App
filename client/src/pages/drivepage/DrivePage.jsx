@@ -7,7 +7,7 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { useDevTools } from "../../hooks/useDevTools";
-import { useConnectGoogleDrive, useDisconnectGoogleDrive, useDrivePicker, useGoogleDriveStatus } from "../../hooks/useGoogleDrive";
+import { DRIVE_FOLDER_MIME_TYPE, useConnectGoogleDrive, useDisconnectGoogleDrive, useDrivePicker, useExpandDriveSelection, useGoogleDriveStatus } from "../../hooks/useGoogleDrive";
 import { DriveConnectionCard } from "./components/DriveConnectionCard";
 import { DriveUploadModal } from "./components/DriveUploadModal";
 
@@ -31,14 +31,25 @@ export const DrivePage = () => {
     const status = statusQuery.data;
     const { connect, isReady, isConnecting } = useConnectGoogleDrive(status?.configured ? status.config : null);
     const disconnectMutation = useDisconnectGoogleDrive();
-    const { openPicker, isOpening } = useDrivePicker(status?.config);
+    const { openPicker, isOpening } = useDrivePicker(status?.config, { allowFolders: status?.grantedAccess === "readonly" });
+    const expandMutation = useExpandDriveSelection();
     const [isDisconnectOpen, setIsDisconnectOpen] = useState(false);
     const [selectedFiles, setSelectedFiles] = useState([]);
 
     const selectFromDrive = async () => {
-        const files = await openPicker();
-        if (files.length > 0) setSelectedFiles(files);
+        const picked = await openPicker();
+        if (picked.length === 0) return;
+        if (!picked.some((item) => item.mimeType === DRIVE_FOLDER_MIME_TYPE)) {
+            setSelectedFiles(picked);
+            return;
+        }
+        expandMutation.mutate(picked, {
+            onSuccess: ({ files }) => {
+                if (files.length > 0) setSelectedFiles(files);
+            },
+        });
     };
+    const isSelecting = isOpening || expandMutation.isPending;
 
     if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced Google Drive loading preview" /></section>;
 
@@ -57,10 +68,10 @@ export const DrivePage = () => {
                         type="button"
                         className="inline-flex h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl border-0 bg-neutral-950 px-4 text-sm font-bold text-white shadow-none transition-colors hover:bg-neutral-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-white sm:w-auto"
                         onClick={selectFromDrive}
-                        disabled={isOpening}
+                        disabled={isSelecting}
                     >
                         <FontAwesomeIcon icon={faPlus} aria-hidden="true" />
-                        {isOpening ? "Opening Drive..." : "Select from Drive"}
+                        {expandMutation.isPending ? "Reading folders..." : isOpening ? "Opening Drive..." : "Select from Drive"}
                     </button>
                 ) : null}
             </header>

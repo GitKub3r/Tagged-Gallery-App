@@ -23,6 +23,9 @@ export const googleDriveApi = {
     async getPickerToken() {
         return unwrap(await apiClient.get("/google-drive/picker-token"));
     },
+    async expandSelection(items) {
+        return unwrap(await apiClient.post("/google-drive/expand", { items }));
+    },
     async getPreviews(fileIds) {
         return unwrap(await apiClient.post("/google-drive/previews", { fileIds }));
     },

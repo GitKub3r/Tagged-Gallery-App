@@ -35,6 +35,14 @@ class GoogleDriveController {
         }
     }
 
+    static async expandSelection(req, res) {
+        try {
+            return sendResult(res, await GoogleDriveService.expandSelection(req.body, req.user));
+        } catch (error) {
+            return handleError(error, res);
+        }
+    }
+
     static async getPreviews(req, res) {
         try {
             return sendResult(res, await GoogleDriveService.getPreviews(req.body, req.user));

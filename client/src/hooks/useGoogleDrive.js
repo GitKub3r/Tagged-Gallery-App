@@ -11,6 +11,7 @@ import { useAuth } from "./useAuth";
 const GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
 const GOOGLE_API_SCRIPT = "https://apis.google.com/js/api.js";
 export const MAX_DRIVE_SELECTION = 50;
+export const DRIVE_FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
 const loadPickerLibrary = async () => {
     await loadScript(GOOGLE_API_SCRIPT);
@@ -111,7 +112,8 @@ export const useDisconnectGoogleDrive = () => {
 
 // Abre el Google Picker (solo fotos y vídeos, selección múltiple) y devuelve los archivos elegidos.
 // Con el permiso drive.file, elegir un archivo aquí es lo que da acceso a Tagged a ese archivo.
-export const useDrivePicker = (config) => {
+// allowFolders: con acceso de solo lectura a todo el Drive se pueden elegir carpetas enteras.
+export const useDrivePicker = (config, { allowFolders = false } = {}) => {
     const [isOpening, setIsOpening] = useState(false);
 
     const openPicker = useCallback(async () => {
@@ -127,7 +129,7 @@ export const useDrivePicker = (config) => {
                     .setLabel("My Drive")
                     .setParent("root")
                     .setIncludeFolders(true)
-                    .setSelectFolderEnabled(false)
+                    .setSelectFolderEnabled(allowFolders)
                     .setMode(picker.DocsViewMode.GRID);
                 const allMediaView = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
                     .setLabel("All photos and videos")
@@ -139,7 +141,7 @@ export const useDrivePicker = (config) => {
                     .setOAuthToken(accessToken)
                     .setDeveloperKey(config.apiKey)
                     .setOrigin(window.location.origin)
-                    .setTitle("Select photos and videos")
+                    .setTitle(allowFolders ? "Select photos, videos or folders" : "Select photos and videos")
                     .addView(folderView)
                     .addView(allMediaView)
                     .enableFeature(picker.Feature.MULTISELECT_ENABLED)
@@ -168,23 +170,38 @@ export const useDrivePicker = (config) => {
         } finally {
             setIsOpening(false);
         }
-    }, [config?.appId, config?.apiKey]);
+    }, [config?.appId, config?.apiKey, allowFolders]);
 
     return { openPicker, isOpening };
 };
 
-// Vista previa de cada archivo elegido, pedida por separado para mostrarlas según van llegando.
-export const useDrivePreviews = (fileIds) =>
+// Convierte la selección del Picker (con carpetas) en la lista de fotos y vídeos, recorriendo subcarpetas.
+export const useExpandDriveSelection = () =>
+    useMutation({
+        mutationFn: googleDriveApi.expandSelection,
+        onSuccess: ({ files, truncated, limit }) => {
+            if (files.length === 0) toast.info("No photos or videos found in the selected folders");
+            else if (truncated) toast.info(`Only the first ${limit} files were selected`, { description: "Add the rest in another round." });
+        },
+    });
+
+const PREVIEW_WINDOW_BEFORE = 1;
+const PREVIEW_WINDOW_AFTER = 3;
+
+// Vista previa de cada archivo elegido. Solo se piden las cercanas al archivo que se está viendo,
+// para no lanzar cientos de peticiones al elegir carpetas grandes; las ya cargadas quedan en caché.
+export const useDrivePreviews = (fileIds, activeIndex = 0) =>
     useQueries({
-        queries: fileIds.map((fileId) => ({
+        queries: fileIds.map((fileId, index) => ({
             queryKey: googleDriveQueryKeys.preview(fileId),
             queryFn: async () => (await googleDriveApi.getPreviews([fileId]))[0],
+            enabled: index >= activeIndex - PREVIEW_WINDOW_BEFORE && index <= activeIndex + PREVIEW_WINDOW_AFTER,
             staleTime: Infinity,
             gcTime: 5 * 60 * 1000,
         })),
     });
 
-const LINK_BATCH_SIZE = 5;
+const LINK_BATCH_SIZE = 10;
 const EMPTY_LINK_RESULT = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
 
 const pluralize = (count, word) => `${count} ${count === 1 ? word : `${word}s`}`;
