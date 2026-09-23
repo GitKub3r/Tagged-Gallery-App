@@ -121,9 +121,17 @@ export const useDrivePicker = (config) => {
             const { picker } = window.google;
 
             return await new Promise((resolve) => {
-                const view = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
+                // Sin setParent, setIncludeFolders lista todas las carpetas de Drive en plano;
+                // con "root" se navega por carpetas igual que en Drive.
+                const folderView = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
+                    .setLabel("My Drive")
+                    .setParent("root")
                     .setIncludeFolders(true)
                     .setSelectFolderEnabled(false)
+                    .setMode(picker.DocsViewMode.GRID);
+                const allMediaView = new picker.DocsView(picker.ViewId.DOCS_IMAGES_AND_VIDEOS)
+                    .setLabel("All photos and videos")
+                    .setIncludeFolders(false)
                     .setMode(picker.DocsViewMode.GRID);
 
                 new picker.PickerBuilder()
@@ -132,7 +140,8 @@ export const useDrivePicker = (config) => {
                     .setDeveloperKey(config.apiKey)
                     .setOrigin(window.location.origin)
                     .setTitle("Select photos and videos")
-                    .addView(view)
+                    .addView(folderView)
+                    .addView(allMediaView)
                     .enableFeature(picker.Feature.MULTISELECT_ENABLED)
                     .setMaxItems(MAX_DRIVE_SELECTION)
                     .setCallback((data) => {
