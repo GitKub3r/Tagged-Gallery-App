@@ -118,6 +118,26 @@ CREATE TABLE tags (
 );
 
 -- =========================
+-- MEDIA METADATA TEMPLATES
+-- =========================
+CREATE TABLE media_templates (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    displayname VARCHAR(255) NOT NULL DEFAULT '',
+    author VARCHAR(100) NOT NULL DEFAULT '',
+    tag_names JSON NOT NULL,
+    mark_favourite BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_template_name (user_id, name),
+    INDEX idx_media_templates_user_id (user_id),
+    CONSTRAINT fk_media_templates_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- =========================
 -- TAG + MEDIA RELATION
 -- =========================
 CREATE TABLE media_tags (

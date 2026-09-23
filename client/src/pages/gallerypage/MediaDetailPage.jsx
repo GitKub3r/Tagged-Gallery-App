@@ -2007,6 +2007,7 @@ export const MediaDetailPage = () => {
                     displayname: String(payload?.displayname || "").trim(),
                     author: String(payload?.author || "").trim(),
                     tag_names: JSON.stringify(Array.isArray(payload?.tags) ? payload.tags : []),
+                    ...(payload?.markFavourite ? { is_favourite: true } : {}),
                 }),
             });
 

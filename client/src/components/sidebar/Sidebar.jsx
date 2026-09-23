@@ -7,6 +7,7 @@ import {
     faBars,
     faChartColumn,
     faCloudArrowUp,
+    faCopy,
     faCode,
     faFolderOpen,
     faHeart,
@@ -38,6 +39,7 @@ const navItems = [
     { label: "Favourites", path: "/favourites", icon: faHeart },
     { label: "Albums", path: "/albums", icon: faFolderOpen },
     { label: "Metadata", path: "/metadata", icon: faTags },
+    { label: "Templates", path: "/templates", icon: faCopy },
     { label: "Dashboard", path: "/dashboard", icon: faChartColumn },
 ];
 
@@ -70,13 +72,14 @@ export const Sidebar = () => {
     const navigate = useNavigate();
     const isMediaDetailView = Boolean(useMatch("/gallery/:mediaId"));
     const isMetadataView = Boolean(useMatch("/metadata"));
+    const isTemplatesView = Boolean(useMatch("/templates"));
     const isDashboardView = Boolean(useMatch("/dashboard"));
     const isLegacyTagsView = Boolean(useMatch("/tags"));
     const isAlbumsView = Boolean(useMatch("/albums"));
     const isAlbumDetailView = Boolean(useMatch("/albums/:albumId"));
     const isTagsView = isMetadataView || isLegacyTagsView;
-    const isUploadDisabled = isMediaDetailView || isTagsView || isAlbumsView || isAlbumDetailView || isDashboardView;
-    const shouldShowTagPanel = !isMetadataView && !isLegacyTagsView && !isDashboardView;
+    const isUploadDisabled = isMediaDetailView || isTagsView || isTemplatesView || isAlbumsView || isAlbumDetailView || isDashboardView;
+    const shouldShowTagPanel = !isMetadataView && !isLegacyTagsView && !isTemplatesView && !isDashboardView;
     const { user, logout, accessToken } = useAuth();
     const { forceLoading, setForceLoading } = useDevTools();
     const {

@@ -1,117 +1,18 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
-import { faArrowLeft, faArrowRight, faCheck, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { buildTagChipStyle } from "../../utils/tagStyle";
+import { faArrowLeft, faArrowRight, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { CheckboxControl } from "../checkbox-control/CheckboxControl";
 import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { rankSuggestions } from "../../utils/suggestionRanking";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
+import { applyTemplate } from "../../utils/applyTemplate";
 
 const MAX_SUGGESTIONS = 8;
 const isVideoLike = (media) => {
     const mediaType = String(media?.mediatype || "").toLowerCase();
     return mediaType.includes("video") || mediaType.includes("gif");
-};
-
-const normalizeHexColor = (input) => {
-    const raw = String(input || "").trim();
-
-    if (!raw) {
-        return null;
-    }
-
-    if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
-        return raw;
-    }
-
-    if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
-        const [, r, g, b] = raw;
-        return `#${r}${r}${g}${g}${b}${b}`;
-    }
-
-    return null;
-};
-
-const getHexRgb = (hexColor) => {
-    const normalized = normalizeHexColor(hexColor);
-
-    if (!normalized) {
-        return null;
-    }
-
-    const parsed = Number.parseInt(normalized.slice(1), 16);
-
-    return {
-        r: (parsed >> 16) & 255,
-        g: (parsed >> 8) & 255,
-        b: parsed & 255,
-        hex: normalized,
-    };
-};
-
-const getRelativeLuminance = ({ r, g, b }) => {
-    const toLinear = (channel) => {
-        const normalized = channel / 255;
-        return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
-    };
-
-    return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
-};
-
-const toHexChannel = (value) =>
-    Math.max(0, Math.min(255, Math.round(value)))
-        .toString(16)
-        .padStart(2, "0");
-
-const mixRgbWithWhite = (rgb, amount = 0.5) => {
-    const ratio = Math.max(0, Math.min(1, amount));
-    const mix = (channel) => channel + (255 - channel) * ratio;
-    return `#${toHexChannel(mix(rgb.r))}${toHexChannel(mix(rgb.g))}${toHexChannel(mix(rgb.b))}`;
-};
-
-const isDarkThemeActive = () => {
-    if (typeof document === "undefined") {
-        return false;
-    }
-
-    return document.documentElement?.getAttribute("data-theme") === "dark";
-};
-
-const buildTagStyle = (hexColor) => {
-    const rgb = isDefaultTagColor(hexColor) ? null : getHexRgb(hexColor);
-    const darkTheme = isDarkThemeActive();
-
-    if (!rgb) {
-        return buildDefaultTagStyle();
-    }
-
-    const luminance = getRelativeLuminance(rgb);
-    const isNearWhite = luminance > 0.88;
-    const isDarkTone = luminance < 0.3;
-    const isVeryDark = luminance < 0.12;
-
-    if (darkTheme) {
-        const liftedTone = isDarkTone ? mixRgbWithWhite(rgb, isVeryDark ? 0.72 : 0.56) : rgb.hex;
-        const textColor = isNearWhite ? "#f7f9ff" : liftedTone;
-        const borderColor = isNearWhite ? "rgba(255, 255, 255, 0.72)" : `${liftedTone}BB`;
-        const backgroundColor = isNearWhite ? "rgba(255, 255, 255, 0.16)" : `${liftedTone}38`;
-
-        return {
-            backgroundColor,
-            color: textColor,
-            borderColor,
-            borderWidth: "2px",
-            boxShadow: "inset 0 0 0 1px rgba(255, 255, 255, 0.3)",
-        };
-    }
-
-    return {
-        backgroundColor: `${rgb.hex}22`,
-        color: luminance > 0.72 ? "#111111" : rgb.hex,
-        borderColor: isNearWhite ? "rgba(0, 0, 0, 0.22)" : `${rgb.hex}66`,
-        borderWidth: "2px",
-        boxShadow: "inset 0 0 0 1px rgba(0, 0, 0, 0.22)",
-    };
 };
 
 export const MediaEditModal = ({
@@ -137,6 +38,9 @@ export const MediaEditModal = ({
     const [displayNameInput, setDisplayNameInput] = useState("");
     const [authorInput, setAuthorInput] = useState("");
     const [isDisplayNameTouched, setIsDisplayNameTouched] = useState(false);
+    const [isAuthorTouched, setIsAuthorTouched] = useState(false);
+    const [templateReplacesTags, setTemplateReplacesTags] = useState(false);
+    const [templateMarksFavourite, setTemplateMarksFavourite] = useState(false);
     const [tagInput, setTagInput] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
     const [activeSuggestionField, setActiveSuggestionField] = useState(null);
@@ -160,6 +64,9 @@ export const MediaEditModal = ({
         setDisplayNameInput(initialDisplayName);
         setAuthorInput(initialAuthor);
         setIsDisplayNameTouched(false);
+        setIsAuthorTouched(false);
+        setTemplateReplacesTags(false);
+        setTemplateMarksFavourite(false);
         setTagInput("");
         setSelectedTags(JSON.parse(initialTagsKey));
         setActiveSuggestionField(null);
@@ -480,12 +387,12 @@ export const MediaEditModal = ({
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        let payload = { tags: selectedTags };
+        let payload = { tags: selectedTags, replaceAllTags: templateReplacesTags, markFavourite: templateMarksFavourite };
 
         if (!isMultiMode || isDisplayNameTouched || displayNameInput.trim() !== "") {
             payload.displayname = displayNameInput;
         }
-        if (!isMultiMode || authorInput.trim() !== "") {
+        if (!isMultiMode || isAuthorTouched || authorInput.trim() !== "") {
             payload.author = authorInput;
         }
 
@@ -579,6 +486,7 @@ export const MediaEditModal = ({
 
         if (field === "author") {
             handleSuggestionKeyboard(event, field, visibleAuthorSuggestions, (value) => {
+                setIsAuthorTouched(true);
                 setAuthorInput(value || "");
                 closeSuggestions();
             });
@@ -638,7 +546,7 @@ export const MediaEditModal = ({
         >
             <form className="flex min-h-0 flex-1 flex-col" id="tagged-media-edit-form" onSubmit={handleSubmit}>
                 <div className="grid min-h-0 flex-1 grid-rows-[minmax(7rem,0.8fr)_minmax(0,1.2fr)] gap-3 p-3 sm:gap-4 sm:p-4 md:grid-cols-[minmax(0,1.15fr)_minmax(16rem,0.85fr)] md:grid-rows-1 md:p-6">
-                    <div className="order-2 min-h-0 md:order-1">
+                    <div className="order-2 min-h-0 overflow-y-auto overscroll-contain md:order-1">
                         <MediaMetadataFields
                             displayNameInput={displayNameInput}
                             authorInput={authorInput}
@@ -661,6 +569,7 @@ export const MediaEditModal = ({
                                 openSuggestions("displayname");
                             }}
                             onAuthorChange={(event) => {
+                                setIsAuthorTouched(true);
                                 setAuthorInput(event.target.value);
                                 openSuggestions("author");
                             }}
@@ -677,15 +586,32 @@ export const MediaEditModal = ({
                                 closeSuggestions();
                             }}
                             onSelectAuthor={(value) => {
+                                setIsAuthorTouched(true);
                                 setAuthorInput(value || "");
                                 closeSuggestions();
                             }}
                             onAddTag={addTag}
                             onRemoveTag={removeTag}
-                            getTagStyle={buildTagStyle}
+                            getTagStyle={buildTagChipStyle}
+                            templateResetKey={hasExternalNavigation ? activePreviewItem?.id : undefined}
+                            onApplyTemplate={(template) => {
+                                const applied = applyTemplate(template, { displayname: displayNameInput, author: authorInput, tags: selectedTags });
+                                setDisplayNameInput(applied.displayname);
+                                setAuthorInput(applied.author);
+                                setSelectedTags(applied.tags);
+                                setTemplateMarksFavourite(applied.markFavourite);
+                                if (template.displayname) setIsDisplayNameTouched(true);
+                                if (template.author) setIsAuthorTouched(true);
+                                if (template.tags.length > 0) setTemplateReplacesTags(true);
+                                setTagInput("");
+                                closeSuggestions();
+                            }}
                         />
 
-                        {isMultiMode && (tagsToAddPreview.length > 0 || tagsToRemovePreview.length > 0) ? (
+                        {isMultiMode && templateReplacesTags ? (
+                            <p className="mt-3 text-xs text-neutral-500 dark:text-neutral-400">These tags will replace the tags on every selected item.</p>
+                        ) : null}
+                        {isMultiMode && !templateReplacesTags && (tagsToAddPreview.length > 0 || tagsToRemovePreview.length > 0) ? (
                             <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500 dark:text-neutral-400">
                                 {tagsToAddPreview.length > 0 ? <span>Add {tagsToAddPreview.length} tag(s)</span> : null}
                                 {tagsToRemovePreview.length > 0 ? <span>Remove {tagsToRemovePreview.length} tag(s)</span> : null}
@@ -741,16 +667,7 @@ export const MediaEditModal = ({
                         {activePreviewItem && !isMultiMode ? <MediaFileMeta size={activePreviewItem.size} mediaUrl={activePreviewItem.url} isVideo={activePreviewItem.isVideo} className="text-xs text-neutral-500 dark:text-neutral-400" /> : null}
                         {typeof onCloseOnSaveChange === "function" ? (
                         <label className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-                            <span className="relative grid h-4 w-4 shrink-0 place-items-center">
-                                <input
-                                    type="checkbox"
-                                    className="peer h-4 w-4 appearance-none rounded-xl border border-neutral-400 bg-white checked:border-neutral-950 checked:bg-neutral-950 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-950 dark:checked:border-white dark:checked:bg-white"
-                                    checked={Boolean(closeOnSave)}
-                                    onChange={(event) => onCloseOnSaveChange(event.target.checked)}
-                                    disabled={isSaving}
-                                />
-                                <FontAwesomeIcon icon={faCheck} className="pointer-events-none absolute text-[0.55rem] text-white opacity-0 peer-checked:opacity-100 dark:text-black" aria-hidden="true" />
-                            </span>
+                            <CheckboxControl checked={Boolean(closeOnSave)} onChange={onCloseOnSaveChange} disabled={isSaving} />
                             <span>Close on save</span>
                         </label>
                         ) : null}

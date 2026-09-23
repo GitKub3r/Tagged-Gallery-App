@@ -484,6 +484,10 @@ class MediaModel {
             parts.push("author = ?");
             values.push(fields.author);
         }
+        if (fields.is_favourite !== undefined) {
+            parts.push("is_favourite = ?");
+            values.push(fields.is_favourite);
+        }
 
         if (parts.length === 0) return null;
 

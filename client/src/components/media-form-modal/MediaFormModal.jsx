@@ -1,12 +1,12 @@
-import { faCopyright, faTag, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { getTagIcon } from "../../utils/tagIcon";
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/IconButton";
 import { ErrorToast } from "../toast/ErrorToast";
-
-export const mediaFormInputClasses =
-    "h-11 w-full rounded-xl border border-neutral-300 bg-white px-3 text-sm text-neutral-950 outline-none transition-colors placeholder:text-neutral-400 focus:border-neutral-500 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-600 dark:focus:border-neutral-500";
+import { TemplateSelector } from "../template-selector/TemplateSelector";
+import { mediaFormInputClasses } from "./mediaFormStyles";
 
 const MediaSuggestionList = ({ items, activeIndex, onSelect }) => {
     if (!items.length) return null;
@@ -29,10 +29,10 @@ const MediaSuggestionList = ({ items, activeIndex, onSelect }) => {
     );
 };
 
-export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisabled = false, children }) => {
+export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisabled = false, compact = false, children }) => {
     useEffect(() => {
         const handleKeyDown = (event) => {
-            if (event.key === "Escape" && !closeDisabled) onClose();
+            if (event.key === "Escape" && !event.defaultPrevented && !closeDisabled) onClose();
         };
 
         window.addEventListener("keydown", handleKeyDown);
@@ -49,7 +49,7 @@ export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisable
             if (event.target === event.currentTarget && !closeDisabled) onClose();
         }}
     >
-        <section className="flex h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl sm:h-[min(44rem,calc(100dvh-2rem))] dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100">
+        <section className={`flex w-full flex-col overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${compact ? "max-h-[calc(100dvh-1rem)] max-w-2xl sm:max-h-[calc(100dvh-2rem)]" : "h-[calc(100dvh-1rem)] max-w-5xl sm:h-[min(44rem,calc(100dvh-2rem))]"}`}>
             <header className="flex h-16 shrink-0 items-center justify-between border-b border-neutral-200 px-4 dark:border-neutral-800 sm:px-6">
                 <div className="min-w-0">
                     <h2 id={titleId} className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h2>
@@ -95,6 +95,9 @@ export const MediaMetadataFields = ({
     onAddTag,
     onRemoveTag,
     getTagStyle,
+    onApplyTemplate,
+    templateResetKey,
+    compact = false,
 }) => {
     const selectedTagsContainerRef = useRef(null);
     const existingTagNameSet = new Set(existingTagNames.map((tag) => String(tag).trim().toLowerCase()));
@@ -105,12 +108,13 @@ export const MediaMetadataFields = ({
     }, [selectedTags.length]);
 
     return (
-    <div className="flex h-full min-h-0 flex-col justify-start gap-3">
-        <div className="grid grid-cols-2 gap-3">
+    <div className={`flex flex-col justify-start gap-3 ${compact ? "" : "min-h-full"}`}>
+        {onApplyTemplate ? <TemplateSelector key={templateResetKey} onApply={onApplyTemplate} /> : null}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                 <span className="mb-1.5 block">Media name</span>
                 <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} />
+                    <input className={mediaFormInputClasses} type="text" maxLength={255} value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} />
                     {activeSuggestionField === "displayname" ? <MediaSuggestionList items={displayNameSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectDisplayName} /> : null}
                 </div>
             </label>
@@ -118,7 +122,7 @@ export const MediaMetadataFields = ({
             <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
                 <span className="mb-1.5 block">Author</span>
                 <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" value={authorInput} onChange={onAuthorChange} onFocus={() => onOpenSuggestions("author")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "author")} placeholder={authorPlaceholder} />
+                    <input className={mediaFormInputClasses} type="text" maxLength={100} value={authorInput} onChange={onAuthorChange} onFocus={() => onOpenSuggestions("author")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "author")} placeholder={authorPlaceholder} />
                     {activeSuggestionField === "author" ? <MediaSuggestionList items={authorSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectAuthor} /> : null}
                 </div>
             </label>
@@ -132,19 +136,19 @@ export const MediaMetadataFields = ({
                 </span>
             </span>
             <div className="relative">
-                <input className={mediaFormInputClasses} type="text" value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} />
+                <input className={mediaFormInputClasses} type="text" maxLength={100} value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} />
                 {activeSuggestionField === "tag" ? <MediaSuggestionList items={tagSuggestions} activeIndex={activeSuggestionIndex} onSelect={onAddTag} /> : null}
             </div>
         </label>
 
         <div
             ref={selectedTagsContainerRef}
-            className="flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] md:min-h-32 md:max-h-none md:flex-1 dark:border-neutral-800 dark:bg-neutral-950/50"
+            className={`flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50 ${compact ? "" : "md:min-h-32 md:max-h-none md:flex-1"}`}
             aria-label={`Selected tags, ${selectedTags.length} selected`}
         >
             {selectedTags.map((tag) => (
                 <button key={tag} type="button" className="inline-flex! h-8! w-auto! max-w-36! shrink-0! items-center! gap-2! rounded-xl! border! px-2.5! py-1! text-xs! font-semibold! shadow-none! hover:opacity-80!" style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])} onClick={() => onRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
-                    <FontAwesomeIcon icon={!existingTagNameSet.has(String(tag).trim().toLowerCase()) ? faWandMagicSparkles : tagTypeByName[String(tag).trim().toLowerCase()] === "copyright" ? faCopyright : faTag} aria-hidden="true" />
+                    <FontAwesomeIcon icon={getTagIcon(existingTagNameSet.has(String(tag).trim().toLowerCase()), tagTypeByName[String(tag).trim().toLowerCase()])} aria-hidden="true" />
                     <span className="truncate">{tag}</span>
                     <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                 </button>
