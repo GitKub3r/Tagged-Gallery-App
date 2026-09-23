@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { faCopy, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faCopy, faHeart, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { metadataApi, metadataQueryKeys } from "../../api/metadataApi";
 import { templateApi, templateQueryKeys } from "../../api/templateApi";
+import { CheckboxControl } from "../../components/checkbox-control/CheckboxControl";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { IconButton } from "../../components/icon-button/IconButton";
@@ -26,6 +27,7 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
     const [author, setAuthor] = useState(template?.author || "");
     const [tagInput, setTagInput] = useState("");
     const [tags, setTags] = useState(template?.tags || []);
+    const [markFavourite, setMarkFavourite] = useState(Boolean(template?.mark_favourite));
     const [activeField, setActiveField] = useState(null);
     const [activeIndex, setActiveIndex] = useState(0);
     const [localError, setLocalError] = useState("");
@@ -76,12 +78,12 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
         event.preventDefault();
         const pendingTag = tagInput.trim();
         const nextTags = pendingTag && !tags.some((tag) => tag.toLowerCase() === pendingTag.toLowerCase()) ? [...tags, pendingTag] : tags;
-        if (!displayName.trim() && !author.trim() && nextTags.length === 0) {
-            setLocalError("Add a media name, author or tag.");
+        if (!displayName.trim() && !author.trim() && nextTags.length === 0 && !markFavourite) {
+            setLocalError("Add a media name, author, tag or favourite action.");
             return;
         }
         setLocalError("");
-        onSave({ id: template?.id, name: name.trim(), displayname: displayName.trim(), author: author.trim(), tags: nextTags });
+        onSave({ id: template?.id, name: name.trim(), displayname: displayName.trim(), author: author.trim(), tags: nextTags, mark_favourite: markFavourite });
     };
 
     return (
@@ -122,6 +124,13 @@ const TemplateEditor = ({ template, isSaving, error, onSave, onCancel }) => {
                         onRemoveTag={(value) => setTags((current) => current.filter((tag) => tag !== value))}
                         getTagStyle={buildDefaultTagStyle}
                     />
+                    <label className="mt-4 flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-100/60 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950/50">
+                        <CheckboxControl checked={markFavourite} onChange={setMarkFavourite} disabled={isSaving} />
+                        <span className="min-w-0">
+                            <span className="block text-sm font-semibold">Mark media as favourite</span>
+                            <span className="mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400">Applied media will be added to favourites when saved.</span>
+                        </span>
+                    </label>
                 </div>
                 <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-neutral-200 p-4 dark:border-neutral-800 sm:flex-row sm:justify-end sm:px-6">
                     <button type="button" className="h-11! w-full! rounded-xl! border! border-neutral-300! bg-transparent! px-4! text-sm! font-semibold! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-200! dark:hover:bg-neutral-800! sm:w-auto!" onClick={onCancel} disabled={isSaving}>Cancel</button>
@@ -156,6 +165,7 @@ const TemplateCard = ({ template, onEdit, onDelete }) => {
                     {template.tags.map((tag) => <span key={tag} className="max-w-full truncate rounded-xl border border-neutral-300 px-2 py-1 text-xs font-medium dark:border-neutral-700" title={tag}>{tag}</span>)}
                 </div>
             ) : null}
+            {template.mark_favourite ? <div className="mt-3 text-xs font-semibold text-neutral-600 dark:text-neutral-300"><FontAwesomeIcon icon={faHeart} className="mr-1.5" aria-hidden="true" />Auto favourite</div> : null}
         </li>
     );
 };
@@ -195,7 +205,7 @@ export const TemplatesPage = () => {
     return (
         <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">
             <header className="mb-6 flex flex-col gap-5 border-b border-neutral-200 pb-6 dark:border-neutral-800 sm:flex-row sm:items-end sm:justify-between">
-                <div><p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Library settings</p><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Templates</h1><p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">Save a media name, author and tags to reuse as a starting point.</p></div>
+                <div><p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Library settings</p><h1 className="text-3xl font-black tracking-tight sm:text-4xl">Templates</h1><p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">Save media details and add to favourites automatically when applied.</p></div>
                 <button type="button" className="inline-flex! h-11! w-full! shrink-0! items-center! justify-center! gap-2! rounded-xl! border-0! bg-neutral-950! px-4! text-sm! font-bold! text-white! shadow-none! hover:bg-neutral-800! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" onClick={() => openEditor()}><FontAwesomeIcon icon={faPlus} aria-hidden="true" />New template</button>
             </header>
 

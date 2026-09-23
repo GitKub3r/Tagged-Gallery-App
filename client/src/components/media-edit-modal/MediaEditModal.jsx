@@ -1,7 +1,8 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
-import { faArrowLeft, faArrowRight, faCheck, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faArrowRight, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { CheckboxControl } from "../checkbox-control/CheckboxControl";
 import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { rankSuggestions } from "../../utils/suggestionRanking";
@@ -140,6 +141,7 @@ export const MediaEditModal = ({
     const [isDisplayNameTouched, setIsDisplayNameTouched] = useState(false);
     const [isAuthorTouched, setIsAuthorTouched] = useState(false);
     const [templateReplacesTags, setTemplateReplacesTags] = useState(false);
+    const [templateMarksFavourite, setTemplateMarksFavourite] = useState(false);
     const [tagInput, setTagInput] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
     const [activeSuggestionField, setActiveSuggestionField] = useState(null);
@@ -165,6 +167,7 @@ export const MediaEditModal = ({
         setIsDisplayNameTouched(false);
         setIsAuthorTouched(false);
         setTemplateReplacesTags(false);
+        setTemplateMarksFavourite(false);
         setTagInput("");
         setSelectedTags(JSON.parse(initialTagsKey));
         setActiveSuggestionField(null);
@@ -485,7 +488,7 @@ export const MediaEditModal = ({
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        let payload = { tags: selectedTags, replaceAllTags: templateReplacesTags };
+        let payload = { tags: selectedTags, replaceAllTags: templateReplacesTags, markFavourite: templateMarksFavourite };
 
         if (!isMultiMode || isDisplayNameTouched || displayNameInput.trim() !== "") {
             payload.displayname = displayNameInput;
@@ -697,6 +700,7 @@ export const MediaEditModal = ({
                                 setDisplayNameInput(applied.displayname);
                                 setAuthorInput(applied.author);
                                 setSelectedTags(applied.tags);
+                                setTemplateMarksFavourite(applied.markFavourite);
                                 if (template.displayname) setIsDisplayNameTouched(true);
                                 if (template.author) setIsAuthorTouched(true);
                                 if (template.tags.length > 0) setTemplateReplacesTags(true);
@@ -764,16 +768,7 @@ export const MediaEditModal = ({
                         {activePreviewItem && !isMultiMode ? <MediaFileMeta size={activePreviewItem.size} mediaUrl={activePreviewItem.url} isVideo={activePreviewItem.isVideo} className="text-xs text-neutral-500 dark:text-neutral-400" /> : null}
                         {typeof onCloseOnSaveChange === "function" ? (
                         <label className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-                            <span className="relative grid h-4 w-4 shrink-0 place-items-center">
-                                <input
-                                    type="checkbox"
-                                    className="peer h-4 w-4 appearance-none rounded-xl border border-neutral-400 bg-white checked:border-neutral-950 checked:bg-neutral-950 disabled:opacity-50 dark:border-neutral-600 dark:bg-neutral-950 dark:checked:border-white dark:checked:bg-white"
-                                    checked={Boolean(closeOnSave)}
-                                    onChange={(event) => onCloseOnSaveChange(event.target.checked)}
-                                    disabled={isSaving}
-                                />
-                                <FontAwesomeIcon icon={faCheck} className="pointer-events-none absolute text-[0.55rem] text-white opacity-0 peer-checked:opacity-100 dark:text-black" aria-hidden="true" />
-                            </span>
+                            <CheckboxControl checked={Boolean(closeOnSave)} onChange={onCloseOnSaveChange} disabled={isSaving} />
                             <span>Close on save</span>
                         </label>
                         ) : null}

@@ -635,6 +635,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [authorInput, setAuthorInput] = useState("");
     const [tagInput, setTagInput] = useState("");
     const [selectedTags, setSelectedTags] = useState([]);
+    const [uploadMarksFavourite, setUploadMarksFavourite] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const uploadMediaMutation = useMutation({ mutationFn: uploadMedia });
     const [uploadTotal, setUploadTotal] = useState(0);
@@ -1455,7 +1456,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         }
         const payloadInput = inputPayload || {};
-        const { displayname, author, tags, replaceAllTags } = payloadInput;
+        const { displayname, author, tags, replaceAllTags, markFavourite } = payloadInput;
         const hasDisplayNameInput = Object.prototype.hasOwnProperty.call(payloadInput, "displayname");
         const hasAuthorInput = Object.prototype.hasOwnProperty.call(payloadInput, "author");
         const selectedItems = mediaItems.filter((media) => selectedMediaIds.has(media.id));
@@ -1501,6 +1502,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     const payload = {
                         author: isSingleEdit || hasAuthorInput ? trimmedAuthor : String(media.author || ""),
                     };
+                    if (markFavourite) payload.is_favourite = true;
                     if (isSingleEdit || hasDisplayNameInput) {
                         payload.displayname = trimmedDisplayName;
                     } else {
@@ -2259,6 +2261,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         setAuthorInput("");
         setTagInput("");
         setSelectedTags([]);
+        setUploadMarksFavourite(false);
         setUploadError(null);
         setUploadTotal(0);
         setUploadRemaining(0);
@@ -2462,6 +2465,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 displayName: finalDisplayName,
                 author: finalAuthor,
                 tags: selectedTags,
+                markFavourite: uploadMarksFavourite,
                 signal: uploadAbortController.signal,
                 onUploadProgress: (progressEvent) => {
                     const totalBytes = progressEvent.total || null;
@@ -3453,6 +3457,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         setDisplayNameInput(applied.displayname);
                         setAuthorInput(applied.author);
                         setSelectedTags(applied.tags);
+                        setUploadMarksFavourite(applied.markFavourite);
                         setTagInput("");
                         setActiveSuggestionField(null);
                     }}

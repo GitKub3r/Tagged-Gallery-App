@@ -33,7 +33,7 @@ export const TemplateSelector = ({ onApply }) => {
             </div>
             {isError ? <button type="button" className="mt-1 w-auto! border-0! bg-transparent! p-0! text-xs! text-neutral-600! underline! shadow-none! dark:text-neutral-300!" onClick={() => refetch()}>Could not load templates. Retry</button> : null}
             {!isPending && !isError && templates.length === 0 ? <span className="mt-1 block text-neutral-500 dark:text-neutral-400">No templates yet. <Link className="underline" to="/templates">Create one</Link>.</span> : null}
-            {selectedTemplate ? <div className="mt-1 flex items-center justify-between gap-2 text-neutral-500 dark:text-neutral-400"><span>Applied. Edits here do not change the template.</span><button type="button" className="w-auto! shrink-0 border-0! bg-transparent! p-0! text-xs! font-semibold! text-neutral-600! underline! shadow-none! dark:text-neutral-300!" onClick={() => onApply(selectedTemplate)}>Reapply</button></div> : null}
+            {selectedTemplate ? <div className="mt-1 flex items-center justify-between gap-2 text-neutral-500 dark:text-neutral-400"><span>{selectedTemplate.mark_favourite ? "Will add to favourites on save. " : ""}Edits here do not change the template.</span><button type="button" className="w-auto! shrink-0 border-0! bg-transparent! p-0! text-xs! font-semibold! text-neutral-600! underline! shadow-none! dark:text-neutral-300!" onClick={() => onApply(selectedTemplate)}>Reapply</button></div> : null}
         </div>
     );
 };
