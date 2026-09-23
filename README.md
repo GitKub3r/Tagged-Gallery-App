@@ -32,7 +32,7 @@ Esto levanta en contenedores:
 - MySQL: `localhost:3306`
 - phpMyAdmin: [http://localhost:8080](http://localhost:8080)
 
-El contenedor `app` arranca frontend y backend juntos. Vite expone el frontend en la red y redirige `/api` y `/uploads` al backend, así que no hace falta editar IPs en `client/.env` ni `server/.env`.
+El contenedor `app` arranca frontend y backend juntos. Vite expone el frontend en la red y redirige `/api` al backend (los archivos subidos se sirven con URLs firmadas bajo `/api/v1/files`), así que no hace falta editar IPs en `client/.env` ni `server/.env`.
 
 Los cambios en el código se reflejan automáticamente: Vite actualiza el frontend y nodemon reinicia el backend. Al añadir o cambiar dependencias en `package.json` y `package-lock.json`, reinicia `app` desde Docker Desktop. El arranque detecta el cambio y sincroniza las dependencias con los volúmenes de `node_modules`; no hace falta reconstruir la imagen. Los cambios en `Dockerfile` o `docker-compose.yml` sí requieren `docker compose up -d --build`.
 
