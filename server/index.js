@@ -3,10 +3,10 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const path = require("path");
 const { connectDB } = require("./config/database");
 const routes = require("./routes");
 const { ensureUploadDirs } = require("./middlewares/upload.middleware");
+const { signUploadUrlsInResponses } = require("./utils/uploadUrls");
 const AuditService = require("./services/Audit.service");
 const UserModel = require("./models/User.model");
 const AlbumModel = require("./models/Album.model");
@@ -63,11 +63,12 @@ app.use("/api", (req, res, next) => {
     next();
 });
 
+// Sustituir rutas internas de /uploads por URLs firmadas en las respuestas de la API.
+// Los archivos subidos no son públicos: solo se sirven desde /api/v1/files con una firma válida.
+app.use("/api", signUploadUrlsInResponses);
+
 // Crear estructura de carpetas para uploads si no existe
 ensureUploadDirs();
-
-// Exponer recursos estáticos subidos
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Montar todas las rutas
 app.use(routes);

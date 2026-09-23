@@ -10,6 +10,7 @@ const albumRoutes = require("./album.routes");
 const templateRoutes = require("./template.routes");
 const metricsRoutes = require("./metrics.routes");
 const logsRoutes = require("./logs.routes");
+const filesRoutes = require("./files.routes");
 
 // Endpoint de bienvenida de la API v1
 router.get("/", (req, res) => {
@@ -62,5 +63,6 @@ router.use("/albums", albumRoutes);
 router.use("/templates", templateRoutes);
 router.use("/metrics", metricsRoutes);
 router.use("/logs", logsRoutes);
+router.use("/files", filesRoutes);
 
 module.exports = router;

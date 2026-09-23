@@ -136,6 +136,7 @@ Estas reglas se aplican a todo el repositorio. Son obligatorias para cualquier c
 - Respuesta uniforme: `{ success: true, data }` o `{ success: false, message }`. Los servicios devuelven `{ data }` o `{ error, status }` y el controlador lo traduce (`sendResult`). Un `handleError` por controlador para errores inesperados (`ER_DUP_ENTRY` → 409).
 - Las rutas se protegen con `authenticate` (`middlewares/auth.middleware.js`); cada consulta se filtra por `req.user.id`, salvo lo permitido a `admin`. Los eventos relevantes se registran con `AuditService`.
 - Cambios de esquema: además de `database.sql`, los modelos nuevos exponen `ensureTable()` (creación y `ALTER TABLE` idempotentes) que `server/index.js` ejecuta al arrancar, para que las bases ya creadas se actualicen.
+- **Archivos privados:** `server/uploads` no es público. La base de datos guarda rutas internas `/uploads/...`, y el middleware `signUploadUrlsInResponses` (`server/utils/uploadUrls.js`) las sustituye en cada respuesta JSON por URLs firmadas y con caducidad de `/api/v1/files/...`. Solo se firman las claves `filepath`, `thumbpath`, `albumcoverpath`, `albumthumbpath` y `avatar_path`. Un campo nuevo con ruta de archivo se añade a esa lista; nunca se vuelve a exponer `/uploads` con `express.static`. Una respuesta solo debe incluir rutas de archivos a los que el usuario tiene acceso.
 - Variables de entorno en `server/.env` (ver `.env.example`) y `client/.env`. No versionar `.env`.
 
 ### Guía de diseño
