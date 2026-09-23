@@ -3,6 +3,7 @@ import { faCheck, faHeart as faHeartSolid, faImage, faPlay, faTag } from "@forta
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "./MediaCard.css";
+import { MediaSourceBadge } from "../media-source-badge/MediaSourceBadge";
 
 const getMediaPreviewUrl = (media, uploadsBaseUrl, resolvePreviewUrl) => {
     if (resolvePreviewUrl) {
@@ -283,6 +284,7 @@ export const MediaCard = ({
                         <FontAwesomeIcon icon={faTag} aria-hidden="true" />
                         {mediaTagCount}
                     </span>
+                    <MediaSourceBadge media={media} withSeparator />
                 </div>
             </div>
         </article>

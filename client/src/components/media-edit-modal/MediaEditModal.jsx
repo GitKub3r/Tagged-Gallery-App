@@ -140,8 +140,7 @@ export const MediaEditModal = ({
                 const thumbPath = String(media?.thumbpath || "").trim();
                 const filePath = String(media?.filepath || "").trim();
                 const mediaIsVideo = isVideoLike(media);
-                const mediaIsHeic = /\.hei[cf](?:$|[?#])/i.test(filePath);
-                const previewPath = mediaIsHeic ? thumbPath || filePath : filePath || thumbPath;
+                const previewPath = String(media?.previewpath || "").trim() || filePath || thumbPath;
                 if (!previewPath) {
                     return null;
                 }

@@ -3,12 +3,14 @@ import { faExpand, faHardDrive } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { formatMediaResolution, formatMediaSize } from "../../utils/mediaFormat";
 
-export const MediaFileMeta = ({ size, mediaUrl, isVideo = false, className = "" }) => {
+// knownDimensions evita medir la vista previa cuando la resolución real ya se conoce (p. ej. archivos de Drive).
+export const MediaFileMeta = ({ size, mediaUrl, isVideo = false, knownDimensions = null, className = "" }) => {
     const [resolutionState, setResolutionState] = useState({ mediaUrl: "", dimensions: null });
-    const dimensions = resolutionState.mediaUrl === mediaUrl ? resolutionState.dimensions : null;
+    const dimensions = knownDimensions || (resolutionState.mediaUrl === mediaUrl ? resolutionState.dimensions : null);
+    const shouldMeasure = !knownDimensions;
 
     useEffect(() => {
-        if (!mediaUrl) return undefined;
+        if (!mediaUrl || !shouldMeasure) return undefined;
 
         let cancelled = false;
         const media = isVideo ? document.createElement("video") : new Image();
@@ -35,7 +37,7 @@ export const MediaFileMeta = ({ size, mediaUrl, isVideo = false, className = "" 
             media.removeEventListener(loadedEvent, handleLoaded);
             if (isVideo) media.removeAttribute("src");
         };
-    }, [isVideo, mediaUrl]);
+    }, [isVideo, mediaUrl, shouldMeasure]);
 
     return (
         <span className={`inline-flex min-w-0 items-center gap-2 ${className}`}>

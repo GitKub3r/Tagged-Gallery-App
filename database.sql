@@ -47,11 +47,21 @@ CREATE TABLE media (
     size BIGINT UNSIGNED NOT NULL, -- bytes
     filepath VARCHAR(500) NOT NULL,
     thumbpath VARCHAR(500),
+    previewpath VARCHAR(500) NULL, -- JPEG para visualizar formatos no soportados por el navegador (HEIC)
     mediatype ENUM('image', 'video', 'gif') NOT NULL,
     is_favourite BOOLEAN NOT NULL DEFAULT FALSE,
+    storage_provider ENUM('local', 'google_drive') NOT NULL DEFAULT 'local', -- dónde vive el original
+    storage_status ENUM('available', 'missing', 'revoked', 'error') NOT NULL DEFAULT 'available',
+    source_file_id VARCHAR(255) NULL, -- id del archivo en Google Drive
+    source_mime_type VARCHAR(255) NULL,
+    source_modified_time DATETIME NULL,
+    last_synced_at DATETIME NULL,
+    checksum_md5 CHAR(32) NULL, -- detecta duplicados entre medias locales y de Drive
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_media_user_id (user_id),
+    UNIQUE KEY uq_media_user_source (user_id, storage_provider, source_file_id),
+    INDEX idx_media_user_checksum (user_id, checksum_md5),
     CONSTRAINT fk_media_user
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
@@ -113,6 +123,24 @@ CREATE TABLE tags (
     UNIQUE KEY unique_user_tagname (user_id, tagname),
     INDEX idx_tags_user_id (user_id),
     CONSTRAINT fk_tags_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- =========================
+-- GOOGLE DRIVE CONNECTIONS
+-- =========================
+CREATE TABLE google_drive_connections (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    google_account_email VARCHAR(255) NULL,
+    refresh_token_encrypted TEXT NOT NULL, -- cifrado con AES-256-GCM, nunca se envía al cliente
+    scopes TEXT NOT NULL,
+    status ENUM('connected', 'revoked', 'error') NOT NULL DEFAULT 'connected',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_google_drive_connection_user (user_id),
+    CONSTRAINT fk_google_drive_connections_user
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
 );
@@ -240,7 +268,10 @@ VALUES
     ('Add media to album', 'ALBUM_ADD_MEDIA', 'Add one media item to an album', TRUE),
     ('Add multiple media to album', 'ALBUM_ADD_MEDIA_BATCH', 'Add several media items to an album', TRUE),
     ('Remove media from album', 'ALBUM_REMOVE_MEDIA', 'Remove one media item from an album', TRUE),
-    ('Remove multiple media from album', 'ALBUM_REMOVE_MEDIA_BATCH', 'Remove several media items from an album', TRUE)
+    ('Remove multiple media from album', 'ALBUM_REMOVE_MEDIA_BATCH', 'Remove several media items from an album', TRUE),
+    ('Connect Google Drive', 'GOOGLE_DRIVE_CONNECT', 'Connect a Google Drive account', TRUE),
+    ('Disconnect Google Drive', 'GOOGLE_DRIVE_DISCONNECT', 'Disconnect a Google Drive account', TRUE),
+    ('Link Google Drive files', 'GOOGLE_DRIVE_LINK', 'Add Google Drive files to the library without copying them', TRUE)
 ON DUPLICATE KEY UPDATE
     actionname = VALUES(actionname),
     description = VALUES(description),

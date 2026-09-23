@@ -49,6 +49,7 @@ import { apiClient } from "../../api/apiClient";
 import "./AlbumPage.css";
 import "./AlbumDetailPage.css";
 import "../gallerypage/GalleryPage.css";
+import { lockPageScroll } from "../../utils/scrollLock";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -117,17 +118,7 @@ const getAssetUrl = (assetPath) => {
     return `${UPLOADS_BASE_URL}${assetPath}`;
 };
 
-const isHeicMedia = (media) => {
-    const fileReference = String(media?.filepath || media?.filename || "");
-    return /\.hei[cf](?:$|[?#])/i.test(fileReference);
-};
-
-const getMontageMediaUrl = (media) =>
-    getAssetUrl(
-        isHeicMedia(media)
-            ? media?.thumbpath || media?.filepath || ""
-            : media?.filepath || media?.thumbpath || "",
-    );
+const getMontageMediaUrl = (media) => getAssetUrl(media?.previewpath || media?.filepath || media?.thumbpath || "");
 const getMontagePosterUrl = (media) => getAssetUrl(media?.thumbpath || "");
 const getMontageBackgroundUrl = (media) => getAssetUrl(media?.thumbpath || media?.filepath || "");
 
@@ -2553,8 +2544,7 @@ export const AlbumDetailPage = () => {
             return undefined;
         }
 
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        const releaseScroll = lockPageScroll();
 
         const handleMontageKeyDown = (event) => {
             if (event.key === "Escape") {
@@ -2584,7 +2574,7 @@ export const AlbumDetailPage = () => {
         window.addEventListener("keydown", handleMontageKeyDown);
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            releaseScroll();
             window.removeEventListener("keydown", handleMontageKeyDown);
         };
     }, [closeMontage, isMontageOpen, showNextMontageMedia, showPreviousMontageMedia]);

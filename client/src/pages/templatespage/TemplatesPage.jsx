@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { faCopy, faHeart, faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { metadataApi, metadataQueryKeys } from "../../api/metadataApi";
 import { templateApi, templateQueryKeys } from "../../api/templateApi";
-import { CheckboxControl } from "../../components/checkbox-control/CheckboxControl";
+import { CheckboxOption } from "../../components/checkbox-control/CheckboxOption";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { IconButton } from "../../components/icon-button/IconButton";
@@ -16,67 +15,30 @@ import { ErrorToast } from "../../components/toast/ErrorToast";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useTemplates } from "../../hooks/useTemplates";
-import { rankSuggestions } from "../../utils/suggestionRanking";
+import { useMediaMetadataForm } from "../../hooks/useMediaMetadataForm";
+import { useMetadata } from "../../hooks/useMetadata";
 import { getTagIcon } from "../../utils/tagIcon";
 import { buildTagChipStyle } from "../../utils/tagStyle";
 
-const uniqueNames = (items) => [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))];
-
 const TemplateEditor = ({ template, metadata, tagNames, tagColorByName, tagTypeByName, isSaving, error, onSave, onCancel }) => {
     const [name, setName] = useState(template?.name || "");
-    const [displayName, setDisplayName] = useState(template?.displayname || "");
-    const [author, setAuthor] = useState(template?.author || "");
-    const [tagInput, setTagInput] = useState("");
-    const [tags, setTags] = useState(template?.tags || []);
+    const form = useMediaMetadataForm({
+        metadata,
+        tagNames,
+        initialValues: { displayname: template?.displayname, author: template?.author, tags: template?.tags },
+    });
     const [markFavourite, setMarkFavourite] = useState(Boolean(template?.mark_favourite));
-    const [activeField, setActiveField] = useState(null);
-    const [activeIndex, setActiveIndex] = useState(0);
     const [localError, setLocalError] = useState("");
-    const displayNameSuggestions = rankSuggestions(uniqueNames((metadata?.displayNames || []).map((item) => typeof item === "string" ? item : item.displayname)), displayName).slice(0, 8);
-    const authorSuggestions = rankSuggestions(uniqueNames((metadata?.authors || []).map((item) => typeof item === "string" ? item : item.author)), author).slice(0, 8);
-    const tagSuggestions = rankSuggestions(tagNames.filter((item) => !tags.some((tag) => tag.toLowerCase() === item.toLowerCase())), tagInput).slice(0, 8);
-    const suggestions = { displayname: displayNameSuggestions, author: authorSuggestions, tag: tagSuggestions };
 
-    const closeSuggestions = () => { setActiveField(null); setActiveIndex(0); };
-    const addTag = (value) => {
-        const next = String(value || "").trim();
-        if (next && !tags.some((tag) => tag.toLowerCase() === next.toLowerCase())) setTags((current) => [...current, next]);
-        setTagInput("");
-        closeSuggestions();
-    };
-    const selectSuggestion = (field, value) => {
-        if (field === "displayname") setDisplayName(value);
-        else if (field === "author") setAuthor(value);
-        else addTag(value);
-        closeSuggestions();
-    };
-    const handleSuggestionKeyDown = (event, field) => {
-        const items = suggestions[field] || [];
-        if ((event.key === "ArrowDown" || event.key === "ArrowUp") && items.length > 0) {
-            event.preventDefault();
-            setActiveField(field);
-            setActiveIndex((current) => (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length);
-        } else if (event.key === "Enter" && field === "tag") {
-            event.preventDefault();
-            addTag(activeField === field && items.length ? items[activeIndex] : tagInput);
-        } else if (event.key === "Enter" && activeField === field && items.length) {
-            event.preventDefault();
-            selectSuggestion(field, items[activeIndex]);
-        } else if (event.key === "Escape" && activeField) {
-            event.preventDefault();
-            closeSuggestions();
-        }
-    };
     const handleSubmit = (event) => {
         event.preventDefault();
-        const pendingTag = tagInput.trim();
-        const nextTags = pendingTag && !tags.some((tag) => tag.toLowerCase() === pendingTag.toLowerCase()) ? [...tags, pendingTag] : tags;
-        if (!displayName.trim() && !author.trim() && nextTags.length === 0 && !markFavourite) {
+        const nextTags = form.getTagsWithPending();
+        if (!form.displayName.trim() && !form.author.trim() && nextTags.length === 0 && !markFavourite) {
             setLocalError("Add a media name, author, tag or favourite action.");
             return;
         }
         setLocalError("");
-        onSave({ id: template?.id, name: name.trim(), displayname: displayName.trim(), author: author.trim(), tags: nextTags, mark_favourite: markFavourite });
+        onSave({ id: template?.id, name: name.trim(), displayname: form.displayName.trim(), author: form.author.trim(), tags: nextTags, mark_favourite: markFavourite });
     };
 
     return (
@@ -92,40 +54,17 @@ const TemplateEditor = ({ template, metadata, tagNames, tagColorByName, tagTypeB
                         <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Add the fields you want this template to fill.</p>
                     </div>
                     <MediaMetadataFields
+                        {...form.fieldProps}
                         compact
-                        displayNameInput={displayName}
-                        authorInput={author}
-                        tagInput={tagInput}
                         displayNamePlaceholder="Optional media name"
-                        selectedTags={tags}
                         tagColorByName={tagColorByName}
                         tagTypeByName={tagTypeByName}
-                        existingTagNames={tagNames}
-                        activeSuggestionField={activeField}
-                        activeSuggestionIndex={activeIndex}
-                        displayNameSuggestions={displayNameSuggestions}
-                        authorSuggestions={authorSuggestions}
-                        tagSuggestions={tagSuggestions}
                         error={localError || error}
-                        onDisplayNameChange={(event) => { setDisplayName(event.target.value); setActiveField("displayname"); setActiveIndex(0); }}
-                        onAuthorChange={(event) => { setAuthor(event.target.value); setActiveField("author"); setActiveIndex(0); }}
-                        onTagInputChange={(event) => { setTagInput(event.target.value); setActiveField("tag"); setActiveIndex(0); }}
-                        onOpenSuggestions={(field) => { setActiveField(field); setActiveIndex(0); }}
-                        onCloseSuggestions={closeSuggestions}
-                        onSuggestionKeyDown={handleSuggestionKeyDown}
-                        onSelectDisplayName={(value) => selectSuggestion("displayname", value)}
-                        onSelectAuthor={(value) => selectSuggestion("author", value)}
-                        onAddTag={addTag}
-                        onRemoveTag={(value) => setTags((current) => current.filter((tag) => tag !== value))}
                         getTagStyle={buildTagChipStyle}
                     />
-                    <label className="mt-4 flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-100/60 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950/50">
-                        <CheckboxControl checked={markFavourite} onChange={setMarkFavourite} disabled={isSaving} />
-                        <span className="min-w-0">
-                            <span className="block text-sm font-semibold">Mark media as favourite</span>
-                            <span className="mt-0.5 block text-xs text-neutral-500 dark:text-neutral-400">Applied media will be added to favourites when saved.</span>
-                        </span>
-                    </label>
+                    <div className="mt-4">
+                        <CheckboxOption checked={markFavourite} onChange={setMarkFavourite} disabled={isSaving} title="Mark media as favourite" description="Applied media will be added to favourites when saved." />
+                    </div>
                 </div>
                 <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-neutral-200 p-4 dark:border-neutral-800 sm:flex-row sm:justify-end sm:px-6">
                     <button type="button" className="h-11! w-full! rounded-xl! border! border-neutral-300! bg-transparent! px-4! text-sm! font-semibold! text-neutral-700! shadow-none! hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-200! dark:hover:bg-neutral-800! sm:w-auto!" onClick={onCancel} disabled={isSaving}>Cancel</button>
@@ -169,15 +108,11 @@ const TemplateCard = ({ template, tagNameSet, tagColorByName, tagTypeByName, met
 };
 
 export const TemplatesPage = () => {
-    const { user, accessToken } = useAuth();
+    const { user } = useAuth();
     const { forceLoading } = useDevTools();
     const queryClient = useQueryClient();
     const templatesQuery = useTemplates();
-    const metadataQuery = useQuery({
-        queryKey: metadataQueryKeys.all,
-        queryFn: () => metadataApi.getAll(accessToken),
-        enabled: Boolean(accessToken),
-    });
+    const { metadata, tagNames, tagNameSet, tagColorByName, tagTypeByName } = useMetadata();
     const [editingTemplate, setEditingTemplate] = useState(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [pendingDelete, setPendingDelete] = useState(null);
@@ -199,12 +134,6 @@ export const TemplatesPage = () => {
         },
     });
     const templates = templatesQuery.data || [];
-    const metadata = metadataQuery.data;
-    const knownTags = (metadata?.tags || []).filter((tag) => typeof tag?.tagname === "string" && tag.tagname.trim());
-    const tagNames = uniqueNames(knownTags.map((tag) => tag.tagname));
-    const tagNameSet = new Set(tagNames.map((tag) => tag.toLowerCase()));
-    const tagColorByName = Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.tagcolor_hex]));
-    const tagTypeByName = Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.type]));
     const searchTerm = search.trim().toLowerCase();
     const filteredTemplates = searchTerm ? templates.filter((template) => [template.name, template.displayname, template.author, ...template.tags].some((value) => value.toLowerCase().includes(searchTerm))) : templates;
     const openEditor = (template = null) => { saveMutation.reset(); setEditingTemplate(template); setIsEditorOpen(true); };

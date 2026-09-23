@@ -17,6 +17,9 @@ import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { formatMediaSize } from "../../utils/mediaFormat";
 import "./MediaDetailPage.css";
+import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
+import { isDriveMedia } from "../../utils/mediaSource";
+import { lockPageScroll } from "../../utils/scrollLock";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -224,6 +227,15 @@ const getMediaUrl = (media) => {
     return `${UPLOADS_BASE_URL}${mediaPath}`;
 };
 
+// URL para mostrar la media: el preview JPEG si existe (HEIC) o el original.
+// El original (getMediaUrl) se reserva para descargas y vídeo.
+const getDisplayUrl = (media) => {
+    const displayPath = media?.previewpath || media?.filepath;
+    if (!displayPath) return "";
+    if (displayPath.startsWith("http://") || displayPath.startsWith("https://")) return displayPath;
+    return `${UPLOADS_BASE_URL}${displayPath}`;
+};
+
 const getThumbnailUrl = (media) => {
     const thumbnailPath = media?.thumbpath;
 
@@ -256,7 +268,7 @@ const preloadMediaForNavigation = (media, distance) => {
     const mediaUrl = getMediaUrl(media);
     const thumbnailUrl = getThumbnailUrl(media);
     const isVideo = String(media?.mediatype || "").toLowerCase().includes("video");
-    const previewUrl = mediaUrl;
+    const previewUrl = isVideo ? mediaUrl : getDisplayUrl(media);
 
     if (!previewUrl || mediaDetailPreloadCache.has(previewUrl)) return;
 
@@ -286,11 +298,6 @@ const preloadMediaForNavigation = (media, distance) => {
     image.fetchPriority = "low";
     image.src = previewUrl;
     rememberPreloadedMedia(previewUrl, image);
-};
-
-const isHeicMedia = (media) => {
-    const fileReference = String(media?.filepath || media?.filename || "");
-    return /\.hei[cf](?:$|[?#])/i.test(fileReference);
 };
 
 const parseApiResponse = async (response, fallbackMessage) => {
@@ -692,8 +699,7 @@ export const MediaDetailPage = () => {
             return undefined;
         }
 
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        const releaseScroll = lockPageScroll();
 
         const handleEscape = (event) => {
             if (event.key === "Escape") {
@@ -704,7 +710,7 @@ export const MediaDetailPage = () => {
         window.addEventListener("keydown", handleEscape);
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            releaseScroll();
             window.removeEventListener("keydown", handleEscape);
         };
     }, [isLightboxOpen]);
@@ -874,14 +880,13 @@ export const MediaDetailPage = () => {
     const currentMedia = currentIndex >= 0 ? filteredMediaItems[currentIndex] : null;
     const mediaUrl = currentMedia ? getMediaUrl(currentMedia) : "";
     const thumbnailUrl = currentMedia ? getThumbnailUrl(currentMedia) : "";
-    const isHeic = isHeicMedia(currentMedia);
     const isVideo = String(currentMedia?.mediatype || "")
         .toLowerCase()
         .includes("video");
-    const viewerUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
-    const lightboxMediaUrl = isHeic ? thumbnailUrl || mediaUrl : mediaUrl;
+    const viewerUrl = isVideo ? mediaUrl : currentMedia ? getDisplayUrl(currentMedia) : "";
+    const lightboxMediaUrl = viewerUrl;
     const viewerIsVideo = isVideo;
-    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : mediaUrl;
+    const viewerBlurBackgroundUrl = viewerIsVideo ? thumbnailUrl || mediaUrl || "" : viewerUrl;
     const hasPrevious = currentIndex > 0;
     const hasNext = currentIndex >= 0 && currentIndex < filteredMediaItems.length - 1;
     const shouldShowCounter = filteredMediaItems.length > 1;
@@ -2236,6 +2241,11 @@ export const MediaDetailPage = () => {
                                     <span className="tagged-media-detail-desktop-tag tagged-media-detail-desktop-tag--meta">
                                         {formatMediaSize(currentMedia.size)}
                                     </span>
+                                    {isDriveMedia(currentMedia) ? (
+                                        <span className="tagged-media-detail-desktop-tag tagged-media-detail-desktop-tag--meta">
+                                            <MediaSourceBadge media={currentMedia} withLabel />
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <div className="tagged-media-detail-desktop-top-right">
                                     <h1 className="tagged-media-detail-desktop-name" title={currentMedia.displayname || "Undefined"}>{currentMedia.displayname || "Undefined"}</h1>
@@ -2418,8 +2428,9 @@ export const MediaDetailPage = () => {
                         </div>
 
                         <div className="tagged-media-detail-mobile-meta-row">
-                            <p className="tagged-media-detail-upload-date">
-                                {formatUploadDate(currentMedia.updatedAt)}
+                            <p className="tagged-media-detail-upload-date flex flex-wrap items-center gap-2">
+                                <span>{formatUploadDate(currentMedia.updatedAt)}</span>
+                                <MediaSourceBadge media={currentMedia} withLabel withSeparator />
                             </p>
                         </div>
                     </header>

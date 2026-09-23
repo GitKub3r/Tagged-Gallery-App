@@ -27,8 +27,10 @@ import { LoadErrorState } from "../../components/load-error-state/LoadErrorState
 import { UploadMediaModal } from "../../components/upload-media-modal/UploadMediaModal";
 import { uploadMedia } from "../../api/mediaUploadRequest";
 import { applyTemplate } from "../../utils/applyTemplate";
-import { galleryApi } from "../../api/galleryApi";
+import { galleryApi, galleryQueryKeys } from "../../api/galleryApi";
 import { MediaCard } from "../../components/media-card/MediaCard";
+import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
+import { useScrollLock } from "../../hooks/useScrollLock";
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
@@ -377,6 +379,7 @@ export const GalleryListItem = ({
                         <FontAwesomeIcon icon={faTag} aria-hidden="true" />
                         {mediaTagCount}
                     </span>
+                    <MediaSourceBadge media={media} withSeparator />
                 </p>
             </div>
 
@@ -2560,7 +2563,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
     const mediaQuery = useQuery({
         queryKey: [
-            "gallery-media",
+            ...galleryQueryKeys.all,
             user?.id,
             currentPage,
             pageSize,
@@ -2616,25 +2619,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         };
     }, [user]);
 
-    useEffect(() => {
-        if (!isUploadModalOpen) {
-            return undefined;
-
-        }
-        const previousBodyOverflow = document.body.style.overflow;
-        const previousHtmlOverflow = document.documentElement.style.overflow;
-        const previousBodyTouchAction = document.body.style.touchAction;
-
-        document.body.style.overflow = "hidden";
-        document.documentElement.style.overflow = "hidden";
-        document.body.style.touchAction = "none";
-
-        return () => {
-            document.body.style.overflow = previousBodyOverflow;
-            document.documentElement.style.overflow = previousHtmlOverflow;
-            document.body.style.touchAction = previousBodyTouchAction;
-        };
-    }, [isUploadModalOpen]);
+    useScrollLock(isUploadModalOpen);
 
     useEffect(() => {
         const handleGlobalKeyDown = (event) => {

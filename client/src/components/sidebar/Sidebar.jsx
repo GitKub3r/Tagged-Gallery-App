@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import {
     faAnglesLeft,
     faAnglesRight,
@@ -25,11 +26,12 @@ import {
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useMatch, useNavigate } from "react-router-dom";
-import { sidebarApi } from "../../api/sidebarApi";
+import { sidebarApi, tagNameQueryKeys } from "../../api/sidebarApi";
 import { useAuth } from "../../hooks/useAuth";
 import { useTagFilter } from "../../context/TagFilterContext";
 import { useDevTools } from "../../hooks/useDevTools";
 import { SearchField } from "../search-field/SearchField";
+import { lockPageScroll } from "../../utils/scrollLock";
 
 const OPEN_UPLOAD_EVENT = "tagged:open-upload";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "tagged:sidebar-collapsed";
@@ -40,6 +42,7 @@ const navItems = [
     { label: "Albums", path: "/albums", icon: faFolderOpen },
     { label: "Metadata", path: "/metadata", icon: faTags },
     { label: "Templates", path: "/templates", icon: faCopy },
+    { label: "Google Drive", path: "/drive", icon: faGoogleDrive },
     { label: "Dashboard", path: "/dashboard", icon: faChartColumn },
 ];
 
@@ -93,7 +96,7 @@ export const Sidebar = () => {
     const sectionOneNavItems = user?.type === "admin" ? adminNavItems : navItems;
 
     const { data: allTagNames = [] } = useQuery({
-        queryKey: ["tags", "names"],
+        queryKey: tagNameQueryKeys.all,
         queryFn: () => sidebarApi.getTagNames(accessToken),
         enabled: Boolean(user && user.type !== "admin" && shouldShowTagPanel && accessToken),
         staleTime: 5 * 60 * 1000,
@@ -110,12 +113,11 @@ export const Sidebar = () => {
         const handleKeyDown = (event) => {
             if (event.key === "Escape") setIsOpen(false);
         };
-        const previousOverflow = document.body.style.overflow;
-        document.body.style.overflow = "hidden";
+        const releaseScroll = lockPageScroll();
         window.addEventListener("keydown", handleKeyDown);
 
         return () => {
-            document.body.style.overflow = previousOverflow;
+            releaseScroll();
             window.removeEventListener("keydown", handleKeyDown);
         };
     }, [isOpen]);

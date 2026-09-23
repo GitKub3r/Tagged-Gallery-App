@@ -31,7 +31,8 @@ Etiquetas usadas en este documento:
 - Semánticos, solo cuando hay un estado que comunicar:
   - **Error y peligro:** `red`. Texto `text-red-600 dark:text-red-400`. Botón `bg-red-600 hover:bg-red-500`. Fondo suave `bg-red-500/10`, borde `border-red-500/30`–`/50`.
   - **Éxito:** `green`. Borde de toast `border-green-500/50` y texto `text-green-600`.
-  - **Aviso e información:** hoy no se usan. Si hacen falta, usar `amber` e `sky` con la misma estructura (`-600`/`-400`, `/10`, `/30`) y añadirlos aquí.
+  - **Aviso:** `amber`. Aviso en línea `border-amber-500/30 bg-amber-500/10` con icono `text-amber-600 dark:text-amber-400` (`DriveNotice`, tono `warning`); punto de estado `bg-amber-500`.
+  - **Información:** hoy no se usa. Si hace falta, `sky` con la misma estructura.
 - Los colores de las tags los elige el usuario. Solo se pintan mediante `utils/tagStyle.js` (sección 7.7).
 
 ### 2.2 Roles de color (canónico)
@@ -136,6 +137,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
 </header>
 ```
 
+- **Página de perfil o integración** (Account, Google Drive): sin tarjeta envolvente. Cabecera grande con icono o avatar (`h-24 w-24`) y punto de estado, eyebrow, `h1` y, debajo, una línea `text-sm text-neutral-500` que integra el estado con su icono semántico y el dato principal ("✓ Connected as email"); sin píldoras de estado. Acción principal a la derecha; `border-b pb-8`. Debajo, `max-w-5xl` con secciones `py-8` separadas por `divide-y` (título `text-xl font-bold` y descripción), indicadores en rejilla `grid-cols-2 lg:grid-cols-4` y datos en filas `divide-y` con etiqueta en mayúsculas e icono (`w-44`) a la izquierda.
 - **Barra de herramientas de colección:** `LibraryToolbar` (búsqueda a la izquierda, controles a la derecha, `max-w-[92rem]` centrado).
 - **Fila buscador + contador:** `flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`, con búsqueda `max-w-sm` y contador `text-sm text-neutral-500` con `aria-live="polite"`.
 - **Layout con navegación lateral secundaria** (patrón de Metadata): `grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]`, con la navegación `sticky` desde `xl`.
@@ -203,6 +205,7 @@ Se usa siempre esta escala; no inventar valores intermedios:
 - **Fondo de modal:** `bg-black/70 backdrop-blur-sm`.
 - **Fondo del drawer de sidebar:** `bg-black/60` sin blur.
 - **Visor de media a pantalla completa:** `bg-black/90`.
+- **Bloqueo de scroll:** todo modal, panel o widget superpuesto bloquea el scroll de la página con `useScrollLock(isOpen)` o `lockPageScroll()` (admite bloqueos anidados). No manipular `document.body.style.overflow` a mano.
 
 ---
 
@@ -226,7 +229,7 @@ Antes de maquetar, se busca el componente en esta lista. Si existe, se usa; si n
 
 ### 7.1 Botones
 
-No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
+**En código nuevo, usar `buttonClasses` (`components/button/buttonClasses.js`: `primary`, `secondary`, `dangerGhost`, `text`) en lugar de copiar las recetas.** No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
 
 **Primario:** una sola acción principal por vista o modal.
 
@@ -298,7 +301,7 @@ El foco de un campo se muestra cambiando el borde a `neutral-500`, porque el CSS
 
 **Select:** `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
 
-**Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se envuelve en una tarjeta clicable:
+**Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se usa `CheckboxOption` (`title`, `description`), que la envuelve en una tarjeta clicable:
 
 ```
 flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral-200 bg-neutral-100/60 px-3 py-3 dark:border-neutral-800 dark:bg-neutral-950/50
@@ -343,6 +346,8 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
 - **Contador o badge neutro:** `rounded-full bg-neutral-200 px-2 text-xs font-bold tabular-nums dark:bg-neutral-800`.
 - **Incluir / excluir tag en filtros:** botones `h-7 w-7 rounded-xl border`. Incluir activo en invertido; excluir activo en `border-red-500/50 bg-red-500/15 text-red-500`, con iconos `faPlus` y `faMinus`.
 
+**Origen de la media:** `MediaSourceBadge` marca las medias cuyo original vive en Google Drive (`isDriveMedia` en `utils/mediaSource.js`). En tarjetas y listas es solo el icono `faGoogleDrive`, al final de la línea de metadatos (`autor · tags · icono`) con `withSeparator`, heredando tamaño y color, con `title` y texto `sr-only`. En el detalle va con etiqueta (`withLabel`): como chip junto al autor y el tamaño en escritorio, y tras la fecha en móvil. No se añaden badges ni colores nuevos para el origen.
+
 ### 7.5 Modales
 
 Todos los modales:
@@ -351,7 +356,7 @@ Todos los modales:
 - Llevan `role="dialog"`, `aria-modal="true"` y `aria-labelledby` (más `aria-describedby` si hay descripción).
 - Se cierran con Escape, con clic en el fondo (`onMouseDown` sobre el overlay) y con un `IconButton` `faXmark` en la cabecera. Las tres vías se desactivan mientras hay una operación en curso.
 
-**Modal de formulario:** reutilizar `MediaFormModal`:
+**Modal de formulario:** reutilizar `MediaFormModal`. Para nombre, autor y tags se usa `MediaMetadataFields` con el estado de `useMediaMetadataForm` y los datos de `useMetadata`:
 
 - Overlay: `fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 p-2 backdrop-blur-sm sm:p-4`.
 - Caja: `rounded-xl border border-neutral-300 bg-neutral-50 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900`, `max-h-[calc(100dvh-1rem)]`, `max-w-2xl` si es compacto.
@@ -360,9 +365,19 @@ Todos los modales:
 - Pie: `flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end sm:px-6`.
 - El `<form>` envuelve cuerpo y pie (`flex min-h-0 flex-col`) para que Enter envíe.
 
-**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
+**Añadir medias:** todo flujo que añade medias a la biblioteca (subida desde el equipo, archivos de Google Drive) usa `UploadMediaModal` con su `variant` (`upload` o `drive`). Cambian el título, el icono y los textos; la estructura, el formulario, la vista previa y el progreso son los mismos. Un origen nuevo se añade como otra variante, no como otro modal.
 
-**Modal anidado:** `z-[1300]`. Evitar más de dos niveles.
+**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
+
+**Modal anidado:** `z-[1300]`. Con `MediaFormModal` se pasa `layer="nested"`: atiende Escape antes que el modal de debajo, así que solo se cierra el de arriba. Evitar más de dos niveles.
+
+**Explorador de archivos externos** (`DriveBrowserModal`, para elegir fotos, vídeos y carpetas de Google Drive). Se monta sobre `MediaFormModal` y, cuando se abre con "Change" desde el modal de añadir medias, usa `layer="nested"` y conserva la selección:
+
+- **Barra superior** (`border-b px-4 py-3 sm:px-6`): segmented control con las vistas (*My Drive*, *Recent*, *Starred*, *Shared*; solo icono en móvil) y `SearchField` (`md:max-w-xs`) con retardo de 350 ms.
+- **Barra de ubicación** (`min-h-14 border-b`): `IconButton` `faArrowLeft` para subir de carpeta, migas de pan con `buttonClasses.text` (en móvil solo las dos últimas) y, a la derecha, "Select all" / "Deselect all" (`faCheckDouble` / `faXmark`), que carga las páginas que falten hasta el límite.
+- **Contenido:** carpetas primero, en filas `h-14 rounded-xl border` (el nombre abre la carpeta; el círculo de la derecha la selecciona entera) y después fotos y vídeos en rejilla cuadrada (`grid-cols-2` → `lg:grid-cols-5`) con el nombre debajo. Selección con el mismo círculo que `MediaCard` y anillo `ring-2`; Mayús + clic selecciona un rango. Los vídeos llevan su duración en una píldora `bg-black/65` y lo que ya está en la biblioteca aparece atenuado, con "In library" y sin poder seleccionarse.
+- **Carga:** skeletons con la forma de la rejilla, scroll infinito con un `faSpinner` al final, `EmptyState` y `LoadErrorState` con `placement="section"`.
+- **Pie:** resumen `aria-live` ("3 files and 1 folder selected") con "Clear", y a la derecha "Cancel" y "Continue" (`faArrowRight`). Excepción al pie apilado: en móvil los dos botones comparten fila (`grid grid-cols-2`) para dejar más alto a la rejilla.
 
 ### 7.6 Navegación
 
@@ -407,7 +422,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 
 ## 8. Iconografía
 
-- Font Awesome, importando cada icono por nombre desde `free-solid-svg-icons` (o `free-regular-svg-icons` para el estado vacío o apagado).
+- Font Awesome, importando cada icono por nombre desde `free-solid-svg-icons` (o `free-regular-svg-icons` para el estado vacío o apagado). `free-brands-svg-icons` solo para logotipos de servicios integrados, como Google Drive.
 - Tamaño: hereda el del texto. Los iconos de navegación van con `w-5 shrink-0`. Los iconos protagonistas de estados vacíos usan `text-5xl sm:text-6xl`.
 - Icono decorativo o acompañado de texto: `aria-hidden="true"`.
 
@@ -445,6 +460,10 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Tema claro / oscuro | `faSun` / `faMoon` |
 | Cuenta / usuarios | `faUser` / `faUsers` |
 | Cerrar sesión | `faRightFromBracket` |
+| Google Drive (pestaña, origen de una media) | `faGoogleDrive` (`@fortawesome/free-brands-svg-icons`) |
+| Carpeta de un servicio externo | `faFolder` |
+| Vistas del explorador: unidad / recientes / destacados / compartido | `faHardDrive` / `faClock` / `faStar` / `faUserGroup` |
+| Desconectar una integración | `faLinkSlash` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
 
 Para una acción que no esté en la tabla, se elige el icono, se usa en todos los sitios de esa acción y se añade aquí.
