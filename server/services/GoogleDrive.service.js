@@ -12,6 +12,7 @@ const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
 const { detectMediaType, extractRemoteVideoFrame, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
 const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
 const { signDriveThumbnail } = require("../utils/uploadUrls");
+const { DRIVE_TAG_NAME, withDriveTag } = require("../utils/driveTag");
 
 // Permiso de solo lectura sobre todo el Drive: lo necesita el explorador de Tagged para listar carpetas.
 // Es un permiso restringido: sin la verificación de Google, la app funciona en modo Prueba (usuarios de prueba).
@@ -517,6 +518,10 @@ class GoogleDriveService {
         }
     }
 
+    static async ensureDriveTags() {
+        await MediaModel.ensureDriveTags(DRIVE_TAG_NAME);
+    }
+
     // Borra las miniaturas del explorador que llevan mucho tiempo sin renovarse.
     static async pruneBrowseThumbnails() {
         const limit = Date.now() - BROWSE_THUMBNAIL_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
@@ -682,7 +687,8 @@ class GoogleDriveService {
 
         const result = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
         const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, fileIds);
-        const context = { client, driveApi, user, body, isFavourite: validation.isFavourite, tagNames: parsedTagNames.data, now: new Date() };
+        // Toda media de Drive lleva la tag "Google Drive", además de las elegidas.
+        const context = { client, driveApi, user, body, isFavourite: validation.isFavourite, tagNames: withDriveTag(parsedTagNames.data), now: new Date() };
 
         try {
             const outcomes = await mapWithConcurrency(fileIds, LINK_CONCURRENCY, (fileId) =>
@@ -758,6 +764,8 @@ class GoogleDriveService {
             refreshTokenEncrypted: encrypt(refreshToken),
             scopes: grantedScopes.join(" "),
         });
+        // La tag de sistema existe desde que se conecta la cuenta, lista para filtrar por ella.
+        await MediaService.getOrCreateTagIdsForUser([DRIVE_TAG_NAME], user.id);
         // Al reconectar, las medias de Drive vuelven a estar accesibles; la comprobación de estado corregirá las que falten.
         await GoogleDriveConnectionModel.markUserMediaStatus(user.id, "available");
         await AuditService.logEvent({ actionCode: "GOOGLE_DRIVE_CONNECT", req, statusCode: 200, message: "Google Drive connected" });

@@ -491,6 +491,22 @@ class MediaModel {
     }
 
     // Ids de Drive que el usuario ya tiene vinculados, para no vincularlos dos veces.
+    // Da la tag de sistema de Drive a las medias de Drive que no la tengan (medias vinculadas antes de existir).
+    static async ensureDriveTags(tagName) {
+        await pool.query(
+            `INSERT IGNORE INTO tags (user_id, tagname, type)
+             SELECT DISTINCT user_id, ?, 'default' FROM media WHERE storage_provider = 'google_drive'`,
+            [tagName],
+        );
+        await pool.query(
+            `INSERT IGNORE INTO media_tags (tagid, mediaid)
+             SELECT t.id, m.id FROM media m
+             JOIN tags t ON t.user_id = m.user_id AND t.tagname = ?
+             WHERE m.storage_provider = 'google_drive'`,
+            [tagName],
+        );
+    }
+
     static async findDriveMediaBySource(userId, fileId) {
         const [[row]] = await pool.query(
             "SELECT id, source_mime_type FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND source_file_id = ? LIMIT 1",
