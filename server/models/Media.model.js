@@ -19,6 +19,7 @@ class MediaModel {
             ["checksum_md5", "CHAR(32) NULL AFTER last_synced_at"],
             // Papelera: fecha en la que se envió a la papelera (NULL = activa). Se borra definitivamente a los 30 días.
             ["deleted_at", "DATETIME NULL DEFAULT NULL"],
+            ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER deleted_at"],
         ];
 
         for (const [name, definition] of columnDefinitions) {
