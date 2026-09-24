@@ -1214,8 +1214,8 @@ export const MediaDetailPage = () => {
             showActionToast(
                 {
                     status: "success",
-                    title: "Media deleted",
-                    message: `${deletedMediaLabel} was deleted successfully.`,
+                    title: "Moved to trash",
+                    message: `${deletedMediaLabel} can be restored from the trash for 30 days.`,
                 },
                 3200,
             );
@@ -2643,9 +2643,10 @@ export const MediaDetailPage = () => {
 
             <DeleteConfirmationModal
                 isOpen={isDeleteConfirmOpen}
-                title="Delete this media?"
+                title="Move this media to the trash?"
                 description={describeMediaDeletion(1, isDriveMedia(currentMedia) ? 1 : 0)}
-                confirmLabel="Delete media"
+                confirmLabel="Move to trash"
+                pendingLabel="Moving..."
                 isDeleting={isDeletingMedia}
                 onConfirm={handleDeleteCurrentMedia}
                 onClose={closeDeleteCurrentMediaConfirm}

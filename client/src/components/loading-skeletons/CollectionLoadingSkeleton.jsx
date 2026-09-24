@@ -4,7 +4,7 @@ import { Skeleton } from "./Skeleton";
 const SKELETON_VISIBILITY_DELAY_MS = 180;
 const keys = Array.from({ length: 15 }, (_, index) => index);
 
-const MediaCardSkeleton = () => (
+export const MediaCardSkeleton = () => (
     <article className="w-full" aria-hidden="true">
         <div className="relative aspect-[4/3] overflow-hidden rounded-xl"><Skeleton className="absolute inset-0 h-full w-full" /><Skeleton className="absolute right-2 top-2 h-10 w-10" /></div>
         <div className="px-1 pb-1 pt-3"><Skeleton className="h-5 w-2/3" /><div className="mt-2 flex items-center gap-2"><Skeleton className="h-3 w-1/3" /><Skeleton className="h-3 w-12" /></div></div>

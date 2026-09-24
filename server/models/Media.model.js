@@ -17,6 +17,8 @@ class MediaModel {
             ["source_modified_time", "DATETIME NULL AFTER source_mime_type"],
             ["last_synced_at", "DATETIME NULL AFTER source_modified_time"],
             ["checksum_md5", "CHAR(32) NULL AFTER last_synced_at"],
+            // Papelera: fecha en la que se envió a la papelera (NULL = activa). Se borra definitivamente a los 30 días.
+            ["deleted_at", "DATETIME NULL DEFAULT NULL"],
         ];
 
         for (const [name, definition] of columnDefinitions) {
@@ -32,6 +34,9 @@ class MediaModel {
         }
         if (!existingIndexes.has("idx_media_user_checksum")) {
             await pool.query("ALTER TABLE media ADD INDEX idx_media_user_checksum (user_id, checksum_md5)");
+        }
+        if (!existingIndexes.has("idx_media_user_deleted")) {
+            await pool.query("ALTER TABLE media ADD INDEX idx_media_user_deleted (user_id, deleted_at)");
         }
     }
 
@@ -65,20 +70,20 @@ class MediaModel {
 
     static async findAll() {
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media ORDER BY id DESC`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE deleted_at IS NULL ORDER BY id DESC`,
         );
         return rows;
     }
 
     static async countAll() {
-        const [[row]] = await pool.query("SELECT COUNT(*) AS total FROM media");
+        const [[row]] = await pool.query("SELECT COUNT(*) AS total FROM media WHERE deleted_at IS NULL");
         return row.total;
     }
 
     static async findAllPaginated(page, limit) {
         const offset = (page - 1) * limit;
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media ORDER BY id DESC LIMIT ? OFFSET ?`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`,
             [limit, offset],
         );
         return rows;
@@ -86,21 +91,21 @@ class MediaModel {
 
     static async findAllByUserId(userId) {
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? ORDER BY id DESC`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC`,
             [userId],
         );
         return rows;
     }
 
     static async countByUserId(userId) {
-        const [[row]] = await pool.query("SELECT COUNT(*) AS total FROM media WHERE user_id = ?", [userId]);
+        const [[row]] = await pool.query("SELECT COUNT(*) AS total FROM media WHERE user_id = ? AND deleted_at IS NULL", [userId]);
         return row.total;
     }
 
     static async findAllByUserIdPaginated(userId, page, limit) {
         const offset = (page - 1) * limit;
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? AND deleted_at IS NULL ORDER BY id DESC LIMIT ? OFFSET ?`,
             [userId, limit, offset],
         );
         return rows;
@@ -122,7 +127,7 @@ class MediaModel {
         freeTerms = [],
         randomSeed = null,
     } = {}) {
-        const conditions = [];
+        const conditions = ["m.deleted_at IS NULL"];
         const values = [];
 
         if (userId !== null && userId !== undefined) {
@@ -202,7 +207,7 @@ class MediaModel {
                 FROM (
                     SELECT TRIM(displayname) AS value, COUNT(*) AS usage_count
                     FROM media
-                    WHERE displayname IS NOT NULL AND TRIM(displayname) <> ''
+                    WHERE deleted_at IS NULL AND displayname IS NOT NULL AND TRIM(displayname) <> ''
                     GROUP BY TRIM(displayname)
 
                     UNION ALL
@@ -226,7 +231,7 @@ class MediaModel {
                 FROM (
                     SELECT TRIM(displayname) AS value, COUNT(*) AS usage_count
                     FROM media
-                    WHERE user_id = ? AND displayname IS NOT NULL AND TRIM(displayname) <> ''
+                    WHERE user_id = ? AND deleted_at IS NULL AND displayname IS NOT NULL AND TRIM(displayname) <> ''
                     GROUP BY TRIM(displayname)
 
                     UNION ALL
@@ -252,7 +257,7 @@ class MediaModel {
                 FROM (
                     SELECT TRIM(author) AS value, COUNT(*) AS usage_count
                     FROM media
-                    WHERE author IS NOT NULL AND TRIM(author) <> ''
+                    WHERE deleted_at IS NULL AND author IS NOT NULL AND TRIM(author) <> ''
                     GROUP BY TRIM(author)
 
                     UNION ALL
@@ -276,7 +281,7 @@ class MediaModel {
                 FROM (
                     SELECT TRIM(author) AS value, COUNT(*) AS usage_count
                     FROM media
-                    WHERE user_id = ? AND author IS NOT NULL AND TRIM(author) <> ''
+                    WHERE user_id = ? AND deleted_at IS NULL AND author IS NOT NULL AND TRIM(author) <> ''
                     GROUP BY TRIM(author)
 
                     UNION ALL
@@ -509,7 +514,7 @@ class MediaModel {
 
     static async findDriveMediaBySource(userId, fileId) {
         const [[row]] = await pool.query(
-            "SELECT id, source_mime_type FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND source_file_id = ? LIMIT 1",
+            "SELECT id, source_mime_type FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND source_file_id = ? AND deleted_at IS NULL LIMIT 1",
             [userId, fileId],
         );
         return row || null;
@@ -530,6 +535,7 @@ class MediaModel {
         await pool.query("UPDATE media SET storage_status = ? WHERE id = ?", [status, mediaId]);
     }
 
+    // Incluye las medias en la papelera: el archivo de Drive sigue vinculado hasta que se borran definitivamente.
     static async findLinkedDriveFileIds(userId, fileIds) {
         if (!fileIds.length) return new Set();
         const [rows] = await pool.query(
@@ -549,7 +555,7 @@ class MediaModel {
                     COALESCE(SUM(storage_status <> 'available'), 0) AS unavailable,
                     MAX(created_at) AS last_added_at
              FROM media
-             WHERE user_id = ? AND storage_provider = 'google_drive'`,
+             WHERE user_id = ? AND storage_provider = 'google_drive' AND deleted_at IS NULL`,
             [userId],
         );
         return {
@@ -564,7 +570,7 @@ class MediaModel {
 
     static async findRecentDriveMedia(userId, limit) {
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? AND storage_provider = 'google_drive' ORDER BY id DESC LIMIT ?`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND deleted_at IS NULL ORDER BY id DESC LIMIT ?`,
             [userId, limit],
         );
         return rows;
@@ -574,7 +580,7 @@ class MediaModel {
     static async findLocalByChecksums(userId, checksums) {
         if (!checksums.length) return [];
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS}, checksum_md5 FROM media WHERE user_id = ? AND storage_provider = 'local' AND checksum_md5 IN (?)`,
+            `SELECT ${MEDIA_COLUMNS}, checksum_md5 FROM media WHERE user_id = ? AND storage_provider = 'local' AND deleted_at IS NULL AND checksum_md5 IN (?)`,
             [userId, checksums],
         );
         return rows;
@@ -582,7 +588,7 @@ class MediaModel {
 
     static async findByIdForUser(id, userId) {
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id = ? AND user_id = ?`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id = ? AND user_id = ? AND deleted_at IS NULL`,
             [id, userId],
         );
         return rows[0];
@@ -590,7 +596,7 @@ class MediaModel {
 
     static async findById(id) {
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id = ?`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id = ? AND deleted_at IS NULL`,
             [id],
         );
         return rows[0];
@@ -602,7 +608,7 @@ class MediaModel {
         }
 
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id IN (?)`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id IN (?) AND deleted_at IS NULL`,
             [ids],
         );
         return rows;
@@ -614,7 +620,7 @@ class MediaModel {
         }
 
         const [rows] = await pool.query(
-            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id IN (?) AND user_id = ?`,
+            `SELECT ${MEDIA_COLUMNS} FROM media WHERE id IN (?) AND user_id = ? AND deleted_at IS NULL`,
             [ids, userId],
         );
         return rows;
@@ -647,6 +653,49 @@ class MediaModel {
         values.push(id);
         const [result] = await pool.query(`UPDATE media SET ${parts.join(", ")} WHERE id = ?`, values);
         return result.affectedRows > 0;
+    }
+
+    // --- Papelera ---
+
+    // Envía medias activas a la papelera. Sus tags y álbumes se conservan para poder restaurarlas.
+    static async moveToTrash(ids) {
+        if (!ids.length) return 0;
+        const [result] = await pool.query("UPDATE media SET deleted_at = NOW() WHERE id IN (?) AND deleted_at IS NULL", [ids]);
+        return result.affectedRows || 0;
+    }
+
+    static async restoreFromTrash(ids, userId) {
+        if (!ids.length) return 0;
+        const [result] = await pool.query("UPDATE media SET deleted_at = NULL WHERE id IN (?) AND user_id = ? AND deleted_at IS NOT NULL", [ids, userId]);
+        return result.affectedRows || 0;
+    }
+
+    // Medias en la papelera, las más recientes primero, con la fecha de borrado.
+    static async findTrashByUserId(userId) {
+        const [rows] = await pool.query(
+            `SELECT ${MEDIA_COLUMNS}, deleted_at FROM media WHERE user_id = ? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC, id DESC`,
+            [userId],
+        );
+        return rows;
+    }
+
+    // Medias de la papelera de un usuario (ids = null: todas).
+    static async findTrashedForUser(userId, ids = null) {
+        if (Array.isArray(ids) && ids.length === 0) return [];
+        const [rows] = await pool.query(
+            `SELECT ${MEDIA_COLUMNS}, deleted_at FROM media WHERE user_id = ? AND deleted_at IS NOT NULL${ids ? " AND id IN (?)" : ""}`,
+            ids ? [userId, ids] : [userId],
+        );
+        return rows;
+    }
+
+    // Medias de cualquier usuario que llevan en la papelera más de retentionDays días.
+    static async findExpiredTrash(retentionDays, limit) {
+        const [rows] = await pool.query(
+            `SELECT ${MEDIA_COLUMNS}, deleted_at FROM media WHERE deleted_at IS NOT NULL AND deleted_at < NOW() - INTERVAL ? DAY ORDER BY deleted_at ASC LIMIT ?`,
+            [retentionDays, limit],
+        );
+        return rows;
     }
 
     static async delete(id) {

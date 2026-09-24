@@ -12,6 +12,7 @@ const metricsRoutes = require("./metrics.routes");
 const logsRoutes = require("./logs.routes");
 const filesRoutes = require("./files.routes");
 const googleDriveRoutes = require("./googleDrive.routes");
+const trashRoutes = require("./trash.routes");
 
 // Endpoint de bienvenida de la API v1
 router.get("/", (req, res) => {
@@ -67,5 +68,6 @@ router.use("/metrics", metricsRoutes);
 router.use("/logs", logsRoutes);
 router.use("/files", filesRoutes);
 router.use("/google-drive", googleDriveRoutes);
+router.use("/trash", trashRoutes);
 
 module.exports = router;

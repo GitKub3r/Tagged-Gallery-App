@@ -15,30 +15,44 @@ class MediaAlbumModel {
             `SELECT ${selectMediaColumns("m")}
              FROM media m
              INNER JOIN media_albums ma ON ma.mediaid = m.id
-             WHERE ma.albumid = ?
+             WHERE ma.albumid = ? AND m.deleted_at IS NULL
              ORDER BY ma.id ASC`,
             [albumId],
         );
         return rows;
     }
 
+    // Medias activas del álbum, en orden (las de la papelera no se pueden reordenar).
     static async findMediaIdsByAlbumId(albumId) {
-        const [rows] = await pool.query("SELECT mediaid FROM media_albums WHERE albumid = ? ORDER BY id ASC", [
-            albumId,
-        ]);
+        const [rows] = await pool.query(
+            `SELECT ma.mediaid FROM media_albums ma INNER JOIN media m ON m.id = ma.mediaid
+             WHERE ma.albumid = ? AND m.deleted_at IS NULL ORDER BY ma.id ASC`,
+            [albumId],
+        );
         return rows.map((row) => Number(row.mediaid)).filter((id) => Number.isInteger(id) && id > 0);
     }
 
+    // Reordena las medias activas. Las que están en la papelera conservan su hueco, así al restaurarlas
+    // vuelven a la misma posición del álbum.
     static async replaceOrder(albumId, mediaIds) {
         const connection = await pool.getConnection();
 
         try {
             await connection.beginTransaction();
 
+            const [currentRows] = await connection.query(
+                `SELECT ma.mediaid, m.deleted_at IS NOT NULL AS in_trash FROM media_albums ma INNER JOIN media m ON m.id = ma.mediaid
+                 WHERE ma.albumid = ? ORDER BY ma.id ASC`,
+                [albumId],
+            );
+            const activeQueue = [...mediaIds];
+            const orderedIds = currentRows.map((row) => (row.in_trash ? row.mediaid : activeQueue.shift())).filter((id) => id !== undefined);
+            orderedIds.push(...activeQueue);
+
             await connection.query("DELETE FROM media_albums WHERE albumid = ?", [albumId]);
 
-            if (mediaIds.length > 0) {
-                const values = mediaIds.map((mediaId) => [mediaId, albumId]);
+            if (orderedIds.length > 0) {
+                const values = orderedIds.map((mediaId) => [mediaId, albumId]);
                 await connection.query("INSERT INTO media_albums (mediaid, albumid) VALUES ?", [values]);
             }
 

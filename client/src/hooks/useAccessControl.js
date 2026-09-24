@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./useAuth";
 
 const ADMIN_ROUTES = ["/logs", "/actions", "/users", "/account"];
-const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/templates", "/drive", "/dashboard", "/account"];
+const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/templates", "/drive", "/dashboard", "/trash", "/account"];
 const DEV_ROUTES = BASIC_ROUTES;
 
 /**
