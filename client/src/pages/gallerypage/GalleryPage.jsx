@@ -51,6 +51,7 @@ import { buildTagChipStyle, normalizeHexColor } from "../../utils/tagStyle";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { rankSuggestions } from "../../utils/suggestionRanking";
+import { describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
 import "./GalleryPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -3193,9 +3194,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             <DeleteConfirmationModal
                 isOpen={isDeleteConfirmOpen}
                 title={isSingleDeleteFlow ? "Delete this media?" : "Delete selected media?"}
-                description={isSingleDeleteFlow
-                    ? "The file and its metadata will be permanently removed. This action cannot be undone."
-                    : `${selectedMediaCount} file${selectedMediaCount === 1 ? "" : "s"} and ${selectedMediaCount === 1 ? "its" : "their"} metadata will be permanently removed. This action cannot be undone.`}
+                description={describeMediaDeletion(selectedMediaCount, mediaItems.filter((media) => selectedMediaIds.has(media.id) && isDriveMedia(media)).length)}
                 confirmLabel={isSingleDeleteFlow ? "Delete media" : "Delete selected"}
                 isDeleting={isDeletingSelected}
                 onConfirm={handleDeleteSelectedMedia}

@@ -18,7 +18,7 @@ import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { formatMediaSize } from "../../utils/mediaFormat";
 import "./MediaDetailPage.css";
 import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
-import { isDriveMedia } from "../../utils/mediaSource";
+import { describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
 import { lockPageScroll } from "../../utils/scrollLock";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -2609,7 +2609,7 @@ export const MediaDetailPage = () => {
             <DeleteConfirmationModal
                 isOpen={isDeleteConfirmOpen}
                 title="Delete this media?"
-                description="The file and its metadata will be permanently removed. This action cannot be undone."
+                description={describeMediaDeletion(1, isDriveMedia(currentMedia) ? 1 : 0)}
                 confirmLabel="Delete media"
                 isDeleting={isDeletingMedia}
                 onConfirm={handleDeleteCurrentMedia}
