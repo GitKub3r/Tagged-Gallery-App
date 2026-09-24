@@ -1,4 +1,6 @@
 const fs = require("fs/promises");
+const { createWriteStream } = require("fs");
+const { pipeline } = require("stream/promises");
 const http = require("http");
 const path = require("path");
 const sharp = require("sharp");
@@ -6,11 +8,24 @@ const { drive: createDriveApi } = require("@googleapis/drive");
 const { OAuth2Client } = require("google-auth-library");
 const GoogleDriveConnectionModel = require("../models/GoogleDriveConnection.model");
 const MediaModel = require("../models/Media.model");
+const AlbumModel = require("../models/Album.model");
+const MediaTagModel = require("../models/MediaTag.model");
 const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
-const { detectMediaType, extractRemoteVideoFrame, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
-const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
+const {
+    computeFileMd5,
+    detectMediaType,
+    extractRemoteVideoFrame,
+    generateMediaDerivatives,
+    getDriveDerivedFilename,
+    removeMediaDerivatives,
+    removeStoredMediaFiles,
+    writeJpeg,
+    THUMBNAIL_OPTIONS,
+    PREVIEW_OPTIONS,
+} = require("../utils/media");
+const { MEDIA_UPLOAD_DIR, THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
 const { signDriveThumbnail } = require("../utils/uploadUrls");
 const { DRIVE_TAG_NAME, withDriveTag } = require("../utils/driveTag");
 
@@ -27,6 +42,8 @@ const createOAuthClient = () =>
     new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, "postmessage");
 
 const MAX_LINK_FILES = 50;
+// Medias por petición al importar (cada una descarga el original completo).
+const MAX_IMPORT_MEDIA = 10;
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{10,200}$/;
 const DRIVE_FILE_FIELDS = "id, name, mimeType, size, md5Checksum, modifiedTime, thumbnailLink, trashed";
 const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
@@ -673,6 +690,102 @@ class GoogleDriveService {
 
         await MediaService.attachTagsToMedia(created.id, tagNames, user.id);
         return { type: "linked", item: { id: created.id, name: driveFile.name } };
+    }
+
+    // Convierte una media de Drive en media propia de Tagged, como si se hubiera subido desde el equipo:
+    // descarga el original, genera sus derivados, quita la referencia a Drive y la tag "Google Drive".
+    // Conserva id, nombre, autor, resto de tags, álbumes y favorito. En Drive no se toca nada.
+    static async importSingleMedia(mediaId, { client, user }) {
+        const media = await MediaModel.findByIdForUser(mediaId, user.id);
+        if (!media || media.storage_provider !== "google_drive") return { type: "skipped", item: { id: mediaId, reason: "not_drive_media" } };
+
+        const [localDuplicate] = media.checksum_md5 ? await MediaModel.findLocalByChecksums(user.id, [media.checksum_md5]) : [];
+        if (localDuplicate) return { type: "skipped", item: { id: mediaId, reason: "already_in_tagged", duplicateId: localDuplicate.id } };
+
+        const driveName = media.filename;
+        const extension = (path.extname(driveName || "").toLowerCase() || ".bin").replace(/[^a-z0-9.]/g, "");
+        const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+        const filePath = path.join(MEDIA_UPLOAD_DIR, filename);
+
+        const upstream = await requestDriveContent(client, media.source_file_id);
+        if (upstream.status !== 200) {
+            upstream.data.destroy();
+            if (upstream.status === 404) await MediaModel.updateStorageStatus(media.id, "missing");
+            return { type: "skipped", item: { id: mediaId, reason: upstream.status === 404 ? "missing_in_drive" : "not_accessible" } };
+        }
+
+        try {
+            await pipeline(upstream.data, createWriteStream(filePath));
+            const { size } = await fs.stat(filePath);
+            // Mismo objeto que deja multer, para generar los derivados igual que en una subida.
+            const file = { filename, path: filePath, originalname: driveName, mimetype: media.source_mime_type || "" };
+            const derivatives = await generateMediaDerivatives(file, media.mediatype === "gif" ? "image" : media.mediatype);
+
+            const converted = await MediaModel.convertDriveToLocal(media.id, {
+                filename,
+                size,
+                filepath: `/uploads/media/${filename}`,
+                thumbpath: derivatives.thumbnailPath,
+                previewpath: derivatives.previewPath,
+                checksum_md5: await computeFileMd5(filePath),
+            });
+            if (!converted) throw new Error("Media changed while importing");
+        } catch (error) {
+            await fs.rm(filePath, { force: true });
+            await removeMediaDerivatives(filename);
+            throw error;
+        }
+
+        await MediaTagModel.deleteSpecificTagsByNameForMedia(media.id, [DRIVE_TAG_NAME], user.id);
+        const updated = await MediaModel.findById(media.id);
+        // Las portadas de álbum guardan la ruta de la media: se apuntan a los archivos nuevos.
+        await AlbumModel.replaceCoverPaths(user.id, [media.previewpath, media.filepath].filter(Boolean), updated.previewpath || updated.filepath, updated.thumbpath);
+        await removeStoredMediaFiles(media);
+
+        return { type: "imported", item: { id: media.id, name: driveName } };
+    }
+
+    static async importMedia(body, user, req) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const mediaIds = [...new Set(Array.isArray(body?.mediaIds) ? body.mediaIds.map(Number) : [])];
+        if (mediaIds.length === 0 || mediaIds.length > MAX_IMPORT_MEDIA || !mediaIds.every((id) => Number.isInteger(id) && id > 0)) {
+            return { error: `Select between 1 and ${MAX_IMPORT_MEDIA} media`, status: 400 };
+        }
+
+        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+
+        const result = { imported: [], skipped: [] };
+        try {
+            // De una en una: cada importación descarga un original que puede pesar varios GB.
+            for (const mediaId of mediaIds) {
+                try {
+                    const { type, item } = await this.importSingleMedia(mediaId, { client, user });
+                    result[type].push(item);
+                } catch (error) {
+                    if (isRevokedGrantError(error)) throw error;
+                    console.error(`Could not import Drive media ${mediaId}:`, error.message);
+                    result.skipped.push({ id: mediaId, reason: "failed" });
+                }
+            }
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+
+        if (result.imported.length > 0) {
+            await AuditService.logEvent({
+                actionCode: "GOOGLE_DRIVE_IMPORT",
+                req,
+                statusCode: 200,
+                message: `Imported ${result.imported.length} Google Drive media into Tagged`,
+                metadata: { mediaIds: result.imported.map((item) => item.id) },
+            });
+        }
+        return { data: result };
     }
 
     static async linkFiles(body, user, req) {

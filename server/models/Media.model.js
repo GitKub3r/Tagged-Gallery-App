@@ -515,6 +515,17 @@ class MediaModel {
         return row || null;
     }
 
+    // Pasa una media de Drive a almacenamiento local (solo si sigue siendo de Drive).
+    static async convertDriveToLocal(mediaId, { filename, size, filepath, thumbpath, previewpath, checksum_md5 }) {
+        const [result] = await pool.query(
+            `UPDATE media SET storage_provider = 'local', storage_status = 'available', source_file_id = NULL, source_mime_type = NULL,
+                 source_modified_time = NULL, last_synced_at = NULL, filename = ?, size = ?, filepath = ?, thumbpath = ?, previewpath = ?, checksum_md5 = ?
+             WHERE id = ? AND storage_provider = 'google_drive'`,
+            [filename, size, filepath, thumbpath, previewpath, checksum_md5, mediaId],
+        );
+        return result.affectedRows > 0;
+    }
+
     static async updateStorageStatus(mediaId, status) {
         await pool.query("UPDATE media SET storage_status = ? WHERE id = ?", [status, mediaId]);
     }

@@ -31,6 +31,9 @@ router.post("/previews", GoogleDriveController.getPreviews);
 // POST /api/v1/google-drive/link - Vincular archivos de Drive elegidos como medias (sin copiar el original)
 router.post("/link", GoogleDriveController.linkFiles);
 
+// POST /api/v1/google-drive/import - Copiar medias de Drive a Tagged y quitar su vínculo con Drive
+router.post("/import", GoogleDriveController.importMedia);
+
 // POST /api/v1/google-drive/disconnect - Revocar el acceso y desconectar la cuenta
 router.post("/disconnect", GoogleDriveController.disconnect);
 
