@@ -1,4 +1,5 @@
-import { faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
+import { faLock, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getTagIcon } from "../../utils/tagIcon";
 import { useEffect, useRef } from "react";
@@ -103,8 +104,13 @@ export const MediaMetadataFields = ({
     getTagStyle,
     onApplyTemplate,
     templateResetKey,
+    // Tags que no se pueden quitar (p. ej. "Google Drive" en medias de Drive). Se muestran primero, con candado.
+    lockedTags = [],
     compact = false,
 }) => {
+    const lockedTagKeys = new Set(lockedTags.map((tag) => String(tag).trim().toLowerCase()));
+    const removableTags = selectedTags.filter((tag) => !lockedTagKeys.has(String(tag).trim().toLowerCase()));
+    const selectedTagCount = lockedTags.length + removableTags.length;
     const selectedTagsContainerRef = useRef(null);
     const existingTagNameSet = new Set(existingTagNames.map((tag) => String(tag).trim().toLowerCase()));
 
@@ -138,7 +144,7 @@ export const MediaMetadataFields = ({
             <span className="mb-1.5 flex items-center justify-between gap-3">
                 <span>Tags</span>
                 <span className="font-medium tabular-nums text-neutral-400 dark:text-neutral-500">
-                    {selectedTags.length} selected
+                    {selectedTagCount} selected
                 </span>
             </span>
             <div className="relative">
@@ -150,16 +156,29 @@ export const MediaMetadataFields = ({
         <div
             ref={selectedTagsContainerRef}
             className={`flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50 ${compact ? "" : "md:min-h-32 md:max-h-none md:flex-1"}`}
-            aria-label={`Selected tags, ${selectedTags.length} selected`}
+            aria-label={`Selected tags, ${selectedTagCount} selected`}
         >
-            {selectedTags.map((tag) => (
+            {lockedTags.map((tag) => (
+                <span
+                    key={tag}
+                    className="inline-flex h-8 max-w-36 shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1 text-xs font-semibold"
+                    style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])}
+                    title="Added automatically to media from Google Drive"
+                >
+                    <FontAwesomeIcon icon={faGoogleDrive} aria-hidden="true" />
+                    <span className="truncate">{tag}</span>
+                    <FontAwesomeIcon icon={faLock} className="opacity-70" aria-hidden="true" />
+                    <span className="sr-only">(can't be removed)</span>
+                </span>
+            ))}
+            {removableTags.map((tag) => (
                 <button key={tag} type="button" className="inline-flex! h-8! w-auto! max-w-36! shrink-0! items-center! gap-2! rounded-xl! border! px-2.5! py-1! text-xs! font-semibold! shadow-none! hover:opacity-80!" style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])} onClick={() => onRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
                     <FontAwesomeIcon icon={getTagIcon(existingTagNameSet.has(String(tag).trim().toLowerCase()), tagTypeByName[String(tag).trim().toLowerCase()])} aria-hidden="true" />
                     <span className="truncate">{tag}</span>
                     <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
                 </button>
             ))}
-            {selectedTags.length === 0 ? <span className="text-xs text-neutral-400 dark:text-neutral-600">No tags selected</span> : null}
+            {selectedTagCount === 0 ? <span className="text-xs text-neutral-400 dark:text-neutral-600">No tags selected</span> : null}
         </div>
 
         <ErrorToast message={error} />

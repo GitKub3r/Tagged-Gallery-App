@@ -342,6 +342,7 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
   - Color: `style={buildTagChipStyle(color)}` (o `buildDefaultTagStyle` para tags sin color).
   - Icono: `getTagIcon(...)`, que distingue tag guardada, tag nueva y tag de copyright.
   - Con botón de quitar: `faXmark` dentro del chip y `aria-label="Remove tag X"`.
+  - **Tag bloqueada** (tag de sistema "Google Drive" en medias de Drive): `MediaMetadataFields` la recibe en `lockedTags` y la pinta primero como `<span>` (no botón), con `faGoogleDrive`, `faLock` en lugar de `faXmark`, `title` explicativo y texto `sr-only` "(can't be removed)". En la gestión de tags solo se le puede cambiar el color: en lugar de editar y borrar muestra `faLock`.
 - **Chip de filtro activo** (búsqueda por facetas): píldora `rounded-full` `min-h-8`, con botón circular `h-5 w-5` para quitar.
 - **Contador o badge neutro:** `rounded-full bg-neutral-200 px-2 text-xs font-bold tabular-nums dark:bg-neutral-800`.
 - **Incluir / excluir tag en filtros:** botones `h-7 w-7 rounded-xl border`. Incluir activo en invertido; excluir activo en `border-red-500/50 bg-red-500/15 text-red-500`, con iconos `faPlus` y `faMinus`.
@@ -464,6 +465,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Carpeta de un servicio externo | `faFolder` |
 | Vistas del explorador: unidad / recientes / destacados / compartido | `faHardDrive` / `faClock` / `faStar` / `faUserGroup` |
 | Desconectar una integración | `faLinkSlash` |
+| Elemento gestionado por la app (no editable) | `faLock` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
 
 Para una acción que no esté en la tabla, se elige el icono, se usa en todos los sitios de esa acción y se añade aquí.
