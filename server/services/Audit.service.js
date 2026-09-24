@@ -29,7 +29,6 @@ const DEFAULT_ACTION_NAMES = {
     GOOGLE_DRIVE_DISCONNECT: "Disconnect Google Drive",
     GOOGLE_DRIVE_LINK: "Link Google Drive files",
     GOOGLE_DRIVE_IMPORT: "Import Google Drive media",
-    GOOGLE_DRIVE_LINK_ALL: "Add all Google Drive media",
 };
 
 class AuditService {

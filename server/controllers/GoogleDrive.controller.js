@@ -82,6 +82,14 @@ class GoogleDriveController {
         }
     }
 
+    static async getLinkAllPreview(req, res) {
+        try {
+            return sendResult(res, await GoogleDriveService.getLinkAllPreview(req.user));
+        } catch (error) {
+            return handleError(error, res);
+        }
+    }
+
     static async importMedia(req, res) {
         try {
             return sendResult(res, await GoogleDriveService.importMedia(req.body, req.user, req));

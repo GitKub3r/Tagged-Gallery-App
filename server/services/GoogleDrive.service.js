@@ -44,6 +44,8 @@ const createOAuthClient = () =>
 const MAX_LINK_FILES = 50;
 // Medias por petición al importar (cada una descarga el original completo).
 const MAX_IMPORT_MEDIA = 10;
+// "Add all": máximo de fotos y vídeos que se revisan de una vez en "Mi unidad".
+const MAX_LINK_ALL_SCAN = 10000;
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{10,200}$/;
 const DRIVE_FILE_FIELDS = "id, name, mimeType, size, md5Checksum, modifiedTime, thumbnailLink, trashed";
 const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
@@ -690,6 +692,65 @@ class GoogleDriveService {
 
         await MediaService.attachTagsToMedia(created.id, tagNames, user.id);
         return { type: "linked", item: { id: created.id, name: driveFile.name } };
+    }
+
+    // Resumen previo de "Add all": todas las fotos y vídeos de "Mi unidad" (sin compartidos ni copias de
+    // ordenadores), cuántos ya están en Tagged y cuántos faltan, con su tamaño. No vincula nada.
+    static async getLinkAllPreview(user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const { client, connection, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+        if (!hasReadonlyScope(connection)) return { error: "Reconnect Google Drive to add all your media.", status: 409 };
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+
+        const files = [];
+        let truncated = false;
+        try {
+            let pageToken;
+            do {
+                const { data } = await driveApi.files.list({
+                    q: `trashed = false and ${MEDIA_QUERY}`,
+                    fields: "nextPageToken, files(id, size, md5Checksum, parents)",
+                    pageSize: 1000,
+                    pageToken,
+                    spaces: "drive",
+                });
+                files.push(...(await this.filterMyDriveFiles(driveApi, user.id, data.files || [])));
+                pageToken = data.nextPageToken;
+                if (files.length >= MAX_LINK_ALL_SCAN) {
+                    truncated = Boolean(pageToken) || files.length > MAX_LINK_ALL_SCAN;
+                    files.length = Math.min(files.length, MAX_LINK_ALL_SCAN);
+                    break;
+                }
+            } while (pageToken);
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+
+        const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, files.map((file) => file.id));
+        const notLinked = files.filter((file) => !linkedFileIds.has(file.id));
+        const checksums = [...new Set(notLinked.map((file) => file.md5Checksum).filter(Boolean))];
+        const localChecksums = new Set((await MediaModel.findLocalByChecksums(user.id, checksums)).map((media) => media.checksum_md5));
+        const pending = notLinked.filter((file) => !localChecksums.has(file.md5Checksum));
+        const sumBytes = (list) => list.reduce((total, file) => total + (Number(file.size) || 0), 0);
+
+        return {
+            data: {
+                total: files.length,
+                totalBytes: sumBytes(files),
+                alreadyLinked: files.length - notLinked.length,
+                localDuplicates: notLinked.length - pending.length,
+                pendingCount: pending.length,
+                pendingBytes: sumBytes(pending),
+                fileIds: pending.map((file) => file.id),
+                truncated,
+                limit: MAX_LINK_ALL_SCAN,
+            },
+        };
     }
 
     // Convierte una media de Drive en media propia de Tagged, como si se hubiera subido desde el equipo:

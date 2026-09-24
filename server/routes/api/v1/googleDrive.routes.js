@@ -31,6 +31,9 @@ router.post("/previews", GoogleDriveController.getPreviews);
 // POST /api/v1/google-drive/link - Vincular archivos de Drive elegidos como medias (sin copiar el original)
 router.post("/link", GoogleDriveController.linkFiles);
 
+// GET /api/v1/google-drive/link-all/preview - Resumen de "Add all": fotos y vídeos de Mi unidad que faltan por añadir
+router.get("/link-all/preview", GoogleDriveController.getLinkAllPreview);
+
 // POST /api/v1/google-drive/import - Copiar medias de Drive a Tagged y quitar su vínculo con Drive
 router.post("/import", GoogleDriveController.importMedia);
 
