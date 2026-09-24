@@ -57,11 +57,13 @@ CREATE TABLE media (
     source_modified_time DATETIME NULL,
     last_synced_at DATETIME NULL,
     checksum_md5 CHAR(32) NULL, -- detecta duplicados entre medias locales y de Drive
+    deleted_at DATETIME NULL DEFAULT NULL, -- papelera: NULL = activa; se borra definitivamente a los 30 días
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_media_user_id (user_id),
     UNIQUE KEY uq_media_user_source (user_id, storage_provider, source_file_id),
     INDEX idx_media_user_checksum (user_id, checksum_md5),
+    INDEX idx_media_user_deleted (user_id, deleted_at),
     CONSTRAINT fk_media_user
         FOREIGN KEY (user_id) REFERENCES users(id)
         ON DELETE CASCADE
@@ -272,7 +274,9 @@ VALUES
     ('Connect Google Drive', 'GOOGLE_DRIVE_CONNECT', 'Connect a Google Drive account', TRUE),
     ('Disconnect Google Drive', 'GOOGLE_DRIVE_DISCONNECT', 'Disconnect a Google Drive account', TRUE),
     ('Link Google Drive files', 'GOOGLE_DRIVE_LINK', 'Add Google Drive files to the library without copying them', TRUE),
-    ('Import Google Drive media', 'GOOGLE_DRIVE_IMPORT', 'Copy Google Drive media into Tagged storage and remove the Drive link', TRUE)
+    ('Import Google Drive media', 'GOOGLE_DRIVE_IMPORT', 'Copy Google Drive media into Tagged storage and remove the Drive link', TRUE),
+    ('Restore media from trash', 'MEDIA_RESTORE', 'Restore media from the trash', TRUE),
+    ('Delete media forever', 'MEDIA_PURGE', 'Permanently delete media from the trash', TRUE)
 ON DUPLICATE KEY UPDATE
     actionname = VALUES(actionname),
     description = VALUES(description),

@@ -795,11 +795,10 @@ class MediaService {
                 return { success: false, message: "Media not found" };
             }
 
-            await MediaModel.delete(id);
+            // Va a la papelera: los archivos se conservan hasta que se borra definitivamente (Trash.service).
+            await MediaModel.moveToTrash([existing.id]);
 
-            await removeStoredMediaFiles(existing);
-
-            return { success: true, message: "Media deleted successfully" };
+            return { success: true, message: "Media moved to trash" };
         } catch (error) {
             console.error("Error in MediaService.delete:", error);
             throw new Error("Error deleting media");
@@ -838,9 +837,8 @@ class MediaService {
                 };
             }
 
-            await MediaModel.deleteMany(items.map((item) => item.id));
-
-            await Promise.all(items.map(removeStoredMediaFiles));
+            // Van a la papelera: los archivos se conservan hasta que se borran definitivamente (Trash.service).
+            await MediaModel.moveToTrash(items.map((item) => item.id));
 
             return {
                 success: true,
@@ -848,7 +846,7 @@ class MediaService {
                     deletedIds: items.map((item) => item.id),
                     deletedCount: items.length,
                 },
-                message: "Media deleted successfully",
+                message: "Media moved to trash",
             };
         } catch (error) {
             console.error("Error in MediaService.deleteMany:", error);

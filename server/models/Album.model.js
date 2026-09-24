@@ -1,5 +1,21 @@
 const { pool } = require("../config/database");
 
+// Portada cuya media está en la papelera: se oculta y vuelve al restaurarla (la portada guarda una ruta, no un id).
+const COVER_IN_TRASH = `EXISTS (
+    SELECT 1 FROM media cm
+    WHERE cm.user_id = a.user_id AND cm.deleted_at IS NOT NULL AND (cm.filepath = a.albumcoverpath OR cm.previewpath = a.albumcoverpath)
+)`;
+
+// Álbum con su portada visible y el número de medias activas (las de la papelera no cuentan).
+const ALBUM_SELECT = `SELECT a.id, a.user_id, a.albumname,
+                    CASE WHEN ${COVER_IN_TRASH} THEN NULL ELSE a.albumcoverpath END AS albumcoverpath,
+                    CASE WHEN ${COVER_IN_TRASH} THEN NULL ELSE a.albumthumbpath END AS albumthumbpath,
+                    a.cover_position_x, a.cover_position_y, a.cover_zoom, a.created_at,
+                    COUNT(m.id) AS media_count
+             FROM albums a
+             LEFT JOIN media_albums ma ON ma.albumid = a.id
+             LEFT JOIN media m ON m.id = ma.mediaid AND m.deleted_at IS NULL`;
+
 class AlbumModel {
     static async findDistinctNames(userId = null) {
         const ownershipCondition = userId === null ? "" : "user_id = ? AND ";
@@ -8,10 +24,7 @@ class AlbumModel {
     }
     static async findAll() {
         const [rows] = await pool.query(
-            `SELECT a.id, a.user_id, a.albumname, a.albumcoverpath, a.albumthumbpath, a.cover_position_x, a.cover_position_y, a.cover_zoom, a.created_at,
-                    COUNT(ma.mediaid) AS media_count
-             FROM albums a
-             LEFT JOIN media_albums ma ON ma.albumid = a.id
+            `${ALBUM_SELECT}
              GROUP BY a.id
              ORDER BY a.id DESC`,
         );
@@ -20,10 +33,7 @@ class AlbumModel {
 
     static async findAllByUserId(userId) {
         const [rows] = await pool.query(
-            `SELECT a.id, a.user_id, a.albumname, a.albumcoverpath, a.albumthumbpath, a.cover_position_x, a.cover_position_y, a.cover_zoom, a.created_at,
-                    COUNT(ma.mediaid) AS media_count
-             FROM albums a
-             LEFT JOIN media_albums ma ON ma.albumid = a.id
+            `${ALBUM_SELECT}
              WHERE a.user_id = ?
              GROUP BY a.id
              ORDER BY a.id DESC`,
@@ -34,10 +44,7 @@ class AlbumModel {
 
     static async findById(id) {
         const [rows] = await pool.query(
-            `SELECT a.id, a.user_id, a.albumname, a.albumcoverpath, a.albumthumbpath, a.cover_position_x, a.cover_position_y, a.cover_zoom, a.created_at,
-                    COUNT(ma.mediaid) AS media_count
-             FROM albums a
-             LEFT JOIN media_albums ma ON ma.albumid = a.id
+            `${ALBUM_SELECT}
              WHERE a.id = ?
              GROUP BY a.id`,
             [id],
@@ -47,10 +54,7 @@ class AlbumModel {
 
     static async findByIdForUser(id, userId) {
         const [rows] = await pool.query(
-            `SELECT a.id, a.user_id, a.albumname, a.albumcoverpath, a.albumthumbpath, a.cover_position_x, a.cover_position_y, a.cover_zoom, a.created_at,
-                    COUNT(ma.mediaid) AS media_count
-             FROM albums a
-             LEFT JOIN media_albums ma ON ma.albumid = a.id
+            `${ALBUM_SELECT}
              WHERE a.id = ? AND a.user_id = ?
              GROUP BY a.id`,
             [id, userId],
@@ -79,6 +83,12 @@ class AlbumModel {
     static async replaceCoverPaths(userId, oldCoverPaths, coverpath, thumbpath) {
         if (!oldCoverPaths.length) return;
         await pool.query("UPDATE albums SET albumcoverpath = ?, albumthumbpath = ? WHERE user_id = ? AND albumcoverpath IN (?)", [coverpath, thumbpath, userId, oldCoverPaths]);
+    }
+
+    // Quita las portadas que usaban archivos que ya no existen (media borrada definitivamente).
+    static async clearCoverPaths(userId, coverPaths) {
+        if (!coverPaths.length) return;
+        await pool.query("UPDATE albums SET albumcoverpath = NULL, albumthumbpath = NULL WHERE user_id = ? AND albumcoverpath IN (?)", [userId, coverPaths]);
     }
 
     static async updateCover(id, coverpath, thumbpath) {

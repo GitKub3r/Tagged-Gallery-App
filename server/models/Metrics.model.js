@@ -19,16 +19,18 @@ class MetricsModel {
     }
     static timestampColumnCache = null;
 
+    // Ámbito de usuario de cada métrica. Con el alias de medias ("m") excluye además las de la papelera.
     static buildScope(requestUser, alias = "m") {
+        const activeMedia = alias === "m" ? " AND m.deleted_at IS NULL" : "";
         if (requestUser.type === "admin") {
             return {
-                clause: "1 = 1",
+                clause: `1 = 1${activeMedia}`,
                 params: [],
             };
         }
 
         return {
-            clause: `${alias}.user_id = ?`,
+            clause: `${alias}.user_id = ?${activeMedia}`,
             params: [requestUser.id],
         };
     }
@@ -148,9 +150,10 @@ class MetricsModel {
                 t.tagname,
                 t.tagcolor_hex,
                 t.type,
-                COUNT(mt.id) AS usage_count
+                COUNT(tm.id) AS usage_count
              FROM tags t
              LEFT JOIN media_tags mt ON mt.tagid = t.id
+             LEFT JOIN media tm ON tm.id = mt.mediaid AND tm.deleted_at IS NULL
              WHERE ${clause}
              GROUP BY t.id, t.tagname, t.tagcolor_hex, t.type
              ORDER BY usage_count DESC, t.tagname ASC
