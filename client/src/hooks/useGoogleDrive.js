@@ -116,10 +116,10 @@ export const useDisconnectGoogleDrive = () => {
 };
 
 // Una carpeta, vista o búsqueda del explorador de Drive, página a página.
-export const useDriveBrowse = ({ view, folderId, search }) =>
+export const useDriveBrowse = ({ view, folderId, search, type }) =>
     useInfiniteQuery({
-        queryKey: googleDriveQueryKeys.browse({ view, folderId, search }),
-        queryFn: ({ pageParam }) => googleDriveApi.browse({ view, folderId, search, pageToken: pageParam }),
+        queryKey: googleDriveQueryKeys.browse({ view, folderId, search, type }),
+        queryFn: ({ pageParam }) => googleDriveApi.browse({ view, folderId, search, type, pageToken: pageParam }),
         initialPageParam: null,
         getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
         // Las URLs de miniatura firmadas duran horas; basta con refrescar al volver a abrir la carpeta pasado un rato.

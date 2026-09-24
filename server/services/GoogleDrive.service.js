@@ -56,7 +56,10 @@ const MAX_BROWSE_SEARCH_LENGTH = 100;
 const BROWSE_THUMBNAIL_SIZE = 480;
 const BROWSE_THUMBNAIL_MAX_AGE_DAYS = 30;
 const MEDIA_QUERY = "(mimeType contains 'image/' or mimeType contains 'video/')";
-const FOLDER_OR_MEDIA_QUERY = `(mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or ${MEDIA_QUERY.slice(1, -1)})`;
+// Filtro de tipo del explorador: fotos, vídeos o ambos. Las carpetas se muestran siempre.
+const BROWSE_MEDIA_TYPES = new Set(["all", "image", "video"]);
+const getMediaQuery = (mediaType) => (mediaType === "image" ? "mimeType contains 'image/'" : mediaType === "video" ? "mimeType contains 'video/'" : MEDIA_QUERY.slice(1, -1));
+const getFolderOrMediaQuery = (mediaType) => `(mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or ${getMediaQuery(mediaType)})`;
 const BROWSE_FIELDS =
     "nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, parents, videoMediaMetadata(durationMillis))";
 // Recent y la búsqueda de My Drive se quedan con lo que cuelga de "Mi unidad": files.list también devuelve las
@@ -72,18 +75,20 @@ const escapeDriveQuery = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "
 const hasReadonlyScope = (connection) => String(connection?.scopes || "").split(" ").includes(DRIVE_READONLY_SCOPE);
 
 // Consulta y orden de files.list según la vista, la carpeta abierta y la búsqueda.
-const buildBrowseQuery = ({ view, folderId, search }) => {
+const buildBrowseQuery = ({ view, folderId, search, mediaType }) => {
+    const mediaQuery = `(${getMediaQuery(mediaType)})`;
+    const folderOrMediaQuery = getFolderOrMediaQuery(mediaType);
     const base = "trashed = false";
     if (search) {
         const scope = view === "starred" ? " and starred = true" : view === "shared" ? " and sharedWithMe = true" : "";
-        const types = view === "recent" ? MEDIA_QUERY : FOLDER_OR_MEDIA_QUERY;
+        const types = view === "recent" ? mediaQuery : folderOrMediaQuery;
         return { q: `${base} and name contains '${escapeDriveQuery(search)}' and ${types}${scope}`, orderBy: "folder, modifiedTime desc" };
     }
-    if (folderId) return { q: `${base} and '${folderId}' in parents and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, name" };
-    if (view === "recent") return { q: `${base} and ${MEDIA_QUERY}`, orderBy: "modifiedTime desc" };
-    if (view === "starred") return { q: `${base} and starred = true and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, modifiedTime desc" };
-    if (view === "shared") return { q: `${base} and sharedWithMe = true and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, modifiedTime desc" };
-    return { q: `${base} and 'root' in parents and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, name" };
+    if (folderId) return { q: `${base} and '${folderId}' in parents and ${folderOrMediaQuery}`, orderBy: "folder, name" };
+    if (view === "recent") return { q: `${base} and ${mediaQuery}`, orderBy: "modifiedTime desc" };
+    if (view === "starred") return { q: `${base} and starred = true and ${folderOrMediaQuery}`, orderBy: "folder, modifiedTime desc" };
+    if (view === "shared") return { q: `${base} and sharedWithMe = true and ${folderOrMediaQuery}`, orderBy: "folder, modifiedTime desc" };
+    return { q: `${base} and 'root' in parents and ${folderOrMediaQuery}`, orderBy: "folder, name" };
 };
 
 const getBrowseThumbnailPath = (userId, fileId, version) => path.join(DRIVE_CACHE_DIR, `${userId}-${fileId}-${version}.jpg`);
@@ -401,7 +406,8 @@ class GoogleDriveService {
         }
         const driveApi = createDriveApi({ version: "v3", auth: client });
 
-        const listQuery = buildBrowseQuery({ view, folderId, search });
+        const mediaType = BROWSE_MEDIA_TYPES.has(query?.type) ? query.type : "all";
+        const listQuery = buildBrowseQuery({ view, folderId, search, mediaType });
         const onlyMyDrive = !folderId && MY_DRIVE_ONLY_VIEWS.has(view);
         const files = [];
         let nextPageToken = pageToken;

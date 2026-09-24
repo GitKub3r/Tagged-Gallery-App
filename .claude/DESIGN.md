@@ -255,7 +255,7 @@ inline-flex h-10 w-auto items-center gap-2 rounded-xl border-0 bg-red-600 px-4 t
 
 **Solo icono:** siempre `IconButton` (`h-10 w-10 rounded-xl`, borde de control, `bg-neutral-50 dark:bg-neutral-900`), con `aria-label` y `title` si la acción no es obvia. Los iconos van con `aria-hidden="true"`.
 
-**Segmented control / toggle de vista** (filtro de tipo, tarjetas o lista):
+**Segmented control / toggle de vista** (filtro de tipo, tarjetas o lista). En código nuevo, usar `SegmentedControl` (`components/segmented-control`, `labels="responsive"` o `"hidden"`, `disabled`); la galería aún lo tiene en línea (**legado**):
 
 - Contenedor: `flex h-11 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950`.
 - Opción: `inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border-0 text-sm font-bold`.
@@ -374,7 +374,7 @@ Todos los modales:
 
 **Explorador de archivos externos** (`DriveBrowserModal`, para elegir fotos, vídeos y carpetas de Google Drive). Se monta sobre `MediaFormModal` y, cuando se abre con "Change" desde el modal de añadir medias, usa `layer="nested"` y conserva la selección:
 
-- **Barra superior** (`border-b px-4 py-3 sm:px-6`): segmented control con las vistas (*My Drive*, *Recent*, *Starred*, *Shared*; solo icono en móvil) y `SearchField` (`md:max-w-xs`) con retardo de 350 ms.
+- **Barra superior** (`border-b px-4 py-3 sm:px-6`): `SegmentedControl` con las vistas (*My Drive*, *Recent*, *Starred*, *Shared*; solo icono en móvil), filtro de tipo (*All*, *Images*, *Videos*, solo iconos, deshabilitado cuando en pantalla solo hay carpetas) y `SearchField` (`md:max-w-xs`) con retardo de 350 ms.
 - **Barra de ubicación** (`min-h-14 border-b`): `IconButton` `faArrowLeft` para subir de carpeta, migas de pan con `buttonClasses.text` (en móvil solo las dos últimas) y, a la derecha, "Select all" / "Deselect all" (`faCheckDouble` / `faXmark`), que carga las páginas que falten hasta el límite.
 - **Contenido:** carpetas primero, en filas `h-14 rounded-xl border` (el nombre abre la carpeta; el círculo de la derecha la selecciona entera) y después fotos y vídeos en rejilla cuadrada (`grid-cols-2` → `lg:grid-cols-5`) con el nombre debajo. Selección con el mismo círculo que `MediaCard` y anillo `ring-2`; Mayús + clic selecciona un rango. Los vídeos llevan su duración en una píldora `bg-black/65` y lo que ya está en la biblioteca aparece atenuado, con "In library" y sin poder seleccionarse.
 - **Carga:** skeletons con la forma de la rejilla, scroll infinito con un `faSpinner` al final, `EmptyState` y `LoadErrorState` con `placement="section"`.
