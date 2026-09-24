@@ -1,4 +1,5 @@
 const express = require("express");
+const GoogleDriveService = require("../../../services/GoogleDrive.service");
 const { verifyUploadRequest } = require("../../../utils/uploadUrls");
 
 const router = express.Router();
@@ -6,12 +7,22 @@ const router = express.Router();
 // GET /api/v1/files/:folder/:filename?exp=&sig= - Servir un archivo subido mediante URL firmada.
 // No usa authenticate: <img> y <video> no pueden enviar la cabecera Authorization.
 // La firma solo se emite en respuestas autenticadas que ya han pasado el control de propiedad.
-router.get("/:folder/:filename", (req, res) => {
+router.get("/:folder/:filename", async (req, res) => {
     const relativePath = `${req.params.folder}/${req.params.filename}`;
     const verification = verifyUploadRequest(relativePath, req.query.exp, req.query.sig);
 
     if (!verification.valid) {
         return res.status(403).json({ success: false, message: "Invalid or expired file link" });
+    }
+
+    if (req.params.folder === "drive") {
+        try {
+            return await GoogleDriveService.streamOriginal(req.params.filename, req, res, verification.maxAge);
+        } catch (error) {
+            console.error("Google Drive stream failed:", error);
+            if (!res.headersSent) return res.status(500).json({ success: false, message: "Could not read file" });
+            return res.end();
+        }
     }
 
     res.set("Cache-Control", `private, max-age=${verification.maxAge}`);

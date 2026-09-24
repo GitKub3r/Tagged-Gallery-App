@@ -150,21 +150,29 @@ const toStatus = (connection) => ({
 
 const PROXIED_RESPONSE_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges"];
 
+// Pide a Drive el contenido de un archivo reenviando la cabecera Range (vídeo con saltos, descargas parciales).
+const requestDriveContent = (client, fileId, range) =>
+    client.request({
+        url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+        headers: range ? { Range: range } : {},
+        responseType: "stream",
+        validateStatus: () => true,
+    });
+
+const getProxiedHeaders = (upstream) => {
+    const getHeader = (name) => (typeof upstream.headers?.get === "function" ? upstream.headers.get(name) : upstream.headers?.[name]);
+    return Object.fromEntries(PROXIED_RESPONSE_HEADERS.map((name) => [name, getHeader(name)]).filter(([, value]) => value));
+};
+
 // Sirve un archivo de Drive en 127.0.0.1 mientras dura fn(url), reenviando las peticiones Range con la
 // autorización del usuario. Lo usa ffmpeg, que no puede resolver dominios y así tampoco recibe el token.
 const withLocalDriveStream = async (client, fileId, fn) => {
     const upstreams = new Set();
     const server = http.createServer(async (req, res) => {
         try {
-            const upstream = await client.request({
-                url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
-                headers: req.headers.range ? { Range: req.headers.range } : {},
-                responseType: "stream",
-                validateStatus: () => true,
-            });
+            const upstream = await requestDriveContent(client, fileId, req.headers.range);
             upstreams.add(upstream.data);
-            const getHeader = (name) => (typeof upstream.headers?.get === "function" ? upstream.headers.get(name) : upstream.headers?.[name]);
-            res.writeHead(upstream.status, Object.fromEntries(PROXIED_RESPONSE_HEADERS.map((name) => [name, getHeader(name)]).filter(([, value]) => value)));
+            res.writeHead(upstream.status, getProxiedHeaders(upstream));
             upstream.data.pipe(res);
             res.on("close", () => upstream.data.destroy());
         } catch (error) {
@@ -233,6 +241,51 @@ class GoogleDriveService {
         await GoogleDriveConnectionModel.updateStatus(userId, "revoked");
         await GoogleDriveConnectionModel.markUserMediaStatus(userId, "revoked");
         return { error: "Google Drive access was revoked. Please reconnect your account.", status: 409 };
+    }
+
+    // Original de una media de Drive, en streaming y con Range, para /api/v1/files/drive/<userId>-<fileId>.
+    // La URL firmada solo se emite a quien puede ver la media; aquí se comprueba además que la media sigue
+    // existiendo, así una URL de una media borrada deja de funcionar. Se usa la conexión del dueño.
+    static async streamOriginal(driveKey, req, res, maxAge) {
+        const match = /^(\d+)-([A-Za-z0-9_-]{10,200})$/.exec(driveKey);
+        const sendError = (status, message) => res.status(status).json({ success: false, message });
+        if (!match) return sendError(404, "File not found");
+        const [, rawUserId, fileId] = match;
+        const userId = Number(rawUserId);
+
+        const media = await MediaModel.findDriveMediaBySource(userId, fileId);
+        if (!media) return sendError(404, "File not found");
+
+        const { client, ...clientError } = await this.getAuthorizedClient(userId);
+        if (!client) return sendError(clientError.status === 503 ? 503 : 409, "Google Drive is not connected");
+
+        let upstream;
+        try {
+            upstream = await requestDriveContent(client, fileId, req.headers.range);
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, userId);
+            if (revoked) return sendError(409, revoked.error);
+            throw error;
+        }
+
+        if (upstream.status >= 400) {
+            upstream.data.destroy();
+            if (upstream.status === 404) {
+                await MediaModel.updateStorageStatus(media.id, "missing");
+                return sendError(404, "This file is no longer in Google Drive");
+            }
+            if (upstream.status === 416) return res.status(416).end();
+            return sendError(upstream.status === 403 ? 403 : 502, "Could not read this file from Google Drive");
+        }
+
+        res.status(upstream.status);
+        res.set({ ...getProxiedHeaders(upstream), "Cache-Control": `private, max-age=${maxAge}` });
+        if (!res.get("Content-Type") && media.source_mime_type) res.set("Content-Type", media.source_mime_type);
+        res.removeHeader("Pragma");
+        res.removeHeader("Expires");
+        upstream.data.pipe(res);
+        res.on("close", () => upstream.data.destroy());
+        return undefined;
     }
 
     // Guarda como JPEG local la miniatura de Drive (o un fotograma, en vídeos sin ella); el original no se descarga.

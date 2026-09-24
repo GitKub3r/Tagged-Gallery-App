@@ -165,7 +165,7 @@ Siguiendo `.claude/CLAUDE.md`, `.claude/DESIGN.md` y las skills `migrate-to-axio
 2. ✅ **Conexión OAuth:** utilidades de cifrado, modelo, servicio y rutas `status`/`connect`/`disconnect`; página `/drive` con conectar y desconectar, y la pestaña en la sidebar.
 3. ✅ **Selección y vinculación:** `linkFiles` con miniatura cacheada y deduplicación, revisión en `UploadMediaModal` (variante `drive`) y carpetas enteras (`expand`).
    - ✅ **Explorador propio** (sustituye al Google Picker): `browse`, miniaturas firmadas con caché y `DriveBrowserModal`.
-4. **Streaming:** proxy de Drive con `Range` en `/content`; detalle, montaje y portadas de álbum con medias de Drive.
+4. ✅ **Streaming:** `/api/v1/files/drive/<userId>-<fileId>` (firmada como el resto) comprueba que la media existe y reenvía el original desde Drive con `Range`, con la conexión del dueño. Si Drive responde 404, la media pasa a `missing`. Detalle, vídeo, montaje y descargas funcionan sin cambios en el cliente.
 5. **Conversión de duplicados locales:** endpoint `convert` y su UI.
 6. **Borrado, descargas y métricas:** borrado seguro, migración de descargas a `apiClient` y métricas separadas.
 7. **Estado de los archivos:** `check`, badges de estado, reconexión y documentación.

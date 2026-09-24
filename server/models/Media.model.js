@@ -491,6 +491,18 @@ class MediaModel {
     }
 
     // Ids de Drive que el usuario ya tiene vinculados, para no vincularlos dos veces.
+    static async findDriveMediaBySource(userId, fileId) {
+        const [[row]] = await pool.query(
+            "SELECT id, source_mime_type FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND source_file_id = ? LIMIT 1",
+            [userId, fileId],
+        );
+        return row || null;
+    }
+
+    static async updateStorageStatus(mediaId, status) {
+        await pool.query("UPDATE media SET storage_status = ? WHERE id = ?", [status, mediaId]);
+    }
+
     static async findLinkedDriveFileIds(userId, fileIds) {
         if (!fileIds.length) return new Set();
         const [rows] = await pool.query(
