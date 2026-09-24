@@ -36,6 +36,9 @@ export const googleDriveApi = {
     async getPreviews(fileIds) {
         return unwrap(await apiClient.post("/google-drive/previews", { fileIds }));
     },
+    async importMedia(mediaIds) {
+        return unwrap(await apiClient.post("/google-drive/import", { mediaIds }));
+    },
     async linkFiles(payload) {
         return unwrap(await apiClient.post("/google-drive/link", payload));
     },

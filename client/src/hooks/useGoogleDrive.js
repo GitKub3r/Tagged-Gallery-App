@@ -152,10 +152,68 @@ export const useDrivePreviews = (fileIds, activeIndex = 0) =>
         })),
     });
 
-const LINK_BATCH_SIZE = 10;
-const EMPTY_LINK_RESULT = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
-
 const pluralize = (count, word) => `${count} ${count === 1 ? word : `${word}s`}`;
+
+// Ejecuta una operación sobre muchos ids en lotes, con progreso y parada. Parar deja terminar el lote en
+// curso, así el resumen coincide con lo que ha hecho el servidor. Si un lote falla, el error lleva el
+// resultado parcial (partialResult) para invalidar igualmente lo ya hecho.
+const useBatchedMutation = ({ batchSize, resultKeys, getIds, request, onProgress, onSuccess, onSettled }) => {
+    const stopRequestedRef = useRef(false);
+    const [progress, setProgress] = useState({ processed: 0, total: 0 });
+
+    const mutation = useMutation({
+        mutationFn: async (variables) => {
+            const ids = getIds(variables);
+            stopRequestedRef.current = false;
+            const result = Object.fromEntries(resultKeys.map((key) => [key, []]));
+            const reportProgress = (processed) => {
+                setProgress({ processed, total: ids.length });
+                onProgress?.({ processed, total: ids.length });
+            };
+            reportProgress(0);
+
+            for (let start = 0; start < ids.length && !stopRequestedRef.current; start += batchSize) {
+                const batch = ids.slice(start, start + batchSize);
+                try {
+                    const batchResult = await request(batch, variables);
+                    resultKeys.forEach((key) => result[key].push(...(batchResult[key] || [])));
+                } catch (error) {
+                    throw Object.assign(error, { partialResult: result });
+                }
+                reportProgress(start + batch.length);
+            }
+
+            const handledCount = resultKeys.reduce((count, key) => count + result[key].length, 0);
+            return { result, wasStopped: handledCount < ids.length };
+        },
+        onSuccess,
+        onSettled,
+    });
+
+    return {
+        ...mutation,
+        progress,
+        stop: () => {
+            stopRequestedRef.current = true;
+        },
+    };
+};
+
+// Tras añadir, importar o quitar medias de Drive, se refresca todo lo que las muestra o las cuenta.
+const useInvalidateDriveMedia = () => {
+    const queryClient = useQueryClient();
+    return () => {
+        queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
+        queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
+        queryClient.invalidateQueries({ queryKey: tagNameQueryKeys.all });
+        queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.summaryAll });
+        // El explorador marca qué archivos ya están en la biblioteca.
+        queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.browseAll });
+    };
+};
+
+const LINK_BATCH_SIZE = 10;
+const LINK_RESULT_KEYS = ["linked", "alreadyLinked", "duplicates", "skipped"];
 
 const showLinkSummary = (result, wasStopped) => {
     if (result.linked.length > 0) {
@@ -170,50 +228,68 @@ const showLinkSummary = (result, wasStopped) => {
     if (notes.length > 0) toast.info(result.linked.length ? "Some files were skipped" : "No new files were added", { description: notes.join(" · ") });
 };
 
-// Vincula los archivos por lotes para mostrar el progreso. Parar deja terminar el lote en curso,
-// así el resumen coincide con lo que el servidor ha vinculado.
+// Vincula archivos de Drive como medias. Variables: { fileIds, details }.
 export const useLinkDriveFiles = () => {
-    const queryClient = useQueryClient();
-    const stopRequestedRef = useRef(false);
-    const [progress, setProgress] = useState({ processed: 0, total: 0 });
-
-    const mutation = useMutation({
-        mutationFn: async ({ fileIds, details }) => {
-            stopRequestedRef.current = false;
-            const result = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
-            setProgress({ processed: 0, total: fileIds.length });
-
-            for (let start = 0; start < fileIds.length && !stopRequestedRef.current; start += LINK_BATCH_SIZE) {
-                const batch = fileIds.slice(start, start + LINK_BATCH_SIZE);
-                try {
-                    const batchResult = await googleDriveApi.linkFiles({ ...details, fileIds: batch });
-                    Object.keys(EMPTY_LINK_RESULT).forEach((key) => result[key].push(...batchResult[key]));
-                } catch (error) {
-                    throw Object.assign(error, { partialResult: result });
-                }
-                setProgress({ processed: start + batch.length, total: fileIds.length });
-            }
-
-            return { result, wasStopped: result.linked.length + result.alreadyLinked.length + result.duplicates.length + result.skipped.length < fileIds.length };
-        },
+    const invalidateDriveMedia = useInvalidateDriveMedia();
+    return useBatchedMutation({
+        batchSize: LINK_BATCH_SIZE,
+        resultKeys: LINK_RESULT_KEYS,
+        getIds: ({ fileIds }) => fileIds,
+        request: (fileIds, { details }) => googleDriveApi.linkFiles({ ...details, fileIds }),
         onSuccess: ({ result, wasStopped }) => showLinkSummary(result, wasStopped),
         onSettled: (data, error) => {
-            const linkedCount = (data?.result || error?.partialResult || EMPTY_LINK_RESULT).linked.length;
-            if (linkedCount === 0) return;
-            queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
-            queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
-            queryClient.invalidateQueries({ queryKey: tagNameQueryKeys.all });
-            queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.summaryAll });
-            // El explorador marca qué archivos ya están en la biblioteca.
-            queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.browseAll });
+            if ((data?.result || error?.partialResult)?.linked.length) invalidateDriveMedia();
         },
     });
+};
 
-    return {
-        ...mutation,
-        progress,
-        stop: () => {
-            stopRequestedRef.current = true;
+// De una en una: cada importación descarga el original completo desde Drive.
+const IMPORT_BATCH_SIZE = 1;
+const IMPORT_TOAST_ID = "drive-import-progress";
+const IMPORT_SKIP_REASONS = {
+    already_in_tagged: "already stored in Tagged",
+    missing_in_drive: "no longer in Google Drive",
+    not_accessible: "not accessible in Google Drive",
+    not_drive_media: "not from Google Drive",
+    failed: "could not be copied",
+};
+
+const showImportSummary = (result, wasStopped) => {
+    toast.dismiss(IMPORT_TOAST_ID);
+    if (result.imported.length > 0) toast.success(`${result.imported.length} media imported into Tagged`);
+    const skippedByReason = result.skipped.reduce((groups, item) => ({ ...groups, [item.reason]: (groups[item.reason] || 0) + 1 }), {});
+    const notes = [
+        ...Object.entries(skippedByReason).map(([reason, count]) => `${count} ${IMPORT_SKIP_REASONS[reason] || IMPORT_SKIP_REASONS.failed}`),
+        wasStopped ? "Importing was stopped before the end" : null,
+    ].filter(Boolean);
+    if (notes.length > 0) toast.info(result.imported.length ? "Some media were skipped" : "No media were imported", { description: notes.join(" · ") });
+};
+
+// Convierte medias de Drive en medias propias de Tagged (copia el original y quita el vínculo).
+// Variables: { mediaIds }. onImported recibe los ids importados, para refrescar vistas que no usan React Query.
+export const useImportDriveMedia = ({ onImported } = {}) => {
+    const invalidateDriveMedia = useInvalidateDriveMedia();
+    const importMutation = useBatchedMutation({
+        batchSize: IMPORT_BATCH_SIZE,
+        resultKeys: ["imported", "skipped"],
+        getIds: ({ mediaIds }) => mediaIds,
+        request: (mediaIds) => googleDriveApi.importMedia(mediaIds),
+        onProgress: ({ processed, total }) => {
+            if (total < 2) return;
+            toast.loading(`Importing ${processed + 1 > total ? total : processed + 1} of ${total} into Tagged`, {
+                id: IMPORT_TOAST_ID,
+                description: "Originals are copied from Google Drive. Large videos can take a while.",
+                action: { label: "Stop", onClick: () => importMutation.stop() },
+            });
         },
-    };
+        onSuccess: ({ result, wasStopped }) => showImportSummary(result, wasStopped),
+        onSettled: (data, error) => {
+            if (error) toast.dismiss(IMPORT_TOAST_ID);
+            const imported = (data?.result || error?.partialResult)?.imported || [];
+            if (imported.length === 0) return;
+            invalidateDriveMedia();
+            onImported?.(imported.map((item) => item.id));
+        },
+    });
+    return importMutation;
 };

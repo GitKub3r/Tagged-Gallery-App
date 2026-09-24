@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { faChevronLeft, faChevronRight, faCopyright, faDownload, faHeart as faHeartSolid, faImage, faPen, faPlay, faRepeat, faScrewdriverWrench, faShuffle, faTags, faTrash, faUser, faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faChevronRight, faCloudArrowDown, faCopyright, faDownload, faHeart as faHeartSolid, faImage, faPen, faPlay, faRepeat, faScrewdriverWrench, faShuffle, faTags, faTrash, faUser, faVideo, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../components/icon-button/IconButton";
@@ -18,7 +18,9 @@ import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { formatMediaSize } from "../../utils/mediaFormat";
 import "./MediaDetailPage.css";
 import { MediaSourceBadge } from "../../components/media-source-badge/MediaSourceBadge";
-import { describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
+import { DRIVE_IMPORT_DESCRIPTION, describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
+import { mediaApi } from "../../api/mediaApi";
+import { useImportDriveMedia } from "../../hooks/useGoogleDrive";
 import { lockPageScroll } from "../../utils/scrollLock";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -445,6 +447,14 @@ export const MediaDetailPage = () => {
     const [isDeletingMedia, setIsDeletingMedia] = useState(false);
     const [isDownloadingMedia, setIsDownloadingMedia] = useState(false);
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+    const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
+    // Tras importar, la media cambia de archivos (URLs, tamaño, tags): se recarga en la lista del visor.
+    const importMutation = useImportDriveMedia({
+        onImported: async (mediaIds) => {
+            const updatedItems = await Promise.all(mediaIds.map((id) => mediaApi.getById(id)));
+            setMediaItems((previous) => previous.map((item) => updatedItems.find((updated) => String(updated.id) === String(item.id)) || item));
+        },
+    });
     const [isMediaChanging, setIsMediaChanging] = useState(false);
     const [mediaTransitionSnapshot, setMediaTransitionSnapshot] = useState(null);
     const [actionToast, setActionToast] = useState(null);
@@ -2291,6 +2301,18 @@ export const MediaDetailPage = () => {
                                         >
                                             <FontAwesomeIcon icon={faDownload} aria-hidden="true" />
                                         </button>
+                                        {isDriveMedia(currentMedia) ? (
+                                            <button
+                                                type="button"
+                                                className={DETAIL_OVERLAY_ACTION_CLASSES}
+                                                onClick={() => setIsImportConfirmOpen(true)}
+                                                aria-label="Import into Tagged"
+                                                title="Import into Tagged"
+                                                disabled={importMutation.isPending}
+                                            >
+                                                <FontAwesomeIcon icon={faCloudArrowDown} aria-hidden="true" />
+                                            </button>
+                                        ) : null}
                                     </div>
                                 </div>
                             </div>
@@ -2604,6 +2626,19 @@ export const MediaDetailPage = () => {
                 }}
                 onClose={closeEditModal}
                 onSubmit={handleEditMediaSubmit}
+            />
+
+            <DeleteConfirmationModal
+                isOpen={isImportConfirmOpen}
+                title="Import into Tagged?"
+                description={DRIVE_IMPORT_DESCRIPTION}
+                confirmLabel="Import into Tagged"
+                pendingLabel="Importing..."
+                confirmIcon={faCloudArrowDown}
+                tone="neutral"
+                isDeleting={importMutation.isPending}
+                onConfirm={() => importMutation.mutate({ mediaIds: [currentMedia.id] }, { onSettled: () => setIsImportConfirmOpen(false) })}
+                onClose={() => setIsImportConfirmOpen(false)}
             />
 
             <DeleteConfirmationModal

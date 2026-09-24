@@ -368,7 +368,7 @@ Todos los modales:
 
 **Añadir medias:** todo flujo que añade medias a la biblioteca (subida desde el equipo, archivos de Google Drive) usa `UploadMediaModal` con su `variant` (`upload` o `drive`). Cambian el título, el icono y los textos; la estructura, el formulario, la vista previa y el progreso son los mismos. Un origen nuevo se añade como otra variante, no como otro modal.
 
-**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
+**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro; se cierra con Escape antes que cualquier modal de debajo). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Con `tone="neutral"` el botón es primario, para acciones que no borran nada (p. ej. importar a Tagged). `children` añade un resumen entre la descripción y el pie, y `requireText` obliga a escribir una frase antes de confirmar: se usa en acciones de gran alcance que no deben lanzarse con un clic accidental. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
 
 **Modal anidado:** `z-[1300]`. Con `MediaFormModal` se pasa `layer="nested"`: atiende Escape antes que el modal de debajo, así que solo se cierra el de arriba. Evitar más de dos niveles.
 
@@ -438,6 +438,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Eliminar | `faTrash` |
 | Guardar | `faFloppyDisk` |
 | Subir | `faCloudArrowUp` |
+| Importar a Tagged (copiar desde un servicio externo) | `faCloudArrowDown` |
 | Descargar | `faDownload` |
 | Buscar | `faMagnifyingGlass` |
 | Filtrar / limpiar filtros | `faFilter` / `faFilterCircleXmark` |

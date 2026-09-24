@@ -166,6 +166,7 @@ Siguiendo `.claude/CLAUDE.md`, `.claude/DESIGN.md` y las skills `migrate-to-axio
 3. ✅ **Selección y vinculación:** `linkFiles` con miniatura cacheada y deduplicación, revisión en `UploadMediaModal` (variante `drive`) y carpetas enteras (`expand`).
    - ✅ **Explorador propio** (sustituye al Google Picker): `browse`, miniaturas firmadas con caché y `DriveBrowserModal`.
 - ✅ **Tag "Google Drive"** automática y protegida en todas las medias de Drive (se crea al conectar, se asigna al vincular y al arrancar a las ya vinculadas). El modal de borrado explica que el original sigue en Drive.
+- ✅ **Importar a Tagged** (`POST /google-drive/import`, de una en una): descarga el original a `uploads/media` con nombre único, genera sus derivados como una subida, pasa la media a `local`, quita la tag "Google Drive", redirige las portadas de álbum y borra la caché de Drive. Conserva id, nombre, autor, resto de tags, álbumes y favorito. Si ya existe una media local con el mismo MD5, se omite. Desde el detalle y la barra de selección de la galería (`faCloudArrowDown`).
 4. ✅ **Streaming:** `/api/v1/files/drive/<userId>-<fileId>` (firmada como el resto) comprueba que la media existe y reenvía el original desde Drive con `Range`, con la conexión del dueño. Si Drive responde 404, la media pasa a `missing`. Detalle, vídeo, montaje y descargas funcionan sin cambios en el cliente.
 5. **Conversión de duplicados locales:** endpoint `convert` y su UI.
 6. **Borrado, descargas y métricas:** borrado seguro, migración de descargas a `apiClient` y métricas separadas.

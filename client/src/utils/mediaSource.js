@@ -22,3 +22,7 @@ export const describeMediaDeletion = (mediaCount, driveMediaCount = 0) => {
     }
     return `${mediaCount} media will be removed from Tagged. ${pluralFiles(driveMediaCount)} from Google Drive stay in your Drive; the other ${pluralFiles(localCount)} will be permanently deleted. This action cannot be undone.`;
 };
+
+// Texto de la confirmación de importar: la media pasa a ser de Tagged, como si se hubiera subido.
+export const DRIVE_IMPORT_DESCRIPTION =
+    "The original is copied from Google Drive into Tagged and the link with Drive is removed, as if you had uploaded it. It keeps its name, author, tags, albums and favourite; only the Google Drive tag is removed. Nothing changes in your Drive.";
