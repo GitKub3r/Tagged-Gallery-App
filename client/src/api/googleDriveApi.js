@@ -12,6 +12,7 @@ export const googleDriveQueryKeys = {
     status: (userId) => ["google-drive", "status", userId],
     summaryAll: ["google-drive", "summary"],
     summary: (userId) => ["google-drive", "summary", userId],
+    linkAllPreview: (userId) => ["google-drive", "link-all-preview", userId],
     preview: (fileId) => ["google-drive", "preview", fileId],
     browseAll: ["google-drive", "browse"],
     browse: ({ view, folderId, search, type }) => ["google-drive", "browse", view, folderId || null, search || "", type || "all"],
@@ -35,6 +36,9 @@ export const googleDriveApi = {
     },
     async getPreviews(fileIds) {
         return unwrap(await apiClient.post("/google-drive/previews", { fileIds }));
+    },
+    async getLinkAllPreview() {
+        return unwrap(await apiClient.get("/google-drive/link-all/preview"));
     },
     async importMedia(mediaIds) {
         return unwrap(await apiClient.post("/google-drive/import", { mediaIds }));

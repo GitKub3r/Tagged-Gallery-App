@@ -243,6 +243,50 @@ export const useLinkDriveFiles = () => {
     });
 };
 
+// Resumen de "Add all". Solo se pide al abrir la confirmación y no se guarda: siempre refleja el Drive actual.
+export const useLinkAllPreview = (enabled) => {
+    const { user } = useAuth();
+    return useQuery({
+        queryKey: googleDriveQueryKeys.linkAllPreview(user?.id),
+        queryFn: googleDriveApi.getLinkAllPreview,
+        enabled: enabled && Boolean(user?.id),
+        staleTime: 0,
+        gcTime: 0,
+        retry: false,
+    });
+};
+
+const LINK_ALL_TOAST_ID = "drive-link-all-progress";
+
+// "Add all": vincula todos los archivos del resumen, sin metadatos (solo la tag "Google Drive"), con un aviso
+// de progreso que permite parar. Volver a lanzarlo continúa donde se quedó: lo ya vinculado se omite.
+export const useLinkAllDriveFiles = () => {
+    const invalidateDriveMedia = useInvalidateDriveMedia();
+    const linkAllMutation = useBatchedMutation({
+        batchSize: LINK_BATCH_SIZE,
+        resultKeys: LINK_RESULT_KEYS,
+        getIds: ({ fileIds }) => fileIds,
+        request: (fileIds) => googleDriveApi.linkFiles({ fileIds, displayname: "", author: "", tag_names: [], is_favourite: false }),
+        onProgress: ({ processed, total }) => {
+            toast.loading(`Adding ${processed} of ${total} from Google Drive`, {
+                id: LINK_ALL_TOAST_ID,
+                description: "Keep this tab open. If you stop, run Add all again to continue.",
+                duration: Infinity,
+                action: { label: "Stop", onClick: () => linkAllMutation.stop() },
+            });
+        },
+        onSuccess: ({ result, wasStopped }) => {
+            toast.dismiss(LINK_ALL_TOAST_ID);
+            showLinkSummary(result, wasStopped);
+        },
+        onSettled: (data, error) => {
+            if (error) toast.dismiss(LINK_ALL_TOAST_ID);
+            if ((data?.result || error?.partialResult)?.linked.length) invalidateDriveMedia();
+        },
+    });
+    return linkAllMutation;
+};
+
 // De una en una: cada importación descarga el original completo desde Drive.
 const IMPORT_BATCH_SIZE = 1;
 const IMPORT_TOAST_ID = "drive-import-progress";

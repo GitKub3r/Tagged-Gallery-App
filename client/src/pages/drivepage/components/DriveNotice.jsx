@@ -1,7 +1,9 @@
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-// Aviso en línea (DESIGN.md §7.3). tone "warning" usa ámbar; "neutral" para información sin urgencia.
+// Aviso en línea (DESIGN.md §7.3). tone "warning" usa ámbar; "danger", rojo (acciones de gran alcance);
+// "neutral" para información sin urgencia.
 const TONES = {
+    danger: { box: "border-red-500/30 bg-red-500/10", icon: "text-red-600 dark:text-red-400" },
     warning: { box: "border-amber-500/30 bg-amber-500/10", icon: "text-amber-600 dark:text-amber-400" },
     neutral: { box: "border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-900", icon: "text-neutral-600 dark:text-neutral-300" },
 };
