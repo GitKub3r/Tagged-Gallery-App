@@ -5,22 +5,19 @@ export const isDriveMedia = (media) => media?.storage_provider === "google_drive
 export const DRIVE_TAG_NAME = "Google Drive";
 export const isDriveTagName = (tagName) => String(tagName || "").trim().toLowerCase() === DRIVE_TAG_NAME.toLowerCase();
 
-const pluralFiles = (count) => `${count} file${count === 1 ? "" : "s"}`;
+// Días que una media pasa en la papelera (Trash.service en el servidor).
+export const TRASH_RETENTION_DAYS = 30;
 
-// Texto del modal de borrado. Borrar una media de Drive solo la quita de Tagged: el original sigue en Drive.
+// Texto del modal de borrado. Borrar envía a la papelera; una media de Drive solo se quita de Tagged
+// y su original sigue en Drive.
 export const describeMediaDeletion = (mediaCount, driveMediaCount = 0) => {
-    const localCount = mediaCount - driveMediaCount;
-    if (driveMediaCount === 0) {
-        return mediaCount === 1
-            ? "The file and its metadata will be permanently removed. This action cannot be undone."
-            : `${pluralFiles(mediaCount)} and their metadata will be permanently removed. This action cannot be undone.`;
+    const subject = mediaCount === 1 ? "It goes" : `${mediaCount} media go`;
+    const trashNote = `${subject} to the trash with ${mediaCount === 1 ? "its" : "their"} tags and albums. You can restore ${mediaCount === 1 ? "it" : "them"} for ${TRASH_RETENTION_DAYS} days; after that ${mediaCount === 1 ? "it is" : "they are"} deleted forever.`;
+    if (driveMediaCount === 0) return trashNote;
+    if (driveMediaCount === mediaCount) {
+        return `${trashNote} Originals from Google Drive always stay in your Drive.`;
     }
-    if (localCount === 0) {
-        return mediaCount === 1
-            ? "It will be removed from Tagged with its tags, albums and favourite. The original file stays in your Google Drive."
-            : `${mediaCount} media will be removed from Tagged with their tags, albums and favourites. The original files stay in your Google Drive.`;
-    }
-    return `${mediaCount} media will be removed from Tagged. ${pluralFiles(driveMediaCount)} from Google Drive stay in your Drive; the other ${pluralFiles(localCount)} will be permanently deleted. This action cannot be undone.`;
+    return `${trashNote} The ${driveMediaCount} from Google Drive keep their originals in your Drive.`;
 };
 
 // Texto de la confirmación de importar: la media pasa a ser de Tagged, como si se hubiera subido.

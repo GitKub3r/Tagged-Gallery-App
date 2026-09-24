@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import {
+    faTrashCan,
     faAnglesLeft,
     faAnglesRight,
     faBars,
@@ -44,6 +45,7 @@ const navItems = [
     { label: "Templates", path: "/templates", icon: faCopy },
     { label: "Google Drive", path: "/drive", icon: faGoogleDrive },
     { label: "Dashboard", path: "/dashboard", icon: faChartColumn },
+    { label: "Trash", path: "/trash", icon: faTrashCan },
 ];
 
 const adminNavItems = [

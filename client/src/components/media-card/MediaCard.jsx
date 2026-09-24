@@ -35,6 +35,8 @@ export const MediaCard = ({
     onToggleSelect,
     onActivateSelectionMode,
     disableLongPressSelection = false,
+    // Texto breve al final de la línea de metadatos (p. ej. días que le quedan en la papelera).
+    note = "",
 }) => {
     const TOUCH_MOVE_THRESHOLD_PX = 12;
     const previewUrl = getMediaPreviewUrl(media, uploadsBaseUrl, resolvePreviewUrl);
@@ -285,6 +287,12 @@ export const MediaCard = ({
                         {mediaTagCount}
                     </span>
                     <MediaSourceBadge media={media} withSeparator />
+                    {note ? (
+                        <>
+                            <span aria-hidden="true">·</span>
+                            <span className="shrink-0">{note}</span>
+                        </>
+                    ) : null}
                 </div>
             </div>
         </article>

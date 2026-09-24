@@ -2083,8 +2083,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             showSelectionActionToast(
                 {
                     status: "success",
-                    title: "Media deleted",
-                    message: `Deleted ${selectedIds.length} selected media.`,
+                    title: "Moved to trash",
+                    message: `${selectedIds.length} media moved to the trash. You can restore them for 30 days.`,
                 },
                 3200,
             );
@@ -3227,9 +3227,10 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
             <DeleteConfirmationModal
                 isOpen={isDeleteConfirmOpen}
-                title={isSingleDeleteFlow ? "Delete this media?" : "Delete selected media?"}
+                title={isSingleDeleteFlow ? "Move this media to the trash?" : `Move ${selectedMediaCount} media to the trash?`}
                 description={describeMediaDeletion(selectedMediaCount, mediaItems.filter((media) => selectedMediaIds.has(media.id) && isDriveMedia(media)).length)}
-                confirmLabel={isSingleDeleteFlow ? "Delete media" : "Delete selected"}
+                confirmLabel="Move to trash"
+                pendingLabel="Moving..."
                 isDeleting={isDeletingSelected}
                 onConfirm={handleDeleteSelectedMedia}
                 onClose={closeDeleteSelectedConfirm}

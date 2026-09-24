@@ -333,7 +333,7 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
 
 **Bloque de dato** (par etiqueta/valor): `<dl>` con celdas `min-w-0 rounded-xl bg-neutral-100 px-3 py-2 dark:bg-neutral-950`. El `dt` va en `text-xs font-medium text-neutral-500 dark:text-neutral-400` y el `dd` en `mt-0.5 truncate text-sm font-semibold`.
 
-**Tarjeta de media:** `MediaCard`. Miniatura `aspect-[4/3] rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-900`, favorito arriba a la izquierda, indicador de selección circular y pie con título `text-base font-bold` y metadatos `text-xs`. La selección se marca con `ring-2 ring-neutral-950 ring-offset-2 dark:ring-neutral-100`. No crear otra tarjeta de media; ampliar esta con props.
+**Tarjeta de media:** `MediaCard` (con `note` para un dato breve al final de los metadatos, p. ej. los días que quedan en la papelera). Miniatura `aspect-[4/3] rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-900`, favorito arriba a la izquierda, indicador de selección circular y pie con título `text-base font-bold` y metadatos `text-xs`. La selección se marca con `ring-2 ring-neutral-950 ring-offset-2 dark:ring-neutral-100`. No crear otra tarjeta de media; ampliar esta con props.
 
 **Aviso en línea / panel informativo:** `rounded-xl border px-3 py-3` con fondo `/10` y borde `/30` del color semántico, icono a la izquierda y texto `text-sm`. El color nunca es la única señal: siempre hay icono y texto.
 
@@ -438,6 +438,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Excluir | `faMinus` |
 | Editar | `faPen` |
 | Eliminar | `faTrash` |
+| Papelera (pestaña, estado vacío) / restaurar | `faTrashCan` / `faRotateLeft` |
 | Guardar | `faFloppyDisk` |
 | Subir | `faCloudArrowUp` |
 | Importar a Tagged (copiar desde un servicio externo) | `faCloudArrowDown` |
