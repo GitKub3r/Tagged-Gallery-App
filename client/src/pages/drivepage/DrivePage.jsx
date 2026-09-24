@@ -21,6 +21,7 @@ import { DriveBrowserModal } from "./components/DriveBrowserModal";
 import { DriveConnectionDetails } from "./components/DriveConnectionDetails";
 import { DriveHero } from "./components/DriveHero";
 import { DriveHowItWorks } from "./components/DriveHowItWorks";
+import { DriveLinkAll } from "./components/DriveLinkAll";
 import { DriveNotice } from "./components/DriveNotice";
 import { DriveRecentMedia } from "./components/DriveRecentMedia";
 import { DriveSection } from "./components/DriveSection";
@@ -157,6 +158,7 @@ export const DrivePage = () => {
                                 isDisconnecting={disconnectMutation.isPending}
                                 onDisconnect={() => setIsDisconnectOpen(true)}
                             />
+                            <DriveLinkAll />
                         </DriveSection>
                     </div>
                 ) : (

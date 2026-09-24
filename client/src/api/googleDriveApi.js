@@ -12,9 +12,10 @@ export const googleDriveQueryKeys = {
     status: (userId) => ["google-drive", "status", userId],
     summaryAll: ["google-drive", "summary"],
     summary: (userId) => ["google-drive", "summary", userId],
+    linkAllPreview: (userId) => ["google-drive", "link-all-preview", userId],
     preview: (fileId) => ["google-drive", "preview", fileId],
     browseAll: ["google-drive", "browse"],
-    browse: ({ view, folderId, search }) => ["google-drive", "browse", view, folderId || null, search || ""],
+    browse: ({ view, folderId, search, type }) => ["google-drive", "browse", view, folderId || null, search || "", type || "all"],
 };
 
 export const googleDriveApi = {
@@ -27,14 +28,20 @@ export const googleDriveApi = {
     async connect(code) {
         return unwrap(await apiClient.post("/google-drive/connect", { code }));
     },
-    async browse({ view, folderId, search, pageToken }) {
-        return unwrap(await apiClient.get("/google-drive/browse", { params: { view, folderId: folderId || undefined, search: search || undefined, pageToken: pageToken || undefined } }));
+    async browse({ view, folderId, search, type, pageToken }) {
+        return unwrap(await apiClient.get("/google-drive/browse", { params: { view, folderId: folderId || undefined, search: search || undefined, type: type && type !== "all" ? type : undefined, pageToken: pageToken || undefined } }));
     },
     async expandSelection(items) {
         return unwrap(await apiClient.post("/google-drive/expand", { items }));
     },
     async getPreviews(fileIds) {
         return unwrap(await apiClient.post("/google-drive/previews", { fileIds }));
+    },
+    async getLinkAllPreview() {
+        return unwrap(await apiClient.get("/google-drive/link-all/preview"));
+    },
+    async importMedia(mediaIds) {
+        return unwrap(await apiClient.post("/google-drive/import", { mediaIds }));
     },
     async linkFiles(payload) {
         return unwrap(await apiClient.post("/google-drive/link", payload));

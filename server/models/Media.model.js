@@ -491,6 +491,45 @@ class MediaModel {
     }
 
     // Ids de Drive que el usuario ya tiene vinculados, para no vincularlos dos veces.
+    // Da la tag de sistema de Drive a las medias de Drive que no la tengan (medias vinculadas antes de existir).
+    static async ensureDriveTags(tagName) {
+        await pool.query(
+            `INSERT IGNORE INTO tags (user_id, tagname, type)
+             SELECT DISTINCT user_id, ?, 'default' FROM media WHERE storage_provider = 'google_drive'`,
+            [tagName],
+        );
+        await pool.query(
+            `INSERT IGNORE INTO media_tags (tagid, mediaid)
+             SELECT t.id, m.id FROM media m
+             JOIN tags t ON t.user_id = m.user_id AND t.tagname = ?
+             WHERE m.storage_provider = 'google_drive'`,
+            [tagName],
+        );
+    }
+
+    static async findDriveMediaBySource(userId, fileId) {
+        const [[row]] = await pool.query(
+            "SELECT id, source_mime_type FROM media WHERE user_id = ? AND storage_provider = 'google_drive' AND source_file_id = ? LIMIT 1",
+            [userId, fileId],
+        );
+        return row || null;
+    }
+
+    // Pasa una media de Drive a almacenamiento local (solo si sigue siendo de Drive).
+    static async convertDriveToLocal(mediaId, { filename, size, filepath, thumbpath, previewpath, checksum_md5 }) {
+        const [result] = await pool.query(
+            `UPDATE media SET storage_provider = 'local', storage_status = 'available', source_file_id = NULL, source_mime_type = NULL,
+                 source_modified_time = NULL, last_synced_at = NULL, filename = ?, size = ?, filepath = ?, thumbpath = ?, previewpath = ?, checksum_md5 = ?
+             WHERE id = ? AND storage_provider = 'google_drive'`,
+            [filename, size, filepath, thumbpath, previewpath, checksum_md5, mediaId],
+        );
+        return result.affectedRows > 0;
+    }
+
+    static async updateStorageStatus(mediaId, status) {
+        await pool.query("UPDATE media SET storage_status = ? WHERE id = ?", [status, mediaId]);
+    }
+
     static async findLinkedDriveFileIds(userId, fileIds) {
         if (!fileIds.length) return new Set();
         const [rows] = await pool.query(

@@ -75,6 +75,12 @@ class AlbumModel {
         return result.affectedRows > 0;
     }
 
+    // Cambia la ruta de las portadas que usaban una media cuyos archivos han cambiado (conserva el encuadre).
+    static async replaceCoverPaths(userId, oldCoverPaths, coverpath, thumbpath) {
+        if (!oldCoverPaths.length) return;
+        await pool.query("UPDATE albums SET albumcoverpath = ?, albumthumbpath = ? WHERE user_id = ? AND albumcoverpath IN (?)", [coverpath, thumbpath, userId, oldCoverPaths]);
+    }
+
     static async updateCover(id, coverpath, thumbpath) {
         await pool.query("UPDATE albums SET albumcoverpath = ?, albumthumbpath = ?, cover_position_x = 50, cover_position_y = 50, cover_zoom = 1 WHERE id = ?", [
             coverpath,

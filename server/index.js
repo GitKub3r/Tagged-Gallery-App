@@ -104,6 +104,7 @@ const startServer = async () => {
         await TemplateModel.ensureTable();
         await MediaModel.ensureColumns();
         await GoogleDriveConnectionModel.ensureTable();
+        await GoogleDriveService.ensureDriveTags();
         GoogleDriveService.pruneBrowseThumbnails();
 
         // Si la conexión fue exitosa, iniciar el servidor

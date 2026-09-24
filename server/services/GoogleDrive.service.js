@@ -1,4 +1,6 @@
 const fs = require("fs/promises");
+const { createWriteStream } = require("fs");
+const { pipeline } = require("stream/promises");
 const http = require("http");
 const path = require("path");
 const sharp = require("sharp");
@@ -6,12 +8,26 @@ const { drive: createDriveApi } = require("@googleapis/drive");
 const { OAuth2Client } = require("google-auth-library");
 const GoogleDriveConnectionModel = require("../models/GoogleDriveConnection.model");
 const MediaModel = require("../models/Media.model");
+const AlbumModel = require("../models/Album.model");
+const MediaTagModel = require("../models/MediaTag.model");
 const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
-const { detectMediaType, extractRemoteVideoFrame, getDriveDerivedFilename, writeJpeg, THUMBNAIL_OPTIONS, PREVIEW_OPTIONS } = require("../utils/media");
-const { THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
+const {
+    computeFileMd5,
+    detectMediaType,
+    extractRemoteVideoFrame,
+    generateMediaDerivatives,
+    getDriveDerivedFilename,
+    removeMediaDerivatives,
+    removeStoredMediaFiles,
+    writeJpeg,
+    THUMBNAIL_OPTIONS,
+    PREVIEW_OPTIONS,
+} = require("../utils/media");
+const { MEDIA_UPLOAD_DIR, THUMBNAILS_UPLOAD_DIR, PREVIEWS_UPLOAD_DIR, DRIVE_CACHE_DIR } = require("../middlewares/upload.middleware");
 const { signDriveThumbnail } = require("../utils/uploadUrls");
+const { DRIVE_TAG_NAME, withDriveTag } = require("../utils/driveTag");
 
 // Permiso de solo lectura sobre todo el Drive: lo necesita el explorador de Tagged para listar carpetas.
 // Es un permiso restringido: sin la verificación de Google, la app funciona en modo Prueba (usuarios de prueba).
@@ -26,6 +42,10 @@ const createOAuthClient = () =>
     new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, "postmessage");
 
 const MAX_LINK_FILES = 50;
+// Medias por petición al importar (cada una descarga el original completo).
+const MAX_IMPORT_MEDIA = 10;
+// "Add all": máximo de fotos y vídeos que se revisan de una vez en "Mi unidad".
+const MAX_LINK_ALL_SCAN = 10000;
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{10,200}$/;
 const DRIVE_FILE_FIELDS = "id, name, mimeType, size, md5Checksum, modifiedTime, thumbnailLink, trashed";
 const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
@@ -55,7 +75,10 @@ const MAX_BROWSE_SEARCH_LENGTH = 100;
 const BROWSE_THUMBNAIL_SIZE = 480;
 const BROWSE_THUMBNAIL_MAX_AGE_DAYS = 30;
 const MEDIA_QUERY = "(mimeType contains 'image/' or mimeType contains 'video/')";
-const FOLDER_OR_MEDIA_QUERY = `(mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or ${MEDIA_QUERY.slice(1, -1)})`;
+// Filtro de tipo del explorador: fotos, vídeos o ambos. Las carpetas se muestran siempre.
+const BROWSE_MEDIA_TYPES = new Set(["all", "image", "video"]);
+const getMediaQuery = (mediaType) => (mediaType === "image" ? "mimeType contains 'image/'" : mediaType === "video" ? "mimeType contains 'video/'" : MEDIA_QUERY.slice(1, -1));
+const getFolderOrMediaQuery = (mediaType) => `(mimeType = '${DRIVE_FOLDER_MIME_TYPE}' or ${getMediaQuery(mediaType)})`;
 const BROWSE_FIELDS =
     "nextPageToken, files(id, name, mimeType, size, modifiedTime, thumbnailLink, parents, videoMediaMetadata(durationMillis))";
 // Recent y la búsqueda de My Drive se quedan con lo que cuelga de "Mi unidad": files.list también devuelve las
@@ -71,18 +94,20 @@ const escapeDriveQuery = (value) => value.replace(/\\/g, "\\\\").replace(/'/g, "
 const hasReadonlyScope = (connection) => String(connection?.scopes || "").split(" ").includes(DRIVE_READONLY_SCOPE);
 
 // Consulta y orden de files.list según la vista, la carpeta abierta y la búsqueda.
-const buildBrowseQuery = ({ view, folderId, search }) => {
+const buildBrowseQuery = ({ view, folderId, search, mediaType }) => {
+    const mediaQuery = `(${getMediaQuery(mediaType)})`;
+    const folderOrMediaQuery = getFolderOrMediaQuery(mediaType);
     const base = "trashed = false";
     if (search) {
         const scope = view === "starred" ? " and starred = true" : view === "shared" ? " and sharedWithMe = true" : "";
-        const types = view === "recent" ? MEDIA_QUERY : FOLDER_OR_MEDIA_QUERY;
+        const types = view === "recent" ? mediaQuery : folderOrMediaQuery;
         return { q: `${base} and name contains '${escapeDriveQuery(search)}' and ${types}${scope}`, orderBy: "folder, modifiedTime desc" };
     }
-    if (folderId) return { q: `${base} and '${folderId}' in parents and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, name" };
-    if (view === "recent") return { q: `${base} and ${MEDIA_QUERY}`, orderBy: "modifiedTime desc" };
-    if (view === "starred") return { q: `${base} and starred = true and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, modifiedTime desc" };
-    if (view === "shared") return { q: `${base} and sharedWithMe = true and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, modifiedTime desc" };
-    return { q: `${base} and 'root' in parents and ${FOLDER_OR_MEDIA_QUERY}`, orderBy: "folder, name" };
+    if (folderId) return { q: `${base} and '${folderId}' in parents and ${folderOrMediaQuery}`, orderBy: "folder, name" };
+    if (view === "recent") return { q: `${base} and ${mediaQuery}`, orderBy: "modifiedTime desc" };
+    if (view === "starred") return { q: `${base} and starred = true and ${folderOrMediaQuery}`, orderBy: "folder, modifiedTime desc" };
+    if (view === "shared") return { q: `${base} and sharedWithMe = true and ${folderOrMediaQuery}`, orderBy: "folder, modifiedTime desc" };
+    return { q: `${base} and 'root' in parents and ${folderOrMediaQuery}`, orderBy: "folder, name" };
 };
 
 const getBrowseThumbnailPath = (userId, fileId, version) => path.join(DRIVE_CACHE_DIR, `${userId}-${fileId}-${version}.jpg`);
@@ -150,21 +175,29 @@ const toStatus = (connection) => ({
 
 const PROXIED_RESPONSE_HEADERS = ["content-type", "content-length", "content-range", "accept-ranges"];
 
+// Pide a Drive el contenido de un archivo reenviando la cabecera Range (vídeo con saltos, descargas parciales).
+const requestDriveContent = (client, fileId, range) =>
+    client.request({
+        url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
+        headers: range ? { Range: range } : {},
+        responseType: "stream",
+        validateStatus: () => true,
+    });
+
+const getProxiedHeaders = (upstream) => {
+    const getHeader = (name) => (typeof upstream.headers?.get === "function" ? upstream.headers.get(name) : upstream.headers?.[name]);
+    return Object.fromEntries(PROXIED_RESPONSE_HEADERS.map((name) => [name, getHeader(name)]).filter(([, value]) => value));
+};
+
 // Sirve un archivo de Drive en 127.0.0.1 mientras dura fn(url), reenviando las peticiones Range con la
 // autorización del usuario. Lo usa ffmpeg, que no puede resolver dominios y así tampoco recibe el token.
 const withLocalDriveStream = async (client, fileId, fn) => {
     const upstreams = new Set();
     const server = http.createServer(async (req, res) => {
         try {
-            const upstream = await client.request({
-                url: `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
-                headers: req.headers.range ? { Range: req.headers.range } : {},
-                responseType: "stream",
-                validateStatus: () => true,
-            });
+            const upstream = await requestDriveContent(client, fileId, req.headers.range);
             upstreams.add(upstream.data);
-            const getHeader = (name) => (typeof upstream.headers?.get === "function" ? upstream.headers.get(name) : upstream.headers?.[name]);
-            res.writeHead(upstream.status, Object.fromEntries(PROXIED_RESPONSE_HEADERS.map((name) => [name, getHeader(name)]).filter(([, value]) => value)));
+            res.writeHead(upstream.status, getProxiedHeaders(upstream));
             upstream.data.pipe(res);
             res.on("close", () => upstream.data.destroy());
         } catch (error) {
@@ -233,6 +266,51 @@ class GoogleDriveService {
         await GoogleDriveConnectionModel.updateStatus(userId, "revoked");
         await GoogleDriveConnectionModel.markUserMediaStatus(userId, "revoked");
         return { error: "Google Drive access was revoked. Please reconnect your account.", status: 409 };
+    }
+
+    // Original de una media de Drive, en streaming y con Range, para /api/v1/files/drive/<userId>-<fileId>.
+    // La URL firmada solo se emite a quien puede ver la media; aquí se comprueba además que la media sigue
+    // existiendo, así una URL de una media borrada deja de funcionar. Se usa la conexión del dueño.
+    static async streamOriginal(driveKey, req, res, maxAge) {
+        const match = /^(\d+)-([A-Za-z0-9_-]{10,200})$/.exec(driveKey);
+        const sendError = (status, message) => res.status(status).json({ success: false, message });
+        if (!match) return sendError(404, "File not found");
+        const [, rawUserId, fileId] = match;
+        const userId = Number(rawUserId);
+
+        const media = await MediaModel.findDriveMediaBySource(userId, fileId);
+        if (!media) return sendError(404, "File not found");
+
+        const { client, ...clientError } = await this.getAuthorizedClient(userId);
+        if (!client) return sendError(clientError.status === 503 ? 503 : 409, "Google Drive is not connected");
+
+        let upstream;
+        try {
+            upstream = await requestDriveContent(client, fileId, req.headers.range);
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, userId);
+            if (revoked) return sendError(409, revoked.error);
+            throw error;
+        }
+
+        if (upstream.status >= 400) {
+            upstream.data.destroy();
+            if (upstream.status === 404) {
+                await MediaModel.updateStorageStatus(media.id, "missing");
+                return sendError(404, "This file is no longer in Google Drive");
+            }
+            if (upstream.status === 416) return res.status(416).end();
+            return sendError(upstream.status === 403 ? 403 : 502, "Could not read this file from Google Drive");
+        }
+
+        res.status(upstream.status);
+        res.set({ ...getProxiedHeaders(upstream), "Cache-Control": `private, max-age=${maxAge}` });
+        if (!res.get("Content-Type") && media.source_mime_type) res.set("Content-Type", media.source_mime_type);
+        res.removeHeader("Pragma");
+        res.removeHeader("Expires");
+        upstream.data.pipe(res);
+        res.on("close", () => upstream.data.destroy());
+        return undefined;
     }
 
     // Guarda como JPEG local la miniatura de Drive (o un fotograma, en vídeos sin ella); el original no se descarga.
@@ -347,7 +425,8 @@ class GoogleDriveService {
         }
         const driveApi = createDriveApi({ version: "v3", auth: client });
 
-        const listQuery = buildBrowseQuery({ view, folderId, search });
+        const mediaType = BROWSE_MEDIA_TYPES.has(query?.type) ? query.type : "all";
+        const listQuery = buildBrowseQuery({ view, folderId, search, mediaType });
         const onlyMyDrive = !folderId && MY_DRIVE_ONLY_VIEWS.has(view);
         const files = [];
         let nextPageToken = pageToken;
@@ -462,6 +541,10 @@ class GoogleDriveService {
             console.warn(`Could not create Drive browse thumbnail for ${fileId}:`, String(error.message).split("\n")[0]);
             return { error: "Thumbnail not available", status: 404 };
         }
+    }
+
+    static async ensureDriveTags() {
+        await MediaModel.ensureDriveTags(DRIVE_TAG_NAME);
     }
 
     // Borra las miniaturas del explorador que llevan mucho tiempo sin renovarse.
@@ -611,6 +694,161 @@ class GoogleDriveService {
         return { type: "linked", item: { id: created.id, name: driveFile.name } };
     }
 
+    // Resumen previo de "Add all": todas las fotos y vídeos de "Mi unidad" (sin compartidos ni copias de
+    // ordenadores), cuántos ya están en Tagged y cuántos faltan, con su tamaño. No vincula nada.
+    static async getLinkAllPreview(user) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const { client, connection, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+        if (!hasReadonlyScope(connection)) return { error: "Reconnect Google Drive to add all your media.", status: 409 };
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+
+        const files = [];
+        let truncated = false;
+        try {
+            let pageToken;
+            do {
+                const { data } = await driveApi.files.list({
+                    q: `trashed = false and ${MEDIA_QUERY}`,
+                    fields: "nextPageToken, files(id, size, md5Checksum, parents)",
+                    pageSize: 1000,
+                    pageToken,
+                    spaces: "drive",
+                });
+                files.push(...(await this.filterMyDriveFiles(driveApi, user.id, data.files || [])));
+                pageToken = data.nextPageToken;
+                if (files.length >= MAX_LINK_ALL_SCAN) {
+                    truncated = Boolean(pageToken) || files.length > MAX_LINK_ALL_SCAN;
+                    files.length = Math.min(files.length, MAX_LINK_ALL_SCAN);
+                    break;
+                }
+            } while (pageToken);
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+
+        const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, files.map((file) => file.id));
+        const notLinked = files.filter((file) => !linkedFileIds.has(file.id));
+        const checksums = [...new Set(notLinked.map((file) => file.md5Checksum).filter(Boolean))];
+        const localChecksums = new Set((await MediaModel.findLocalByChecksums(user.id, checksums)).map((media) => media.checksum_md5));
+        const pending = notLinked.filter((file) => !localChecksums.has(file.md5Checksum));
+        const sumBytes = (list) => list.reduce((total, file) => total + (Number(file.size) || 0), 0);
+
+        return {
+            data: {
+                total: files.length,
+                totalBytes: sumBytes(files),
+                alreadyLinked: files.length - notLinked.length,
+                localDuplicates: notLinked.length - pending.length,
+                pendingCount: pending.length,
+                pendingBytes: sumBytes(pending),
+                fileIds: pending.map((file) => file.id),
+                truncated,
+                limit: MAX_LINK_ALL_SCAN,
+            },
+        };
+    }
+
+    // Convierte una media de Drive en media propia de Tagged, como si se hubiera subido desde el equipo:
+    // descarga el original, genera sus derivados, quita la referencia a Drive y la tag "Google Drive".
+    // Conserva id, nombre, autor, resto de tags, álbumes y favorito. En Drive no se toca nada.
+    static async importSingleMedia(mediaId, { client, user }) {
+        const media = await MediaModel.findByIdForUser(mediaId, user.id);
+        if (!media || media.storage_provider !== "google_drive") return { type: "skipped", item: { id: mediaId, reason: "not_drive_media" } };
+
+        const [localDuplicate] = media.checksum_md5 ? await MediaModel.findLocalByChecksums(user.id, [media.checksum_md5]) : [];
+        if (localDuplicate) return { type: "skipped", item: { id: mediaId, reason: "already_in_tagged", duplicateId: localDuplicate.id } };
+
+        const driveName = media.filename;
+        const extension = (path.extname(driveName || "").toLowerCase() || ".bin").replace(/[^a-z0-9.]/g, "");
+        const filename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+        const filePath = path.join(MEDIA_UPLOAD_DIR, filename);
+
+        const upstream = await requestDriveContent(client, media.source_file_id);
+        if (upstream.status !== 200) {
+            upstream.data.destroy();
+            if (upstream.status === 404) await MediaModel.updateStorageStatus(media.id, "missing");
+            return { type: "skipped", item: { id: mediaId, reason: upstream.status === 404 ? "missing_in_drive" : "not_accessible" } };
+        }
+
+        try {
+            await pipeline(upstream.data, createWriteStream(filePath));
+            const { size } = await fs.stat(filePath);
+            // Mismo objeto que deja multer, para generar los derivados igual que en una subida.
+            const file = { filename, path: filePath, originalname: driveName, mimetype: media.source_mime_type || "" };
+            const derivatives = await generateMediaDerivatives(file, media.mediatype === "gif" ? "image" : media.mediatype);
+
+            const converted = await MediaModel.convertDriveToLocal(media.id, {
+                filename,
+                size,
+                filepath: `/uploads/media/${filename}`,
+                thumbpath: derivatives.thumbnailPath,
+                previewpath: derivatives.previewPath,
+                checksum_md5: await computeFileMd5(filePath),
+            });
+            if (!converted) throw new Error("Media changed while importing");
+        } catch (error) {
+            await fs.rm(filePath, { force: true });
+            await removeMediaDerivatives(filename);
+            throw error;
+        }
+
+        await MediaTagModel.deleteSpecificTagsByNameForMedia(media.id, [DRIVE_TAG_NAME], user.id);
+        const updated = await MediaModel.findById(media.id);
+        // Las portadas de álbum guardan la ruta de la media: se apuntan a los archivos nuevos.
+        await AlbumModel.replaceCoverPaths(user.id, [media.previewpath, media.filepath].filter(Boolean), updated.previewpath || updated.filepath, updated.thumbpath);
+        await removeStoredMediaFiles(media);
+
+        return { type: "imported", item: { id: media.id, name: driveName } };
+    }
+
+    static async importMedia(body, user, req) {
+        const forbidden = forbidAdmin(user);
+        if (forbidden) return forbidden;
+
+        const mediaIds = [...new Set(Array.isArray(body?.mediaIds) ? body.mediaIds.map(Number) : [])];
+        if (mediaIds.length === 0 || mediaIds.length > MAX_IMPORT_MEDIA || !mediaIds.every((id) => Number.isInteger(id) && id > 0)) {
+            return { error: `Select between 1 and ${MAX_IMPORT_MEDIA} media`, status: 400 };
+        }
+
+        const { client, ...clientError } = await this.getAuthorizedClient(user.id);
+        if (!client) return clientError;
+
+        const result = { imported: [], skipped: [] };
+        try {
+            // De una en una: cada importación descarga un original que puede pesar varios GB.
+            for (const mediaId of mediaIds) {
+                try {
+                    const { type, item } = await this.importSingleMedia(mediaId, { client, user });
+                    result[type].push(item);
+                } catch (error) {
+                    if (isRevokedGrantError(error)) throw error;
+                    console.error(`Could not import Drive media ${mediaId}:`, error.message);
+                    result.skipped.push({ id: mediaId, reason: "failed" });
+                }
+            }
+        } catch (error) {
+            const revoked = await this.handleRevokedGrant(error, user.id);
+            if (revoked) return revoked;
+            throw error;
+        }
+
+        if (result.imported.length > 0) {
+            await AuditService.logEvent({
+                actionCode: "GOOGLE_DRIVE_IMPORT",
+                req,
+                statusCode: 200,
+                message: `Imported ${result.imported.length} Google Drive media into Tagged`,
+                metadata: { mediaIds: result.imported.map((item) => item.id) },
+            });
+        }
+        return { data: result };
+    }
+
     static async linkFiles(body, user, req) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;
@@ -629,7 +867,8 @@ class GoogleDriveService {
 
         const result = { linked: [], alreadyLinked: [], duplicates: [], skipped: [] };
         const linkedFileIds = await MediaModel.findLinkedDriveFileIds(user.id, fileIds);
-        const context = { client, driveApi, user, body, isFavourite: validation.isFavourite, tagNames: parsedTagNames.data, now: new Date() };
+        // Toda media de Drive lleva la tag "Google Drive", además de las elegidas.
+        const context = { client, driveApi, user, body, isFavourite: validation.isFavourite, tagNames: withDriveTag(parsedTagNames.data), now: new Date() };
 
         try {
             const outcomes = await mapWithConcurrency(fileIds, LINK_CONCURRENCY, (fileId) =>
@@ -705,6 +944,8 @@ class GoogleDriveService {
             refreshTokenEncrypted: encrypt(refreshToken),
             scopes: grantedScopes.join(" "),
         });
+        // La tag de sistema existe desde que se conecta la cuenta, lista para filtrar por ella.
+        await MediaService.getOrCreateTagIdsForUser([DRIVE_TAG_NAME], user.id);
         // Al reconectar, las medias de Drive vuelven a estar accesibles; la comprobación de estado corregirá las que falten.
         await GoogleDriveConnectionModel.markUserMediaStatus(user.id, "available");
         await AuditService.logEvent({ actionCode: "GOOGLE_DRIVE_CONNECT", req, statusCode: 200, message: "Google Drive connected" });

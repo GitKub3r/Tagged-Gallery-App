@@ -229,7 +229,7 @@ Antes de maquetar, se busca el componente en esta lista. Si existe, se usa; si n
 
 ### 7.1 Botones
 
-**En código nuevo, usar `buttonClasses` (`components/button/buttonClasses.js`: `primary`, `secondary`, `dangerGhost`, `text`) en lugar de copiar las recetas.** No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
+**En código nuevo, usar `buttonClasses` (`components/button/buttonClasses.js`: `primary`, `secondary`, `dangerGhost`, `dangerOutline`, `text`) en lugar de copiar las recetas.** No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
 
 **Primario:** una sola acción principal por vista o modal.
 
@@ -251,11 +251,13 @@ inline-flex h-10 w-auto items-center gap-2 rounded-xl border-0 bg-red-600 px-4 t
 
 **Fantasma de peligro** (acción destructiva en menú o sidebar, p. ej. cerrar sesión): texto neutro con `hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500`.
 
+**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive). Es roja desde el principio, va dentro de un aviso en línea rojo (`DriveNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
+
 **Texto / enlace:** acción terciaria, p. ej. "Clear", "Retry" o "Create one". `w-auto border-0 bg-transparent p-0 text-xs font-semibold text-neutral-600 underline shadow-none dark:text-neutral-300`. Un enlace de navegación usa `<Link>`, no `<button>`.
 
 **Solo icono:** siempre `IconButton` (`h-10 w-10 rounded-xl`, borde de control, `bg-neutral-50 dark:bg-neutral-900`), con `aria-label` y `title` si la acción no es obvia. Los iconos van con `aria-hidden="true"`.
 
-**Segmented control / toggle de vista** (filtro de tipo, tarjetas o lista):
+**Segmented control / toggle de vista** (filtro de tipo, tarjetas o lista). En código nuevo, usar `SegmentedControl` (`components/segmented-control`, `labels="responsive"` o `"hidden"`, `disabled`); la galería aún lo tiene en línea (**legado**):
 
 - Contenedor: `flex h-11 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950`.
 - Opción: `inline-flex h-9 flex-1 items-center justify-center gap-2 rounded-xl border-0 text-sm font-bold`.
@@ -342,6 +344,7 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
   - Color: `style={buildTagChipStyle(color)}` (o `buildDefaultTagStyle` para tags sin color).
   - Icono: `getTagIcon(...)`, que distingue tag guardada, tag nueva y tag de copyright.
   - Con botón de quitar: `faXmark` dentro del chip y `aria-label="Remove tag X"`.
+  - **Tag bloqueada** (tag de sistema "Google Drive" en medias de Drive): `MediaMetadataFields` la recibe en `lockedTags` y la pinta primero como `<span>` (no botón), con `faGoogleDrive`, `faLock` en lugar de `faXmark`, `title` explicativo y texto `sr-only` "(can't be removed)". En la gestión de tags solo se le puede cambiar el color: en lugar de editar y borrar muestra `faLock`.
 - **Chip de filtro activo** (búsqueda por facetas): píldora `rounded-full` `min-h-8`, con botón circular `h-5 w-5` para quitar.
 - **Contador o badge neutro:** `rounded-full bg-neutral-200 px-2 text-xs font-bold tabular-nums dark:bg-neutral-800`.
 - **Incluir / excluir tag en filtros:** botones `h-7 w-7 rounded-xl border`. Incluir activo en invertido; excluir activo en `border-red-500/50 bg-red-500/15 text-red-500`, con iconos `faPlus` y `faMinus`.
@@ -367,13 +370,13 @@ Todos los modales:
 
 **Añadir medias:** todo flujo que añade medias a la biblioteca (subida desde el equipo, archivos de Google Drive) usa `UploadMediaModal` con su `variant` (`upload` o `drive`). Cambian el título, el icono y los textos; la estructura, el formulario, la vista previa y el progreso son los mismos. Un origen nuevo se añade como otra variante, no como otro modal.
 
-**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
+**Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro; se cierra con Escape antes que cualquier modal de debajo). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Con `tone="neutral"` el botón es primario, para acciones que no borran nada (p. ej. importar a Tagged). `children` añade un resumen entre la descripción y el pie, y `requireText` obliga a escribir una frase antes de confirmar: se usa en acciones de gran alcance que no deben lanzarse con un clic accidental. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
 
 **Modal anidado:** `z-[1300]`. Con `MediaFormModal` se pasa `layer="nested"`: atiende Escape antes que el modal de debajo, así que solo se cierra el de arriba. Evitar más de dos niveles.
 
 **Explorador de archivos externos** (`DriveBrowserModal`, para elegir fotos, vídeos y carpetas de Google Drive). Se monta sobre `MediaFormModal` y, cuando se abre con "Change" desde el modal de añadir medias, usa `layer="nested"` y conserva la selección:
 
-- **Barra superior** (`border-b px-4 py-3 sm:px-6`): segmented control con las vistas (*My Drive*, *Recent*, *Starred*, *Shared*; solo icono en móvil) y `SearchField` (`md:max-w-xs`) con retardo de 350 ms.
+- **Barra superior** (`border-b px-4 py-3 sm:px-6`): `SegmentedControl` con las vistas (*My Drive*, *Recent*, *Starred*, *Shared*; solo icono en móvil), filtro de tipo (*All*, *Images*, *Videos*, solo iconos, deshabilitado cuando en pantalla solo hay carpetas) y `SearchField` (`md:max-w-xs`) con retardo de 350 ms.
 - **Barra de ubicación** (`min-h-14 border-b`): `IconButton` `faArrowLeft` para subir de carpeta, migas de pan con `buttonClasses.text` (en móvil solo las dos últimas) y, a la derecha, "Select all" / "Deselect all" (`faCheckDouble` / `faXmark`), que carga las páginas que falten hasta el límite.
 - **Contenido:** carpetas primero, en filas `h-14 rounded-xl border` (el nombre abre la carpeta; el círculo de la derecha la selecciona entera) y después fotos y vídeos en rejilla cuadrada (`grid-cols-2` → `lg:grid-cols-5`) con el nombre debajo. Selección con el mismo círculo que `MediaCard` y anillo `ring-2`; Mayús + clic selecciona un rango. Los vídeos llevan su duración en una píldora `bg-black/65` y lo que ya está en la biblioteca aparece atenuado, con "In library" y sin poder seleccionarse.
 - **Carga:** skeletons con la forma de la rejilla, scroll infinito con un `faSpinner` al final, `EmptyState` y `LoadErrorState` con `placement="section"`.
@@ -437,6 +440,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Eliminar | `faTrash` |
 | Guardar | `faFloppyDisk` |
 | Subir | `faCloudArrowUp` |
+| Importar a Tagged (copiar desde un servicio externo) | `faCloudArrowDown` |
 | Descargar | `faDownload` |
 | Buscar | `faMagnifyingGlass` |
 | Filtrar / limpiar filtros | `faFilter` / `faFilterCircleXmark` |
@@ -464,6 +468,7 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Carpeta de un servicio externo | `faFolder` |
 | Vistas del explorador: unidad / recientes / destacados / compartido | `faHardDrive` / `faClock` / `faStar` / `faUserGroup` |
 | Desconectar una integración | `faLinkSlash` |
+| Elemento gestionado por la app (no editable) | `faLock` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
 
 Para una acción que no esté en la tabla, se elige el icono, se usa en todos los sitios de esa acción y se añade aquí.

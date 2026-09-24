@@ -5,6 +5,7 @@ const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
 const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives, removeStoredMediaFiles, computeFileMd5 } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR } = require("../middlewares/upload.middleware");
+const { enforceDriveTag, isDriveTagName, withoutDriveTag } = require("../utils/driveTag");
 const MAX_MEDIA_PAGE_SIZE = 500;
 
 const removeFileIfExists = async (filePath) => {
@@ -535,6 +536,8 @@ class MediaService {
             await removeFileIfExists(file.path);
             return parsedTagNames;
         }
+        // La tag "Google Drive" es exclusiva de las medias de Drive.
+        parsedTagNames.data = withoutDriveTag(parsedTagNames.data);
 
         let createdMedia = null;
 
@@ -603,6 +606,7 @@ class MediaService {
             await Promise.all(files.map((file) => removeFileIfExists(file.path)));
             return parsedTagNames;
         }
+        parsedTagNames.data = withoutDriveTag(parsedTagNames.data);
 
         const processedFiles = [];
         let createdItems = [];
@@ -719,23 +723,28 @@ class MediaService {
                 fields.is_favourite = favourite.data;
             }
 
+            // Las medias de Drive conservan siempre la tag "Google Drive"; las locales no pueden tenerla.
+            const isDriveMedia = existing.storage_provider === "google_drive";
             if (shouldUpdateTags) {
                 parsedTagNames = this.parseTagNames(payload.tag_names);
 
                 if (!parsedTagNames.success) {
                     return parsedTagNames;
                 }
+                parsedTagNames.data = enforceDriveTag(parsedTagNames.data, isDriveMedia);
             }
 
             if (shouldAddOrRemoveTags) {
                 if (payload.tags_to_add !== undefined) {
                     tagsToAdd = this.parseTagNames(payload.tags_to_add);
                     if (!tagsToAdd.success) return tagsToAdd;
+                    if (!isDriveMedia) tagsToAdd.data = withoutDriveTag(tagsToAdd.data);
                 }
 
                 if (payload.tags_to_remove !== undefined) {
                     tagsToRemove = this.parseTagNames(payload.tags_to_remove);
                     if (!tagsToRemove.success) return tagsToRemove;
+                    if (isDriveMedia) tagsToRemove.data = tagsToRemove.data.filter((tagName) => !isDriveTagName(tagName));
                 }
             }
 

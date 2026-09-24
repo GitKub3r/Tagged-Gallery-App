@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../icon-button/IconButton";
+import { DRIVE_TAG_NAME } from "../../utils/mediaSource";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
 
@@ -34,6 +35,7 @@ const VARIANTS = {
         progressTitle: (total) => `Uploading ${total === 1 ? "media" : "files"}`,
         cancelLabel: "Cancel upload",
         staticPreviews: false,
+        lockedTags: [],
     },
     drive: {
         titleId: "drive-media-title",
@@ -43,6 +45,8 @@ const VARIANTS = {
         progressTitle: (total) => `Adding ${total === 1 ? "media" : "files"} from Google Drive`,
         cancelLabel: "Stop adding",
         staticPreviews: true,
+        // El backend añade esta tag a toda media de Drive.
+        lockedTags: [DRIVE_TAG_NAME],
     },
 };
 
@@ -291,6 +295,7 @@ export const UploadMediaModal = ({
                                     authorInput={authorInput}
                                     tagInput={tagInput}
                                     selectedTags={selectedTags}
+                                    lockedTags={config.lockedTags}
                                     tagColorByName={tagColorByName}
                                     tagTypeByName={tagTypeByName}
                                     existingTagNames={existingTagNames}

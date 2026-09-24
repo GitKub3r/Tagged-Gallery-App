@@ -60,7 +60,7 @@ class TagController {
     static async delete(req, res) {
         try {
             const result = await TagService.delete(req.params.id, req.user);
-            if (!result.success) return res.status(404).json(result);
+            if (!result.success) return res.status(result.message === "Tag not found" ? 404 : 409).json(result);
             return res.json(result);
         } catch (error) {
             console.error("Error in TagController.delete:", error);

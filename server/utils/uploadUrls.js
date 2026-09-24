@@ -13,7 +13,8 @@ const SIGNED_KEYS = new Set(["filepath", "thumbpath", "previewpath", "albumcover
 const WINDOW_SECONDS = 12 * 60 * 60;
 const MIN_REMAINING_SECONDS = 6 * 60 * 60;
 
-const RELATIVE_PATH_PATTERN = /^(media|thumbnails|previews|avatars)\/[A-Za-z0-9._-]+$/;
+// drive/<userId>-<fileId>: original de una media de Google Drive (se sirve en streaming desde Drive).
+const RELATIVE_PATH_PATTERN = /^(media|thumbnails|previews|avatars|drive)\/[A-Za-z0-9._-]+$/;
 
 const getSigningSecret = () => {
     const secret = process.env.MEDIA_URL_SIGNING_SECRET || process.env.JWT_SECRET;

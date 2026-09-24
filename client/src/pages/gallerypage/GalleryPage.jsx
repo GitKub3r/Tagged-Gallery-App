@@ -6,6 +6,7 @@ import {
     faCircleCheck,
     faCheckDouble,
     faCloudArrowUp,
+    faCloudArrowDown,
     faDownload,
     faFilm,
     faFolderPlus,
@@ -51,6 +52,8 @@ import { buildTagChipStyle, normalizeHexColor } from "../../utils/tagStyle";
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { rankSuggestions } from "../../utils/suggestionRanking";
+import { DRIVE_IMPORT_DESCRIPTION, describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
+import { useImportDriveMedia } from "../../hooks/useGoogleDrive";
 import "./GalleryPage.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -821,6 +824,10 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         ? Math.max(0, Math.min(100, uploadProgressPercent))
         : 0;
     const selectedMediaCount = selectedMediaIds.size;
+    // Medias de Drive dentro de la selección: las únicas que se pueden importar a Tagged.
+    const selectedDriveMediaIds = mediaItems.filter((media) => selectedMediaIds.has(media.id) && isDriveMedia(media)).map((media) => media.id);
+    const [isImportSelectedConfirmOpen, setIsImportSelectedConfirmOpen] = useState(false);
+    const importSelectedMutation = useImportDriveMedia();
     const activeTagFilter = useMemo(() => {
         const params = new URLSearchParams(location.search);
         return params.get("tag")?.trim() || "";
@@ -3143,6 +3150,17 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
                     <button
                         type="button"
+                        className="tagged-gallery-selection-icon-button"
+                        disabled={selectedDriveMediaIds.length === 0 || importSelectedMutation.isPending}
+                        onClick={() => setIsImportSelectedConfirmOpen(true)}
+                        aria-label={`Import ${selectedDriveMediaIds.length} selected Google Drive media into Tagged`}
+                        title={selectedDriveMediaIds.length ? "Import selected Google Drive media into Tagged" : "Select Google Drive media to import them into Tagged"}
+                    >
+                        <FontAwesomeIcon icon={faCloudArrowDown} aria-hidden="true" />
+                    </button>
+
+                    <button
+                        type="button"
                         className="tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--edit"
                         disabled={selectedMediaCount === 0 || isSavingSelectedEdit}
                         onClick={openEditSelectedModal}
@@ -3191,11 +3209,26 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             ) : null}
 
             <DeleteConfirmationModal
+                isOpen={isImportSelectedConfirmOpen}
+                title={selectedDriveMediaIds.length === 1 ? "Import this media into Tagged?" : `Import ${selectedDriveMediaIds.length} media into Tagged?`}
+                description={`${selectedDriveMediaIds.length < selectedMediaCount ? `Only the ${selectedDriveMediaIds.length} from Google Drive in your selection are imported. ` : ""}${DRIVE_IMPORT_DESCRIPTION}`}
+                confirmLabel="Import into Tagged"
+                pendingLabel="Importing..."
+                confirmIcon={faCloudArrowDown}
+                tone="neutral"
+                isDeleting={importSelectedMutation.isPending}
+                onConfirm={() => {
+                    // La importación sigue con su propio aviso de progreso; el modal se cierra al empezar.
+                    importSelectedMutation.mutate({ mediaIds: selectedDriveMediaIds });
+                    setIsImportSelectedConfirmOpen(false);
+                }}
+                onClose={() => setIsImportSelectedConfirmOpen(false)}
+            />
+
+            <DeleteConfirmationModal
                 isOpen={isDeleteConfirmOpen}
                 title={isSingleDeleteFlow ? "Delete this media?" : "Delete selected media?"}
-                description={isSingleDeleteFlow
-                    ? "The file and its metadata will be permanently removed. This action cannot be undone."
-                    : `${selectedMediaCount} file${selectedMediaCount === 1 ? "" : "s"} and ${selectedMediaCount === 1 ? "its" : "their"} metadata will be permanently removed. This action cannot be undone.`}
+                description={describeMediaDeletion(selectedMediaCount, mediaItems.filter((media) => selectedMediaIds.has(media.id) && isDriveMedia(media)).length)}
                 confirmLabel={isSingleDeleteFlow ? "Delete media" : "Delete selected"}
                 isDeleting={isDeletingSelected}
                 onConfirm={handleDeleteSelectedMedia}

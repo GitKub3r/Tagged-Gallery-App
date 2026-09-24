@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import {
+    faLock,
     faCopyright,
     faImage,
     faMagnifyingGlass,
@@ -14,6 +16,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { metadataApi, metadataQueryKeys } from "../../api/metadataApi";
+import { isDriveTagName } from "../../utils/mediaSource";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { ErrorToast } from "../../components/toast/ErrorToast";
@@ -234,10 +237,12 @@ export const MetadataPage = () => {
                         <ul className="grid gap-2 sm:grid-cols-2 2xl:grid-cols-3" aria-label={config.label}>
                             {items.map((item) => {
                                 const label = String(item[config.field] || "");
+                                // La tag "Google Drive" la gestiona la app: solo se le puede cambiar el color.
+                                const isSystemTag = managerType === "tags" && isDriveTagName(label);
                                 return <li key={item.id ?? label} className="group flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white/70 p-3 transition-colors hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900">
                                     {managerType === "tags" ? <TagColorPicker compact value={item.tagcolor_hex} disabled={quickColorMutation.isPending} label={`Change color for ${label}`} onChange={(color) => quickColorMutation.mutate({ item, color })} /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"><FontAwesomeIcon icon={config.icon} /></span>}
-                                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold" title={label}>{label}</p>{managerType === "tags" ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">{item.type === "copyright" ? <><FontAwesomeIcon icon={faCopyright} /> Copyright</> : "Standard tag"}</p> : <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Reusable {config.singular}</p>}</div>
-                                    <div className="flex shrink-0 gap-1"><IconButton className="h-9 w-9 border-transparent bg-transparent" onClick={() => openEditor(item)} aria-label={`Edit ${label}`} title={`Edit ${label}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton className="h-9 w-9 border-transparent bg-transparent hover:text-red-500" onClick={() => setPendingDelete(item)} aria-label={`Delete ${label}`} title={`Delete ${label}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div>
+                                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold" title={label}>{label}</p>{managerType === "tags" ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">{isSystemTag ? <><FontAwesomeIcon icon={faGoogleDrive} /> Added to Google Drive media</> : item.type === "copyright" ? <><FontAwesomeIcon icon={faCopyright} /> Copyright</> : "Standard tag"}</p> : <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Reusable {config.singular}</p>}</div>
+                                    {isSystemTag ? <span className="grid h-9 w-9 shrink-0 place-items-center text-neutral-400 dark:text-neutral-500" title="Managed by Tagged"><FontAwesomeIcon icon={faLock} aria-hidden="true" /><span className="sr-only">Managed by Tagged, can't be edited or deleted</span></span> : <div className="flex shrink-0 gap-1"><IconButton className="h-9 w-9 border-transparent bg-transparent" onClick={() => openEditor(item)} aria-label={`Edit ${label}`} title={`Edit ${label}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton className="h-9 w-9 border-transparent bg-transparent hover:text-red-500" onClick={() => setPendingDelete(item)} aria-label={`Delete ${label}`} title={`Delete ${label}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div>}
                                 </li>;
                             })}
                         </ul>

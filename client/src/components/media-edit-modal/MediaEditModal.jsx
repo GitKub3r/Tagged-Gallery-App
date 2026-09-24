@@ -7,6 +7,7 @@ import { IconButton } from "../icon-button/IconButton";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { rankSuggestions } from "../../utils/suggestionRanking";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
+import { DRIVE_TAG_NAME, isDriveMedia, isDriveTagName } from "../../utils/mediaSource";
 import { applyTemplate } from "../../utils/applyTemplate";
 
 const MAX_SUGGESTIONS = 8;
@@ -54,6 +55,8 @@ export const MediaEditModal = ({
     externalNavigationRef.current = navigation;
     const initialDisplayName = String(initialValues?.displayname || "");
     const initialAuthor = String(initialValues?.author || "");
+    // Si todas las medias que se editan son de Drive, su tag "Google Drive" no se puede quitar.
+    const lockedTags = selectedMediaItems.length > 0 && selectedMediaItems.every(isDriveMedia) ? [DRIVE_TAG_NAME] : [];
     const initialTagsKey = JSON.stringify(Array.isArray(initialValues?.tags) ? initialValues.tags : []);
 
     useEffect(() => {
@@ -326,6 +329,7 @@ export const MediaEditModal = ({
     };
 
     const removeTag = (tagToRemove) => {
+        if (lockedTags.some((tag) => isDriveTagName(tag) && isDriveTagName(tagToRemove))) return;
         setSelectedTags((previous) => previous.filter((tag) => tag !== tagToRemove));
     };
 
@@ -551,6 +555,7 @@ export const MediaEditModal = ({
                             authorInput={authorInput}
                             tagInput={tagInput}
                             selectedTags={selectedTags}
+                            lockedTags={lockedTags}
                             tagColorByName={tagColorByName}
                             tagTypeByName={tagTypeByName}
                             existingTagNames={distinctTagNames}

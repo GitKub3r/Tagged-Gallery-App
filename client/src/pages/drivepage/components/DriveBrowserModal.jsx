@@ -7,6 +7,9 @@ import {
     faCheckDouble,
     faChevronRight,
     faClock,
+    faFilm,
+    faImage,
+    faTableCellsLarge,
     faHardDrive,
     faSpinner,
     faStar,
@@ -21,6 +24,7 @@ import { LoadErrorState } from "../../../components/load-error-state/LoadErrorSt
 import { Skeleton } from "../../../components/loading-skeletons/Skeleton";
 import { MediaFormModal } from "../../../components/media-form-modal/MediaFormModal";
 import { SearchField } from "../../../components/search-field/SearchField";
+import { SegmentedControl } from "../../../components/segmented-control/SegmentedControl";
 import { useDriveBrowse } from "../../../hooks/useGoogleDrive";
 import { useScrollLock } from "../../../hooks/useScrollLock";
 import { DriveFileTile, DriveFolderTile } from "./DriveBrowserTiles";
@@ -30,10 +34,16 @@ const MAX_SELECTION = 500;
 const SEARCH_DEBOUNCE_MS = 350;
 
 const VIEWS = [
-    { id: "my-drive", label: "My Drive", icon: faHardDrive, empty: "This folder has no photos or videos" },
-    { id: "recent", label: "Recent", icon: faClock, empty: "No photos or videos in your Drive yet" },
-    { id: "starred", label: "Starred", icon: faStar, empty: "No starred photos, videos or folders" },
-    { id: "shared", label: "Shared", icon: faUserGroup, empty: "Nothing with photos or videos is shared with you" },
+    { value: "my-drive", label: "My Drive", icon: faHardDrive, empty: "This folder has no photos or videos" },
+    { value: "recent", label: "Recent", icon: faClock, empty: "No photos or videos in your Drive yet" },
+    { value: "starred", label: "Starred", icon: faStar, empty: "No starred photos, videos or folders" },
+    { value: "shared", label: "Shared", icon: faUserGroup, empty: "Nothing with photos or videos is shared with you" },
+];
+
+const MEDIA_TYPES = [
+    { value: "all", label: "All", icon: faTableCellsLarge },
+    { value: "image", label: "Images", icon: faImage },
+    { value: "video", label: "Videos", icon: faFilm },
 ];
 
 const FILE_GRID_CLASSES = "grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5";
@@ -70,6 +80,7 @@ export const DriveBrowserModal = ({ initialSelection = [], layer = "base", isCon
     const [path, setPath] = useState([]);
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
+    const [mediaType, setMediaType] = useState("all");
     const [selection, setSelection] = useState(() => new Map(initialSelection.map((item) => [item.id, toSelectionItem(item)])));
     const [lastToggledId, setLastToggledId] = useState(null);
     const [isSelectingAll, setIsSelectingAll] = useState(false);
@@ -77,15 +88,18 @@ export const DriveBrowserModal = ({ initialSelection = [], layer = "base", isCon
     const sentinelRef = useRef(null);
     useScrollLock();
 
-    const currentView = VIEWS.find((option) => option.id === view);
+    const currentView = VIEWS.find((option) => option.value === view);
     const currentFolder = path.at(-1) || null;
-    const browseQuery = useDriveBrowse({ view, folderId: currentFolder?.id, search });
+    const browseQuery = useDriveBrowse({ view, folderId: currentFolder?.id, search, type: mediaType });
     const { hasNextPage, isFetchingNextPage, fetchNextPage } = browseQuery;
     const items = useMemo(() => browseQuery.data?.pages.flatMap((page) => page.items) ?? [], [browseQuery.data]);
     const folders = items.filter((item) => item.isFolder);
     const files = items.filter((item) => !item.isFolder);
     const selectableItems = items.filter((item) => !item.inLibrary);
     const selectedItems = [...selection.values()];
+    // Sin fotos ni vídeos a la vista (solo carpetas) no hay nada que filtrar; con un filtro activo se mantiene
+    // disponible para poder quitarlo aunque la ubicación se haya quedado sin resultados.
+    const canFilterByType = mediaType !== "all" || files.length > 0;
     const areAllSelected = !hasNextPage && selectableItems.length > 0 && selectableItems.every((item) => selection.has(item.id));
 
     useEffect(() => {
@@ -183,6 +197,10 @@ export const DriveBrowserModal = ({ initialSelection = [], layer = "base", isCon
     };
 
     const renderEmptyState = () => {
+        if (mediaType !== "all") {
+            const typeLabel = mediaType === "image" ? "images" : "videos";
+            return <EmptyState title={`No ${typeLabel} here`} icon={faGoogleDrive} placement="section" actionLabel="Show all media" onAction={() => setMediaType("all")} />;
+        }
         if (search) {
             return <EmptyState title={`Nothing matches "${search}"`} icon={faGoogleDrive} placement="section" actionLabel="Clear search" onAction={() => setSearchInput("")} />;
         }
@@ -202,33 +220,26 @@ export const DriveBrowserModal = ({ initialSelection = [], layer = "base", isCon
             layer={layer}
         >
             <div className="flex shrink-0 flex-col gap-3 border-b border-neutral-200 px-4 py-3 dark:border-neutral-800 md:flex-row md:items-center md:justify-between sm:px-6">
-                <div className="flex h-11 items-center gap-1 rounded-xl border border-neutral-300 bg-white p-1 dark:border-neutral-700 dark:bg-neutral-950 md:w-auto" role="group" aria-label="Drive location">
-                    {VIEWS.map((option) => {
-                        const isActive = option.id === view;
-                        return (
-                            <button
-                                key={option.id}
-                                type="button"
-                                className={`inline-flex h-9 w-auto flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-0 px-3 text-sm font-bold shadow-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 ${isActive ? "bg-neutral-950 text-white dark:bg-white dark:text-neutral-950" : "bg-transparent text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-800"}`}
-                                onClick={() => changeView(option.id)}
-                                aria-pressed={isActive}
-                                aria-label={option.label}
-                                title={option.label}
-                            >
-                                <FontAwesomeIcon icon={option.icon} aria-hidden="true" />
-                                <span className="hidden sm:inline">{option.label}</span>
-                            </button>
-                        );
-                    })}
+                <SegmentedControl className="md:w-auto" options={VIEWS} value={view} onChange={changeView} ariaLabel="Drive location" />
+                <div className="flex min-w-0 flex-1 items-center gap-2 md:justify-end">
+                    <SegmentedControl
+                        className="shrink-0"
+                        options={MEDIA_TYPES}
+                        value={mediaType}
+                        onChange={setMediaType}
+                        ariaLabel="Filter by media type"
+                        labels="hidden"
+                        disabled={!canFilterByType}
+                    />
+                    <SearchField
+                        className="min-w-0 flex-1 md:max-w-xs"
+                        label="Search Drive"
+                        placeholder="Search by file or folder name"
+                        value={searchInput}
+                        onChange={setSearchInput}
+                        onClear={() => setSearchInput("")}
+                    />
                 </div>
-                <SearchField
-                    className="w-full md:max-w-xs"
-                    label="Search Drive"
-                    placeholder="Search by file or folder name"
-                    value={searchInput}
-                    onChange={setSearchInput}
-                    onClear={() => setSearchInput("")}
-                />
             </div>
 
             <div className="flex min-h-14 shrink-0 items-center justify-between gap-3 border-b border-neutral-200 px-4 py-2 dark:border-neutral-800 sm:px-6">

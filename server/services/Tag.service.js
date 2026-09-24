@@ -1,4 +1,5 @@
 const TagModel = require("../models/Tag.model");
+const { DRIVE_TAG_NAME, isDriveTagName } = require("../utils/driveTag");
 
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
 const VALID_TYPES = ["default", "copyright"];
@@ -113,6 +114,11 @@ class TagService {
             const validation = this.validateFields(tagData, false);
             if (!validation.success) return validation;
 
+            // La tag "Google Drive" la gestiona la app: se puede cambiar su color, pero no su nombre.
+            if (tagData.tagname !== undefined && isDriveTagName(existing.tagname) !== isDriveTagName(tagData.tagname)) {
+                return { success: false, message: `The "${DRIVE_TAG_NAME}" tag is managed by Tagged and can't be renamed` };
+            }
+
             if (tagData.tagname !== undefined) {
                 const trimmedName = tagData.tagname.trim();
                 tagData.tagname = trimmedName;
@@ -148,6 +154,10 @@ class TagService {
                     : await TagModel.findByIdForUser(id, requestUser.id);
             if (!existing) {
                 return { success: false, message: "Tag not found" };
+            }
+
+            if (isDriveTagName(existing.tagname)) {
+                return { success: false, message: `The "${DRIVE_TAG_NAME}" tag is managed by Tagged and can't be deleted` };
             }
 
             await TagModel.delete(id);

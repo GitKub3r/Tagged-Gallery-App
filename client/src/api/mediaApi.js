@@ -8,6 +8,9 @@ const unwrap = (response) => {
 };
 
 export const mediaApi = {
+    async getById(mediaId) {
+        return unwrap(await apiClient.get(`/media/${mediaId}`));
+    },
     async toggleFavourite(mediaId) {
         return unwrap(await apiClient.patch(`/media/${mediaId}/toggle-favourite`));
     },
