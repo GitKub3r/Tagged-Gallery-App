@@ -30,6 +30,9 @@ function App() {
                         toast: "rounded-xl! border-neutral-300! bg-white! text-neutral-950! shadow-xl! dark:border-neutral-700! dark:bg-neutral-900! dark:text-neutral-100!",
                         title: "text-sm! font-bold!",
                         description: "text-neutral-500! dark:text-neutral-400!",
+                        // Ancho propio: el estilo global de button (width: 100 %) dejaba sin sitio al texto del toast.
+                        actionButton:
+                            "h-8! w-auto! shrink-0! rounded-xl! border! border-neutral-300! bg-transparent! px-3! text-xs! font-bold! text-neutral-700! transition-colors hover:bg-neutral-100! dark:border-neutral-700! dark:text-neutral-200! dark:hover:bg-neutral-800!",
                         closeButton: "rounded-full! border-neutral-300! bg-white! text-neutral-600! dark:border-neutral-700! dark:bg-neutral-800! dark:text-neutral-300!",
                         error: "border-red-500/50!",
                         success: "border-green-500/50!",
