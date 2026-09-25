@@ -532,6 +532,20 @@ class MediaModel {
         return result.affectedRows > 0;
     }
 
+    static async updateDerivativePaths(mediaId, { thumbpath, previewpath }) {
+        await pool.query("UPDATE media SET thumbpath = ?, previewpath = ? WHERE id = ?", [thumbpath, previewpath, mediaId]);
+    }
+
+    // Medias de Drive (incluidas las de la papelera) que aún muestran el original porque no tienen preview local.
+    static async findDriveImagesWithoutPreview() {
+        const [rows] = await pool.query(
+            `SELECT id, user_id, filepath, thumbpath, source_file_id FROM media
+             WHERE storage_provider = 'google_drive' AND storage_status = 'available' AND previewpath IS NULL
+               AND source_mime_type LIKE 'image/%' AND source_mime_type <> 'image/gif'`,
+        );
+        return rows;
+    }
+
     static async updateStorageStatus(mediaId, status) {
         await pool.query("UPDATE media SET storage_status = ? WHERE id = ?", [status, mediaId]);
     }

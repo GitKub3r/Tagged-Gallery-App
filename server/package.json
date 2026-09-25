@@ -7,6 +7,7 @@
         "dev": "nodemon index.js",
         "start": "node index.js",
         "previews:heic": "node scripts/generateHeicPreviews.js",
+        "previews:drive": "node scripts/generateDrivePreviews.js",
         "checksums:backfill": "node scripts/backfillMediaChecksums.js"
     },
     "dependencies": {

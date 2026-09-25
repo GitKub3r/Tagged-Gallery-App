@@ -240,6 +240,10 @@ const getDriveThumbnailSource = async (client, driveFile, size) => {
     return String(driveFile.mimeType).startsWith("video/") ? extractDriveVideoFrame(client, driveFile.id) : null;
 };
 
+// Imágenes fijas con miniatura de Drive: pueden llevar preview local. Los GIF no, porque perderían la animación.
+const hasDrivePreviewSource = (driveFile) =>
+    Boolean(driveFile.thumbnailLink) && String(driveFile.mimeType).startsWith("image/") && driveFile.mimeType !== "image/gif";
+
 class GoogleDriveService {
     // Cliente OAuth con el refresh token del usuario. El access token se renueva solo cuando caduca.
     static async getAuthorizedClient(userId) {
@@ -314,19 +318,23 @@ class GoogleDriveService {
     }
 
     // Guarda como JPEG local la miniatura de Drive (o un fotograma, en vídeos sin ella); el original no se descarga.
+    // En imágenes guarda además un preview grande: así el detalle y la edición no esperan al original de Drive.
     static async cacheDriveDerivatives(client, driveFile, userId) {
         const derivedFilename = getDriveDerivedFilename(userId, driveFile.id);
         const derivatives = { thumbpath: null, previewpath: null };
+        const wantsPreview = hasDrivePreviewSource(driveFile);
 
         try {
-            const thumbnailSource = await getDriveThumbnailSource(client, driveFile, 640);
-            if (!thumbnailSource) return derivatives;
-            await writeJpeg(thumbnailSource, path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), THUMBNAIL_OPTIONS, 72);
+            // Una sola descarga: el preview y la miniatura salen de la misma imagen.
+            const source = await getDriveThumbnailSource(client, driveFile, wantsPreview ? PREVIEW_OPTIONS.width : THUMBNAIL_OPTIONS.width);
+            if (!source) return derivatives;
+            await writeJpeg(source, path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename), THUMBNAIL_OPTIONS, 72);
             derivatives.thumbpath = `/uploads/thumbnails/${derivedFilename}`;
 
-            // Los navegadores no muestran HEIC: se guarda un preview grande generado por Drive.
-            if (HEIC_MIME_TYPES.has(driveFile.mimeType) && driveFile.thumbnailLink) {
-                await writeJpeg(await getDriveThumbnailSource(client, driveFile, 2560), path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), PREVIEW_OPTIONS, 85);
+            // Los navegadores no muestran HEIC, así que siempre lleva preview. En el resto, un JPEG perdería
+            // la transparencia: esas imágenes siguen mostrando el original.
+            if (wantsPreview && (HEIC_MIME_TYPES.has(driveFile.mimeType) || !(await sharp(source).metadata()).hasAlpha)) {
+                await writeJpeg(source, path.join(PREVIEWS_UPLOAD_DIR, derivedFilename), PREVIEW_OPTIONS, 85);
                 derivatives.previewpath = `/uploads/previews/${derivedFilename}`;
             }
         } catch (error) {
@@ -335,6 +343,25 @@ class GoogleDriveService {
         }
 
         return derivatives;
+    }
+
+    // Genera el preview local de una media de Drive vinculada antes de que existiera (script previews:drive).
+    // Devuelve la ruta del preview o null si la media no admite preview (vídeo, GIF, transparencia).
+    static async createMissingPreview(media) {
+        const { client, ...clientError } = await this.getAuthorizedClient(media.user_id);
+        if (!client) throw new Error(clientError.error);
+
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+        const { data: driveFile } = await driveApi.files.get({ fileId: media.source_file_id, fields: "id, mimeType, thumbnailLink", supportsAllDrives: true });
+        if (!hasDrivePreviewSource(driveFile)) return null;
+
+        const { thumbpath, previewpath } = await this.cacheDriveDerivatives(client, driveFile, media.user_id);
+        if (!previewpath) return null;
+
+        await MediaModel.updateDerivativePaths(media.id, { thumbpath: thumbpath || media.thumbpath, previewpath });
+        // Las portadas de álbum que usaban el original de Drive pasan al preview local.
+        await AlbumModel.replaceCoverPaths(media.user_id, [media.filepath], previewpath, thumbpath || media.thumbpath);
+        return previewpath;
     }
 
     // Vistas previas de los archivos elegidos para el modal de revisión. Se devuelven como data URL y no se guardan.
@@ -366,13 +393,11 @@ class GoogleDriveService {
                 let thumbnail = null;
                 if (driveFile.thumbnailLink) {
                     try {
+                        // Drive ya la devuelve orientada y con el tamaño pedido: se envía sin recodificar.
                         const response = await client.request({ url: resizeThumbnailLink(driveFile.thumbnailLink, PREVIEW_SIZE), responseType: "arraybuffer" });
-                        const jpeg = await sharp(Buffer.from(response.data), { failOn: "none" })
-                            .rotate()
-                            .resize({ width: PREVIEW_SIZE, height: PREVIEW_SIZE, fit: "inside", withoutEnlargement: true })
-                            .jpeg({ quality: 78, mozjpeg: true })
-                            .toBuffer();
-                        thumbnail = `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+                        const contentType = String(getProxiedHeaders(response)["content-type"] || "").split(";")[0];
+                        const type = contentType.startsWith("image/") ? contentType : "image/jpeg";
+                        thumbnail = `data:${type};base64,${Buffer.from(response.data).toString("base64")}`;
                     } catch (error) {
                         console.warn(`Could not load Drive preview for ${fileId}:`, error.message);
                     }
