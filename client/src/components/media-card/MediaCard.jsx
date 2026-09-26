@@ -35,8 +35,12 @@ export const MediaCard = ({
     onToggleSelect,
     onActivateSelectionMode,
     disableLongPressSelection = false,
-    // Texto breve al final de la línea de metadatos (p. ej. días que le quedan en la papelera).
-    note = "",
+    // 0-1: cuánto se desvanece la imagen (escala de grises). Recupera el color con hover o foco.
+    fade = 0,
+    // Acción sobre la imagen, siempre visible: { icon, label, onClick, disabled } (p. ej. restaurar).
+    mediaAction = null,
+    // Contenido breve bajo los metadatos (p. ej. la cuenta atrás de la papelera).
+    footer = null,
 }) => {
     const TOUCH_MOVE_THRESHOLD_PX = 12;
     const previewUrl = getMediaPreviewUrl(media, uploadsBaseUrl, resolvePreviewUrl);
@@ -243,7 +247,12 @@ export const MediaCard = ({
             <div className={`relative aspect-[4/3] overflow-hidden rounded-xl bg-neutral-200 dark:bg-neutral-900 ${isSelected ? "ring-2 ring-neutral-950 ring-offset-2 ring-offset-neutral-50 dark:ring-neutral-100 dark:ring-offset-neutral-950" : ""}`}>
                 {previewUrl ? (
                     <>
-                        <img className="h-full w-full object-cover transition-opacity group-hover:opacity-95" src={previewUrl} alt={mediaTitle} />
+                        <img
+                            className={`h-full w-full object-cover transition-[opacity,filter] group-hover:opacity-95 ${fade > 0 ? "[filter:grayscale(var(--media-fade))_opacity(calc(1-var(--media-fade)*0.35))] group-hover:[filter:none] group-focus-visible:[filter:none]" : ""}`}
+                            style={fade > 0 ? { "--media-fade": Math.min(Math.max(fade, 0), 1) } : undefined}
+                            src={previewUrl}
+                            alt={mediaTitle}
+                        />
                         {isVideo ? (
                             <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xl text-white drop-shadow-lg" aria-hidden="true">
                                 <FontAwesomeIcon icon={faPlay} />
@@ -256,6 +265,23 @@ export const MediaCard = ({
                         <span className="text-xs font-semibold">No preview</span>
                     </div>
                 )}
+
+                {mediaAction ? (
+                    <button
+                        type="button"
+                        className="absolute bottom-2 right-2 z-10 grid h-10 w-10 place-items-center rounded-xl border-0 bg-black/65 p-0 text-white shadow-md transition-colors hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            mediaAction.onClick(media.id);
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        aria-label={`${mediaAction.label} ${mediaTitle}`}
+                        title={mediaAction.label}
+                        disabled={mediaAction.disabled}
+                    >
+                        <FontAwesomeIcon icon={mediaAction.icon} aria-hidden="true" />
+                    </button>
+                ) : null}
 
                 {!selectionMode ? (
                     <button
@@ -287,13 +313,8 @@ export const MediaCard = ({
                         {mediaTagCount}
                     </span>
                     <MediaSourceBadge media={media} withSeparator />
-                    {note ? (
-                        <>
-                            <span aria-hidden="true">·</span>
-                            <span className="shrink-0">{note}</span>
-                        </>
-                    ) : null}
                 </div>
+                {footer ? <div className="mt-2">{footer}</div> : null}
             </div>
         </article>
     );

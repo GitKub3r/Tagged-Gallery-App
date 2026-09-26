@@ -1,0 +1,38 @@
+import { faRotateLeft, faTrash, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { buttonClasses } from "../../../components/button/buttonClasses";
+import { IconButton } from "../../../components/icon-button/IconButton";
+
+// Acciones sobre la selección, fijas abajo en la pantalla mientras se recorre la papelera. Se centran en el
+// área de contenido: desde xl dejan fuera la barra lateral, abierta (w-72) o plegada (5.5rem).
+// No es sticky: main tiene overflow-x: hidden y el sticky se quedaría al final de la página.
+export const TrashSelectionBar = ({ count, isRestoring, isBusy, onRestore, onDelete, onClear }) => (
+    <>
+        {/* Hueco para que la barra no tape la última fila de la papelera. */}
+        <div className="h-28 sm:h-20" aria-hidden="true" />
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-30 flex justify-center px-4 xl:left-72 xl:px-8 xl:[body:has(#tagged-sidebar[data-collapsed=true])_&]:left-[5.5rem]">
+            <div
+                className="pointer-events-auto flex w-full flex-col gap-2 rounded-xl border border-neutral-300 bg-white/95 p-2 shadow-lg backdrop-blur-sm dark:border-neutral-700 dark:bg-neutral-900/95 sm:w-auto sm:flex-row sm:items-center sm:pl-4"
+                role="region"
+                aria-label="Selected media"
+            >
+                <div className="flex items-center justify-between gap-3 pl-2 sm:pl-0">
+                    <span className="text-sm font-semibold tabular-nums" aria-live="polite">{count} selected</span>
+                    <IconButton onClick={onClear} aria-label="Clear selection" title="Clear selection">
+                        <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
+                    </IconButton>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <button type="button" className={buttonClasses.primary} onClick={onRestore} disabled={isBusy}>
+                        <FontAwesomeIcon icon={faRotateLeft} aria-hidden="true" />
+                        {isRestoring ? "Restoring..." : "Restore"}
+                    </button>
+                    <button type="button" className={buttonClasses.dangerOutline} onClick={onDelete} disabled={isBusy}>
+                        <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
+                        Delete forever
+                    </button>
+                </div>
+            </div>
+        </div>
+    </>
+);
