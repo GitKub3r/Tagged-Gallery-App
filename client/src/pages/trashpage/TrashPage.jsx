@@ -1,24 +1,37 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { faCheckDouble, faRotateLeft, faTrash, faTrashCan, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCheckDouble, faClock, faHourglassHalf, faTrash, faTrashCan, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { buttonClasses } from "../../components/button/buttonClasses";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { MediaCardSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
-import { MediaCard } from "../../components/media-card/MediaCard";
+import { Skeleton } from "../../components/loading-skeletons/Skeleton";
+import { SegmentedControl } from "../../components/segmented-control/SegmentedControl";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useDeleteForever, useRestoreFromTrash, useTrash } from "../../hooks/useTrash";
-import { API_ORIGIN } from "../../utils/assetUrl";
 import { isDriveMedia } from "../../utils/mediaSource";
+import { RetentionPanel } from "./components/RetentionPanel";
+import { TRASH_GRID_CLASSES, TrashGroup } from "./components/TrashGroup";
+import { TrashSelectionBar } from "./components/TrashSelectionBar";
+import { addDays, daysUntil } from "./trashTime";
 
-const GRID_CLASSES = "grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5";
+const SORT_OPTIONS = [
+    { value: "recent", label: "Recently deleted", icon: faClock },
+    { value: "expiring", label: "Expiring first", icon: faHourglassHalf },
+];
 
-const getThumbnailUrl = (media) => (media.thumbpath ? `${API_ORIGIN}${media.thumbpath}` : "");
+const TrashSkeleton = () => (
+    <div role="status" aria-label="Loading trash">
+        <Skeleton className="mb-6 h-56" />
+        <div className={TRASH_GRID_CLASSES}>{Array.from({ length: 10 }, (_, index) => <MediaCardSkeleton key={index} />)}</div>
+        <span className="sr-only">Loading trash</span>
+    </div>
+);
 
-const describeDaysLeft = (daysLeft) => (daysLeft <= 0 ? "Deleted today" : daysLeft === 1 ? "1 day left" : `${daysLeft} days left`);
-
+// Papelera como copias que se desvanecen: cada media pierde color a medida que se acerca el día en que se
+// borra para siempre, agrupada por ese día. Restaurarla la devuelve a la galería y a sus álbumes.
 export const TrashPage = () => {
     const navigate = useNavigate();
     const { forceLoading } = useDevTools();
@@ -26,11 +39,21 @@ export const TrashPage = () => {
     const restoreMutation = useRestoreFromTrash();
     const deleteForeverMutation = useDeleteForever();
     const [selectedIds, setSelectedIds] = useState(() => new Set());
+    const [sortOrder, setSortOrder] = useState("recent");
     // "selected" (borrar la selección) o "all" (vaciar la papelera).
     const [pendingDelete, setPendingDelete] = useState(null);
 
-    const media = trashQuery.data?.media ?? [];
     const retentionDays = trashQuery.data?.retentionDays ?? 30;
+    const media = useMemo(() => (trashQuery.data?.media ?? []).map((item) => ({ ...item, daysLeft: daysUntil(item.expires_at) })), [trashQuery.data]);
+    // Grupos por el día en que se borran: los recién borrados (más días por delante) o los que caducan antes, primero.
+    const groups = useMemo(() => {
+        const byDay = new Map();
+        media.forEach((item) => byDay.set(item.daysLeft, [...(byDay.get(item.daysLeft) || []), item]));
+        return [...byDay]
+            .map(([daysLeft, items]) => ({ daysLeft, date: addDays(new Date(), daysLeft), media: items }))
+            .sort((a, b) => (sortOrder === "recent" ? b.daysLeft - a.daysLeft : a.daysLeft - b.daysLeft));
+    }, [media, sortOrder]);
+
     // La selección solo cuenta medias que siguen en la papelera (tras restaurar o borrar desaparecen).
     const selectedMedia = media.filter((item) => selectedIds.has(item.id));
     const areAllSelected = media.length > 0 && selectedMedia.length === media.length;
@@ -46,9 +69,20 @@ export const TrashPage = () => {
         });
     };
 
+    const toggleGroup = (group) => {
+        const isGroupSelected = group.media.every((item) => selectedIds.has(item.id));
+        setSelectedIds((current) => {
+            const next = new Set(current);
+            group.media.forEach((item) => (isGroupSelected ? next.delete(item.id) : next.add(item.id)));
+            return next;
+        });
+    };
+
     const clearSelection = () => setSelectedIds(new Set());
 
-    const restoreSelected = () => restoreMutation.mutate(selectedMedia.map((item) => item.id), { onSuccess: clearSelection });
+    const restore = (ids) => restoreMutation.mutate(ids, {
+        onSuccess: () => setSelectedIds((current) => new Set([...current].filter((id) => !ids.includes(id)))),
+    });
 
     const confirmDelete = () => {
         const ids = pendingDelete === "all" ? null : selectedMedia.map((item) => item.id);
@@ -59,32 +93,53 @@ export const TrashPage = () => {
     };
 
     const renderContent = () => {
-        if (forceLoading || trashQuery.isPending) {
-            return (
-                <div className={GRID_CLASSES} role="status" aria-label="Loading trash">
-                    {Array.from({ length: 10 }, (_, index) => <MediaCardSkeleton key={index} />)}
-                    <span className="sr-only">Loading trash</span>
-                </div>
-            );
-        }
+        if (forceLoading || trashQuery.isPending) return <TrashSkeleton />;
         if (trashQuery.isError) return <LoadErrorState title="Could not load the trash" onRetry={() => trashQuery.refetch()} placement="section" />;
         if (media.length === 0) return <EmptyState title="The trash is empty" icon={faTrashCan} placement="section" actionLabel="Go to gallery" onAction={() => navigate("/gallery")} />;
 
         return (
-            <div className={GRID_CLASSES} aria-label="Media in the trash">
-                {media.map((item) => (
-                    <MediaCard
-                        key={item.id}
-                        media={item}
-                        resolvePreviewUrl={getThumbnailUrl}
-                        selectionMode
-                        isSelected={selectedIds.has(item.id)}
-                        onToggleSelect={toggleSelection}
-                        disableLongPressSelection
-                        note={describeDaysLeft(item.days_left)}
+            <>
+                <RetentionPanel media={media} retentionDays={retentionDays} />
+
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-4">
+                        <p className="text-sm text-neutral-500 tabular-nums dark:text-neutral-400" aria-live="polite">
+                            {selectedMedia.length ? `${selectedMedia.length} of ${media.length} selected` : `${media.length} media`}
+                        </p>
+                        <button type="button" className={buttonClasses.text} onClick={() => (areAllSelected ? clearSelection() : setSelectedIds(new Set(media.map((item) => item.id))))}>
+                            <FontAwesomeIcon icon={areAllSelected ? faXmark : faCheckDouble} aria-hidden="true" />
+                            {areAllSelected ? "Deselect all" : "Select all"}
+                        </button>
+                    </div>
+                    <SegmentedControl options={SORT_OPTIONS} value={sortOrder} onChange={setSortOrder} ariaLabel="Order" className="sm:w-96" />
+                </div>
+
+                <div className="grid gap-10">
+                    {groups.map((group) => (
+                        <TrashGroup
+                            key={group.daysLeft}
+                            group={group}
+                            retentionDays={retentionDays}
+                            selectedIds={selectedIds}
+                            isBusy={isBusy}
+                            onToggleSelect={toggleSelection}
+                            onToggleGroup={toggleGroup}
+                            onRestore={(mediaId) => restore([mediaId])}
+                        />
+                    ))}
+                </div>
+
+                {selectedMedia.length > 0 ? (
+                    <TrashSelectionBar
+                        count={selectedMedia.length}
+                        isRestoring={restoreMutation.isPending}
+                        isBusy={isBusy}
+                        onRestore={() => restore(selectedMedia.map((item) => item.id))}
+                        onDelete={() => setPendingDelete("selected")}
+                        onClear={clearSelection}
                     />
-                ))}
-            </div>
+                ) : null}
+            </>
         );
     };
 
@@ -95,7 +150,7 @@ export const TrashPage = () => {
                     <p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Media library</p>
                     <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Trash</h1>
                     <p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">
-                        Deleted media stay here for {retentionDays} days with their tags and albums. After that they are deleted forever.
+                        Deleted media stay here for {retentionDays} days with their tags and albums, slowly fading. Restore them to bring them back, or they are deleted forever.
                     </p>
                 </div>
                 <button type="button" className={buttonClasses.dangerOutline} onClick={() => setPendingDelete("all")} disabled={media.length === 0 || isBusy}>
@@ -103,30 +158,6 @@ export const TrashPage = () => {
                     Empty trash
                 </button>
             </header>
-
-            {media.length > 0 ? (
-                <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex min-w-0 items-center gap-4">
-                        <p className="text-sm text-neutral-500 tabular-nums dark:text-neutral-400" aria-live="polite">
-                            {selectedMedia.length ? `${selectedMedia.length} of ${media.length} selected` : `${media.length} media`}
-                        </p>
-                        <button type="button" className={buttonClasses.text} onClick={() => (areAllSelected ? clearSelection() : setSelectedIds(new Set(media.map((item) => item.id))))}>
-                            <FontAwesomeIcon icon={areAllSelected ? faXmark : faCheckDouble} aria-hidden="true" />
-                            {areAllSelected ? "Deselect all" : "Select all"}
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 sm:flex">
-                        <button type="button" className={buttonClasses.secondary} onClick={restoreSelected} disabled={!selectedMedia.length || isBusy}>
-                            <FontAwesomeIcon icon={faRotateLeft} aria-hidden="true" />
-                            {restoreMutation.isPending ? "Restoring..." : "Restore"}
-                        </button>
-                        <button type="button" className={buttonClasses.dangerOutline} onClick={() => setPendingDelete("selected")} disabled={!selectedMedia.length || isBusy}>
-                            <FontAwesomeIcon icon={faTrash} aria-hidden="true" />
-                            Delete forever
-                        </button>
-                    </div>
-                </div>
-            ) : null}
 
             {renderContent()}
 

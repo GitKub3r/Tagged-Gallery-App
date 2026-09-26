@@ -162,6 +162,11 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
   - **Formatos (04):** por tipo, dos medidores con el mismo significado en todas las filas: "Media" (fuerte) y "Space" (suave), con porcentaje y tamaño. Después, dónde se guarda (Tagged o Drive) y la orientación en tres bloques con su forma dibujada (3:2, 2:3, 1:1).
   - **Descripción (05):** indicadores circulares de cobertura (tags, nombre, autor) con el porcentaje en el centro y "N media missing" o "Every media" debajo; la distribución de tags por media en medidores (media y total en la cabecera) y el estado del vocabulario de tags (sin usar, usadas una vez, de copyright) con el enlace "Manage tags".
   - **Vocabulario (06):** clasificaciones con puesto "01", nombre (`TagChip` para las tags), recuento y barra `h-1` relativa al primero.
+- **Papelera "copias que se desvanecen":** como una copia fotográfica sin fijar, cada media pierde color a medida que se acerca el día en que se borra para siempre (`MediaCard` con `fade`, hasta un máximo de 0,85) y lo recupera al pasar el ratón; restaurarla la devuelve a la galería y a sus álbumes.
+  - **Cabecera de retención** (`RetentionPanel`): cifra protagonista (`text-5xl font-black`) con "media waiting to be deleted" y la ficha técnica sin cajas (espacio a liberar, próximo borrado —en ámbar si faltan `URGENT_DAYS` o menos— y medias de Drive). Debajo, una **cuña de grises** de los días de retención (tramos `flex-1` separados por `gap-px` dentro de un contenedor `h-10 rounded-xl overflow-hidden`, de claro hoy a oscuro el último día, con la opacidad calculada), un punto sobre cada día en que se borra algo (ámbar si es inminente), escala "Today · 1 week · 2 weeks · 3 weeks · 30 days" (en móvil solo las que no se solapan) y una lectura al señalar un día. Aviso en línea ámbar si algo se borra en `URGENT_DAYS` días o menos.
+  - **Grupos por día de borrado** (`TrashGroup`), calculados por días de calendario desde `expires_at` (`trashTime.js`): eyebrow con la fecha (ámbar con `faTriangleExclamation` si es inminente), título "Deleted forever in N days", recuento y "Select"/"Deselect" para el grupo. Orden con `SegmentedControl`: "Recently deleted" (`faClock`) o "Expiring first" (`faHourglassHalf`).
+  - **Tarjeta:** botón de restaurar sobre la imagen (`mediaAction` con `faRotateLeft`) y, en `footer`, la mecha de la cuenta atrás: barra `h-1 rounded-full` que se acorta con los días y "N days left" (ámbar con icono al final).
+  - **Selección:** barra flotante `sticky bottom-4` (`TrashSelectionBar`: recuento, limpiar, "Restore" primario y "Delete forever" `dangerOutline`), con los botones en dos columnas en móvil.
 - **Orden de un listado de gestión con varios criterios** (plantillas): `<select>` con la receta de Select de §7.2 (`mediaFormInputClasses` + `appearance-none pr-10`, más `pl-9` si lleva icono a la izquierda) envuelto en un `<label>` de ancho fijo junto al contador de resultados. Icono `faArrowUpWideShort` para la acción de "ordenar / cambiar criterio". Solo neutrales y `border-dashed`/`border-dotted` para el lenguaje técnico — nunca azul ni otro color de marca. Reutilizar este panel (`BlueprintPanel`) para cualquier tratamiento futuro de plantillas antes de crear uno nuevo.
 - Formularios: `grid grid-cols-1 gap-3 sm:grid-cols-2`.
 - La sidebar es un drawer hasta `xl` y fija desde `xl` (`w-72`, plegable).
@@ -352,7 +357,7 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
 
 **Bloque de dato** (par etiqueta/valor): `<dl>` con celdas `min-w-0 rounded-xl bg-neutral-100 px-3 py-2 dark:bg-neutral-950`. El `dt` va en `text-xs font-medium text-neutral-500 dark:text-neutral-400` y el `dd` en `mt-0.5 truncate text-sm font-semibold`.
 
-**Tarjeta de media:** `MediaCard` (con `note` para un dato breve al final de los metadatos, p. ej. los días que quedan en la papelera). Miniatura `aspect-[4/3] rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-900`, favorito arriba a la izquierda, indicador de selección circular y pie con título `text-base font-bold` y metadatos `text-xs`. La selección se marca con `ring-2 ring-neutral-950 ring-offset-2 dark:ring-neutral-100`. No crear otra tarjeta de media; ampliar esta con props.
+**Tarjeta de media:** `MediaCard`. Props opcionales para casos concretos: `fade` (0-1, la imagen pierde color y recupera el suyo con hover o foco), `mediaAction` (`{ icon, label, onClick, disabled }`: un botón `h-10 w-10 bg-black/65` abajo a la derecha de la imagen, siempre visible, p. ej. restaurar) y `footer` (contenido breve bajo los metadatos, p. ej. la cuenta atrás de la papelera). Miniatura `aspect-[4/3] rounded-xl overflow-hidden bg-neutral-200 dark:bg-neutral-900`, favorito arriba a la izquierda, indicador de selección circular y pie con título `text-base font-bold` y metadatos `text-xs`. La selección se marca con `ring-2 ring-neutral-950 ring-offset-2 dark:ring-neutral-100`. No crear otra tarjeta de media; ampliar esta con props.
 
 **Aviso en línea / panel informativo:** `rounded-xl border px-3 py-3` con fondo `/10` y borde `/30` del color semántico, icono a la izquierda y texto `text-sm`. El color nunca es la única señal: siempre hay icono y texto.
 
@@ -492,6 +497,7 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 | Filtrar / limpiar filtros | `faFilter` / `faFilterCircleXmark` |
 | Seleccionado / seleccionar todo | `faCheck` / `faCheckDouble` |
 | Reintentar | `faRotate` |
+| Ordenar por lo que caduca antes | `faHourglassHalf` |
 | Cargando | `faSpinner` (`spin`) |
 | Favorito activo / inactivo | `faHeart` sólido / `faHeart` regular |
 | Media, imagen / vídeo | `faImage` / `faFilm` (reproducir: `faPlay`, pausa: `faPause`) |
