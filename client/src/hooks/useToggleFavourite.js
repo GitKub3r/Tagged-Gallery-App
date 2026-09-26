@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { galleryQueryKeys } from "../api/galleryApi";
 import { googleDriveQueryKeys } from "../api/googleDriveApi";
 import { mediaApi } from "../api/mediaApi";
+import { metricsQueryKeys } from "../api/metricsApi";
 
 // Marca o desmarca una media como favorita y refresca las listas que la muestran.
 export const useToggleFavourite = () => {
@@ -11,6 +12,7 @@ export const useToggleFavourite = () => {
         onSettled: () => {
             queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: googleDriveQueryKeys.summaryAll });
+            queryClient.invalidateQueries({ queryKey: metricsQueryKeys.all });
         },
     });
 

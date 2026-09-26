@@ -46,7 +46,7 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 - **Gestión de metadatos:** mantenimiento de nombres, autores y tags; color y tipo para tags. Al abrir un registro se puede quitar de todas las medias activas ("Remove from all"): la tag se conserva; el nombre de media o el autor desaparece, porque solo existe mientras alguna media lo usa.
 - **Plantillas:** crear, buscar, editar, eliminar y aplicar datos reutilizables. La opción de favorito se aplica al guardar las medias que usan esa plantilla.
 - **Reglas:** listado en `/rules` (activar, desactivar, borrar) y editor de workflows en `/rules/:id` con paleta de nodos, arrastrar y soltar, conexiones, configuración de cada nodo y ejecución sobre toda la biblioteca.
-- **Panel de datos:** métricas y gráficos sobre la biblioteca, como actividad de subidas, tipos de media, autores y tags.
+- **Panel de datos:** `/dashboard` resume la biblioteca: últimas subidas, álbumes, favoritos, plantillas, reglas, Google Drive y papelera, actividad diaria por año (en la zona horaria del usuario), formatos y espacio, orientación, cobertura de tags, nombre y autor, y las tags, autores y nombres más usados.
 - **Cuenta y administración:** sesión y ajustes de cuenta. Según el rol, hay pantallas de usuarios, registros y acciones administrativas. Los permisos reales deben comprobarse en el backend.
 
 ### Esencia y decisiones de producto
@@ -158,9 +158,9 @@ La guía visual completa y obligatoria está en `.claude/DESIGN.md`. Incluye pal
 
 Estos puntos incumplen las normas y deben corregirse al tocar la zona afectada; no se copian en código nuevo.
 
-- **`fetch` restante:** `AuthContext.jsx` (`fetchWithAuth`, que `useAccessControl`, `LogsPage`, `ActionsPage`, `UsersPage`, `MetricsPage`, `AlbumPage`, `MediaDetailPage`, `GalleryPage` y `AlbumDetailPage` siguen consumiendo) y las descargas de archivo de `GalleryPage.jsx` y `AlbumDetailPage.jsx`. Sustituir por `apiClient` (con `responseType: "blob"` para descargas) y hooks de React Query, migrando cada flujo completo. Ojo al buscar: `refetch(` no es `fetch(`.
+- **`fetch` restante:** `AuthContext.jsx` (`fetchWithAuth`, que `useAccessControl`, `LogsPage`, `ActionsPage`, `UsersPage`, `AlbumPage`, `MediaDetailPage`, `GalleryPage` y `AlbumDetailPage` siguen consumiendo) y las descargas de archivo de `GalleryPage.jsx` y `AlbumDetailPage.jsx`. Sustituir por `apiClient` (con `responseType: "blob"` para descargas) y hooks de React Query, migrando cada flujo completo. Ojo al buscar: `refetch(` no es `fetch(`.
 - **`useEffect` con datos remotos** en `AuthContext` y otros consumidores antiguos: migrar a `useQuery`/`useMutation`.
-- **CSS legado por página/componente:** `LogsPage.css`, `ActionsPage.css`, `UsersPage.css`, `MetricsPage.css`, `GalleryPage.css`, `MediaDetailPage.css`, `AlbumPage.css`, `AlbumDetailPage.css`, `MediaCard.css`, `Input.css`. Se migran a Tailwind cuando se toque cada pantalla y se elimina el archivo.
+- **CSS legado por página/componente:** `LogsPage.css`, `ActionsPage.css`, `UsersPage.css`, `GalleryPage.css`, `MediaDetailPage.css`, `AlbumPage.css`, `AlbumDetailPage.css`, `MediaCard.css`, `Input.css`. Se migran a Tailwind cuando se toque cada pantalla y se elimina el archivo.
 - **Modificadores `!` y estilo global de `button`:** `styles/index.css` define en `@layer base` un estilo de `button` (ancho 100 %, borde de 2 px, fondo oscuro). Las utilidades de Tailwind ya lo sobrescriben, así que los `!` del código actual sobran: no usarlos en código nuevo y retirarlos al tocar cada componente. El objetivo final es eliminar ese estilo global y las variables `--tagged-button-*`.
 - **Fondo decorativo:** `.tagged-shell-content` y `variables.css` contienen gradientes y orbes animados que contradicen la norma de sobriedad. No ampliarlos; retirarlos o simplificarlos al rediseñar el layout.
 - **SVG inline** en `LogsPage.jsx` y variables de color heredadas (`--tagged-*`, acento `#643aff`, `LEGACY_DEFAULT_TAG_COLOR`) frente a la paleta `neutral-*`.
