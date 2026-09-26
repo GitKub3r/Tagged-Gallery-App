@@ -466,6 +466,9 @@ export const RuleEditor = ({ rule }) => {
     }, [isDirty]);
 
     const canRun = issues.length === 0;
+    // Run rule y Save son secundarios mientras no se pueden usar y pasan a primarios cuando sí.
+    const canRunNow = canRun && !isBusy && !isRunning;
+    const canSave = isDirty && !isBusy && !isRunning;
     const saveState = updateRule.isPending ? "Saving..." : isDirty ? "Unsaved changes" : "All changes saved";
 
     return (
@@ -487,16 +490,17 @@ export const RuleEditor = ({ rule }) => {
                                 <button
                                     type="button"
                                     onClick={() => setIsRenaming(true)}
-                                    className="flex h-10 w-full min-w-0 items-center gap-2 rounded-xl border-0 bg-transparent px-2 text-left text-base font-bold tracking-tight text-neutral-950 shadow-none transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                    className="group flex h-10 w-full min-w-0 items-center gap-2 rounded-xl border-0 bg-transparent px-2 text-left text-base font-bold tracking-tight text-neutral-950 shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:text-neutral-100"
                                 >
                                     <span className="truncate">{name}</span>
                                     <span className="sr-only">, rename rule</span>
-                                    <FontAwesomeIcon icon={faPen} className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500" aria-hidden="true" />
+                                    {/* El hover solo resalta el lápiz: el nombre no cambia de fondo. */}
+                                    <FontAwesomeIcon icon={faPen} className="shrink-0 text-xs text-neutral-400 transition-colors group-hover:text-neutral-950 group-focus-visible:text-neutral-950 dark:text-neutral-500 dark:group-hover:text-white dark:group-focus-visible:text-white" aria-hidden="true" />
                                 </button>
                             </Tooltip>
                         </h1>
                         {/* Cambios sin guardar: punto como en la pestaña de un editor de código. El estado se anuncia en la barra inferior. */}
-                        {isDirty ? <span className="h-2 w-2 shrink-0 rounded-full bg-neutral-500 dark:bg-neutral-400" title="Unsaved changes" aria-hidden="true" /> : null}
+                        {isDirty ? <span className="h-2 w-2 shrink-0 animate-heartbeat rounded-full bg-neutral-500 motion-reduce:animate-none dark:bg-neutral-400" title="Unsaved changes" aria-hidden="true" /> : null}
                         <div className="ml-auto shrink-0 pl-1">
                             <RuleEditorHelp />
                         </div>
@@ -513,11 +517,11 @@ export const RuleEditor = ({ rule }) => {
                         />
                         <span className="hidden h-6 w-px shrink-0 bg-neutral-200 dark:bg-neutral-800 sm:block" aria-hidden="true" />
                         <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 whitespace-nowrap sm:flex">
-                            <button type="button" className={buttonClasses.secondary} onClick={() => setPendingConfirm("run")} disabled={!canRun || isBusy || isRunning} title={canRun ? "Apply the rule to every media in your library" : "Finish the workflow to run it"}>
+                            <button type="button" className={canRunNow ? buttonClasses.primary : buttonClasses.secondary} onClick={() => setPendingConfirm("run")} disabled={!canRunNow} title={canRun ? "Apply the rule to every media in your library" : "Finish the workflow to run it"}>
                                 <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} spin={isRunning} aria-hidden="true" />
                                 {isRunning ? "Running..." : "Run rule"}
                             </button>
-                            <button type="button" className={buttonClasses.primary} onClick={handleSave} disabled={!isDirty || isBusy || isRunning} title={`Save (${MODIFIER_KEY} + S)`}>
+                            <button type="button" className={canSave ? buttonClasses.primary : buttonClasses.secondary} onClick={handleSave} disabled={!canSave} title={`Save (${MODIFIER_KEY} + S)`}>
                                 <FontAwesomeIcon icon={faFloppyDisk} aria-hidden="true" />
                                 {updateRule.isPending ? "Saving..." : "Save"}
                             </button>

@@ -9,6 +9,22 @@
 /* Fuente única de la app (DESIGN.md §3): también la usa font-sans, p. ej. en <kbd>. */
 @theme {
     --font-sans: "Nunito Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+
+    /* Latido (animate-heartbeat): dos pulsaciones seguidas y 2,5 s de reposo, como un corazón. */
+    --animate-heartbeat: heartbeat 3.1s ease-in-out infinite;
+
+    @keyframes heartbeat {
+        0%,
+        9%,
+        19%,
+        100% {
+            transform: scale(1);
+        }
+        4.5%,
+        13.5% {
+            transform: scale(1.6);
+        }
+    }
 }
 
 body {
