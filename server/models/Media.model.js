@@ -381,6 +381,29 @@ class MediaModel {
         return result.affectedRows || 0;
     }
 
+    // Nombre de media o autor en las medias activas del usuario. field: "displayname" o "author".
+    static async countActiveByValue(userId, field, value) {
+        const column = field === "author" ? "author" : "displayname";
+        const [[row]] = await pool.query(
+            `SELECT COUNT(*) AS total FROM media WHERE user_id = ? AND deleted_at IS NULL AND TRIM(${column}) = ?`,
+            [userId, value],
+        );
+        return Number(row.total) || 0;
+    }
+
+    // Vacía el nombre o el autor en las medias activas y lo quita de los valores gestionados, así deja de
+    // aparecer en Metadata. Las medias de la papelera lo conservan y lo recuperan al restaurarse.
+    static async clearValueFromActiveMedia(userId, field, value) {
+        await this.ensureManagedValuesTables();
+        const [column, table] = field === "author" ? ["author", "media_author_values"] : ["displayname", "media_displayname_values"];
+        const [result] = await pool.query(
+            `UPDATE media SET ${column} = NULL WHERE user_id = ? AND deleted_at IS NULL AND TRIM(${column}) = ?`,
+            [userId, value],
+        );
+        await pool.query(`DELETE FROM ${table} WHERE user_id = ? AND ${column} = ?`, [userId, value]);
+        return result.affectedRows || 0;
+    }
+
     static async createManagedAuthor(userId, author) {
         await this.ensureManagedValuesTables();
         await pool.query("INSERT IGNORE INTO media_author_values (user_id, author) VALUES (?, ?)", [userId, author]);

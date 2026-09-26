@@ -12,6 +12,28 @@ class MediaTagModel {
         return result.affectedRows || 0;
     }
 
+    // Medias activas (fuera de la papelera) del usuario que llevan la tag.
+    static async countActiveMediaWithTag(tagId, userId) {
+        const [[row]] = await pool.query(
+            `SELECT COUNT(*) AS total FROM media_tags mt
+             INNER JOIN media m ON m.id = mt.mediaid
+             WHERE mt.tagid = ? AND m.user_id = ? AND m.deleted_at IS NULL`,
+            [tagId, userId],
+        );
+        return Number(row.total) || 0;
+    }
+
+    // Quita la tag de las medias activas del usuario. La tag se conserva, y también en las medias de la papelera.
+    static async removeTagFromActiveMedia(tagId, userId) {
+        const [result] = await pool.query(
+            `DELETE mt FROM media_tags mt
+             INNER JOIN media m ON m.id = mt.mediaid
+             WHERE mt.tagid = ? AND m.user_id = ? AND m.deleted_at IS NULL`,
+            [tagId, userId],
+        );
+        return result.affectedRows || 0;
+    }
+
     static async deleteDefaultTagsByMediaId(mediaId, userId) {
         const [result] = await pool.query(
             `DELETE mt

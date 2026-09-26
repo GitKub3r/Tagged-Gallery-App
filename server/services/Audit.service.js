@@ -32,6 +32,7 @@ const DEFAULT_ACTION_NAMES = {
     MEDIA_RESTORE: "Restore media from trash",
     MEDIA_PURGE: "Delete media forever",
     RULE_RUN: "Run rule on library",
+    METADATA_REMOVE_FROM_MEDIA: "Remove metadata from all media",
 };
 
 class AuditService {
