@@ -32,6 +32,10 @@ class MediaModel {
                 await pool.query(`ALTER TABLE media ADD COLUMN ${name} ${definition}`);
             }
         }
+        // Al añadir created_at, MySQL rellena las filas existentes con la fecha actual: se recupera la real.
+        if (!existingColumns.has("created_at")) {
+            await this.backfillCreatedAtFromFilenames();
+        }
         // Las que ya estaban en la papelera al crear la columna también cuentan.
         if (!existingColumns.has("was_trashed")) {
             await pool.query("UPDATE media SET was_trashed = TRUE WHERE deleted_at IS NOT NULL");
@@ -48,6 +52,19 @@ class MediaModel {
         if (!existingIndexes.has("idx_media_user_deleted")) {
             await pool.query("ALTER TABLE media ADD INDEX idx_media_user_deleted (user_id, deleted_at)");
         }
+    }
+
+    // created_at es la fecha de subida. El nombre físico de los archivos subidos empieza por el
+    // Date.now() de la subida ("1773508222446-413724264.jpeg"), así que se recupera de ahí.
+    // Mantiene updatedAt para no marcar las medias como editadas. Idempotente.
+    static async backfillCreatedAtFromFilenames() {
+        const [result] = await pool.query(
+            `UPDATE media
+             SET created_at = FROM_UNIXTIME(CAST(SUBSTRING(filename, 1, 13) AS UNSIGNED) / 1000), updatedAt = updatedAt
+             WHERE filename REGEXP '^[0-9]{13}-'
+               AND (created_at IS NULL OR ABS(TIMESTAMPDIFF(SECOND, created_at, FROM_UNIXTIME(CAST(SUBSTRING(filename, 1, 13) AS UNSIGNED) / 1000))) > 60)`,
+        );
+        return result.affectedRows;
     }
 
     static async ensureManagedValuesTables() {

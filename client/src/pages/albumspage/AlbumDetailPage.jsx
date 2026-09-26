@@ -770,12 +770,7 @@ export const AlbumDetailPage = () => {
         "0",
     )}:${String(currentMontageRemainingSeconds % 60).padStart(2, "0")}`;
     const currentMontageSizeLabel = formatMontageMediaSize(currentMontageMedia?.size);
-    const currentMontageDateLabel = formatMontageUploadDate(
-        currentMontageMedia?.updatedAt ||
-            currentMontageMedia?.updated_at ||
-            currentMontageMedia?.createdAt ||
-            currentMontageMedia?.created_at,
-    );
+    const currentMontageDateLabel = formatMontageUploadDate(currentMontageMedia?.created_at);
     const currentMontageTags = useMemo(() => normalizeMontageTags(currentMontageMedia), [currentMontageMedia]);
     const currentMontageDefaultTags = currentMontageTags.filter((tag) => String(tag.type).toLowerCase() === "default");
     const currentMontageCopyrightTags = currentMontageTags.filter(

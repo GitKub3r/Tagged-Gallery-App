@@ -34,7 +34,7 @@ const formatMediaSize = (bytes) => {
 };
 
 const formatMediaDate = (media) => {
-    const value = media?.updatedAt || media?.updated_at || media?.createdAt || media?.created_at;
+    const value = media?.created_at;
     if (!value) return "Date unavailable";
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "Date unavailable" : new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(date);

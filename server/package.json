@@ -9,7 +9,8 @@
         "previews:heic": "node scripts/generateHeicPreviews.js",
         "previews:drive": "node scripts/generateDrivePreviews.js",
         "checksums:backfill": "node scripts/backfillMediaChecksums.js",
-        "dimensions:backfill": "node scripts/backfillMediaDimensions.js"
+        "dimensions:backfill": "node scripts/backfillMediaDimensions.js",
+        "dates:backfill": "node scripts/backfillMediaUploadDates.js"
     },
     "dependencies": {
         "@googleapis/drive": "^26.0.0",
