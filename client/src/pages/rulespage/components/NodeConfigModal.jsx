@@ -4,7 +4,7 @@ import { faCheck, faTrash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { buttonClasses } from "../../../components/button/buttonClasses";
 import { CheckboxOption } from "../../../components/checkbox-control/CheckboxOption";
-import { MediaFormModal, MediaTagsField, MetadataSuggestionField } from "../../../components/media-form-modal/MediaFormModal";
+import { ChipListField, MediaFormModal, MediaTagsField } from "../../../components/media-form-modal/MediaFormModal";
 import { mediaFormInputClasses } from "../../../components/media-form-modal/mediaFormStyles";
 import { SelectField } from "../../../components/select-field/SelectField";
 import { useAlbums } from "../../../hooks/useAlbums";
@@ -42,23 +42,37 @@ const NodeConfigFields = ({ type, draft, setDraft, form, metadataProps }) => {
         case "condition.name":
         case "condition.author": {
             const isName = type === "condition.name";
+            const subject = isName ? "media name" : "author";
+            const { fieldProps } = form;
             return (
                 <>
                     <SelectField autoFocus label="Operator" value={draft.operator} onChange={(operator) => update({ operator })} options={toOptions(RULE_OPTION_LABELS.TEXT_OPERATORS)} />
                     {draft.operator !== "empty" ? (
-                        <MetadataSuggestionField
-                            {...form.fieldProps}
-                            label={isName ? "Media name" : "Author"}
-                            field={isName ? "displayname" : "author"}
-                            value={isName ? form.displayName : form.author}
+                        <ChipListField
+                            label={isName ? "Media names" : "Authors"}
+                            inputValue={fieldProps.tagInput}
+                            values={fieldProps.selectedTags}
+                            suggestions={fieldProps.tagSuggestions}
+                            activeSuggestionField={fieldProps.activeSuggestionField}
+                            activeSuggestionIndex={fieldProps.activeSuggestionIndex}
+                            placeholder={isName ? "Type a media name and press Enter" : "Type an author and press Enter"}
+                            emptyText={isName ? "No media names added" : "No authors added"}
                             maxLength={isName ? 255 : 100}
-                            placeholder={isName ? "For example: Beach day" : "For example: Ana"}
-                            suggestions={isName ? form.fieldProps.displayNameSuggestions : form.fieldProps.authorSuggestions}
-                            onChange={isName ? form.fieldProps.onDisplayNameChange : form.fieldProps.onAuthorChange}
-                            onSelect={isName ? form.fieldProps.onSelectDisplayName : form.fieldProps.onSelectAuthor}
+                            getChipIcon={() => RULE_NODE_TYPES[type].icon}
+                            onInputChange={fieldProps.onTagInputChange}
+                            onOpenSuggestions={fieldProps.onOpenSuggestions}
+                            onCloseSuggestions={fieldProps.onCloseSuggestions}
+                            onSuggestionKeyDown={fieldProps.onSuggestionKeyDown}
+                            onAdd={fieldProps.onAddTag}
+                            onRemove={fieldProps.onRemoveTag}
+                            compact
                         />
                     ) : null}
-                    <Hint>Letter case doesn&apos;t matter.</Hint>
+                    <Hint>
+                        {draft.operator === "empty"
+                            ? `Matches media without a ${subject}.`
+                            : `Matches when the ${subject} ${draft.operator === "contains" ? "contains" : "is"} any of these values. Letter case doesn't matter.`}
+                    </Hint>
                 </>
             );
         }
@@ -146,22 +160,19 @@ export const NodeConfigModal = ({ node, onApply, onDelete, onClose }) => {
     const { type, config } = node.data;
     const definition = RULE_NODE_TYPES[type];
     const category = RULE_CATEGORIES.find((item) => item.key === definition.category);
-    const { metadata, tagNames, tagColorByName, tagTypeByName } = useMetadata();
+    const { metadata, tagNames, displayNames, authors, tagColorByName, tagTypeByName } = useMetadata();
     const [draft, setDraft] = useState(config);
+    // Las listas del nodo (tags, nombres de media o autores) usan el estado de tags del formulario de medias,
+    // con las sugerencias que correspondan a cada una.
     const form = useMediaMetadataForm({
         metadata,
-        tagNames,
-        initialValues: {
-            tags: config.tags,
-            displayname: type === "condition.name" ? config.value : "",
-            author: type === "condition.author" ? config.value : "",
-        },
+        tagNames: type === "condition.name" ? displayNames : type === "condition.author" ? authors : tagNames,
+        initialValues: { tags: config.tags ?? config.values },
     });
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        if (type === "condition.name") onApply({ ...draft, value: form.displayName.trim() });
-        else if (type === "condition.author") onApply({ ...draft, value: form.author.trim() });
+        if ("values" in draft) onApply({ ...draft, values: form.getTagsWithPending() });
         else if ("tags" in draft) onApply({ ...draft, tags: form.getTagsWithPending() });
         else onApply(draft);
     };

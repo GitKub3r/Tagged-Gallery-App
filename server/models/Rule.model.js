@@ -1,11 +1,14 @@
 const { pool } = require("../config/database");
+const { sanitizeGraph } = require("../utils/ruleGraph");
 
 const RULE_COLUMNS = "id, name, is_active, graph, applied_count, last_applied_at, created_at, updated_at";
 
+// Se vuelve a sanear al leer: así el editor y el motor reciben siempre el formato actual de cada nodo
+// (p. ej. "values" en las condiciones de nombre y autor, que antes guardaban un solo "value").
 const parseGraph = (value) => {
     try {
         const graph = typeof value === "string" ? JSON.parse(value) : value;
-        return Array.isArray(graph?.nodes) && Array.isArray(graph?.edges) ? graph : { nodes: [], edges: [] };
+        return sanitizeGraph(graph).data || { nodes: [], edges: [] };
     } catch {
         return { nodes: [], edges: [] };
     }

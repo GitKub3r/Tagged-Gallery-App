@@ -303,7 +303,9 @@ El foco de un campo se muestra cambiando el borde a `neutral-500`, porque el CSS
 
 **Select:** `SelectField` (`components/select-field`, con `label`, `options` y `placeholder` opcional): `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
 
-**Nombre, autor y tags con sugerencias:** `MetadataSuggestionField` y `MediaTagsField` (exportados desde `MediaFormModal.jsx`) con el estado de `useMediaMetadataForm`. `MediaMetadataFields` los compone; se usan sueltos cuando solo hace falta uno (p. ej. en los nodos de reglas).
+**Nombre, autor y tags con sugerencias:** `MetadataSuggestionField` y `MediaTagsField` (exportados desde `MediaFormModal.jsx`) con el estado de `useMediaMetadataForm`. `MediaMetadataFields` los compone; se usan sueltos cuando solo hace falta uno.
+
+**Lista de valores:** `ChipListField` (en `MediaFormModal.jsx`): input con sugerencias que añade con Enter y chips que se quitan con un clic, con contador "N selected". `MediaTagsField` es un `ChipListField` con chips de tag; para otras listas (varios autores o nombres de media en una regla) los chips son neutros y llevan el icono de la entidad.
 
 **Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se usa `CheckboxOption` (`title`, `description`), que la envuelve en una tarjeta clicable:
 

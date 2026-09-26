@@ -8,7 +8,7 @@ import { RULE_CATEGORIES, RULE_NODE_TYPES } from "../../../utils/ruleGraph";
 import { RuleNodeIcon } from "./RuleNodeIcon";
 import { useRuleEditor } from "./ruleEditorContext";
 
-const MAX_VISIBLE_TAGS = 4;
+const MAX_VISIBLE_CHIPS = 4;
 
 // Punto de conexión. El pseudo-elemento amplía la zona táctil sin cambiar el tamaño visible.
 const HANDLE_CLASSES =
@@ -19,28 +19,26 @@ const BRANCHES = [
     { id: "false", label: "False", icon: faXmark },
 ];
 
-const NodeTags = ({ tags }) => {
-    const { tagInfo } = useRuleEditor();
-    const hiddenCount = tags.length - MAX_VISIBLE_TAGS;
+// Primeros chips de una lista y "+N" con los que no caben.
+const NodeChips = ({ items, renderChip }) => {
+    const hiddenCount = items.length - MAX_VISIBLE_CHIPS;
 
     return (
         <div className="mt-2 flex min-w-0 flex-wrap gap-1">
-            {tags.slice(0, MAX_VISIBLE_TAGS).map((tag) => {
-                const key = tag.trim().toLowerCase();
-                return <TagChip key={tag} tag={tag} color={tagInfo.tagColorByName[key]} type={tagInfo.tagTypeByName[key]} isExisting={!tagInfo.isLoaded || tagInfo.tagNameSet.has(key)} />;
-            })}
+            {items.slice(0, MAX_VISIBLE_CHIPS).map(renderChip)}
             {hiddenCount > 0 ? <span className="inline-flex items-center px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400">+{hiddenCount}</span> : null}
         </div>
     );
 };
 
 export const RuleNode = memo(({ id, data, selected }) => {
-    const { context, reachableIds, editNode, deleteNode } = useRuleEditor();
+    const { context, tagInfo, reachableIds, editNode, deleteNode } = useRuleEditor();
     const definition = RULE_NODE_TYPES[data.type];
     const category = RULE_CATEGORIES.find((item) => item.key === definition.category);
     const issue = definition.validate(data.config, context);
     const summary = definition.summarize(data.config, context);
     const tags = definition.tags?.(data.config) || [];
+    const values = definition.values?.(data.config) || [];
     const isConnected = definition.category === "trigger" || reachableIds.has(id);
 
     return (
@@ -69,10 +67,29 @@ export const RuleNode = memo(({ id, data, selected }) => {
                     {definition.category !== "condition" ? <Handle type="source" position={Position.Right} id="out" className={HANDLE_CLASSES} /> : null}
                 </header>
 
-                {summary || tags.length > 0 || issue || !isConnected ? (
+                {summary || tags.length > 0 || values.length > 0 || issue || !isConnected ? (
                     <div className="border-t border-neutral-200 px-3 py-2 dark:border-neutral-800">
                         {summary ? <p className="line-clamp-2 text-xs font-medium text-neutral-600 dark:text-neutral-300" title={summary}>{summary}</p> : null}
-                        {tags.length > 0 ? <NodeTags tags={tags} /> : null}
+                        {tags.length > 0 ? (
+                            <NodeChips
+                                items={tags}
+                                renderChip={(tag) => {
+                                    const key = tag.trim().toLowerCase();
+                                    return <TagChip key={tag} tag={tag} color={tagInfo.tagColorByName[key]} type={tagInfo.tagTypeByName[key]} isExisting={!tagInfo.isLoaded || tagInfo.tagNameSet.has(key)} />;
+                                }}
+                            />
+                        ) : null}
+                        {values.length > 0 ? (
+                            <NodeChips
+                                items={values}
+                                renderChip={(value) => (
+                                    <span key={value} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-xl border border-neutral-300 bg-neutral-100 px-2 py-1 text-xs font-semibold text-neutral-700 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200" title={value}>
+                                        <FontAwesomeIcon icon={definition.icon} aria-hidden="true" />
+                                        <span className="truncate">{value}</span>
+                                    </span>
+                                )}
+                            />
+                        ) : null}
                         {issue ? (
                             <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
                                 <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />

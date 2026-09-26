@@ -36,7 +36,9 @@ export const MEDIA_TYPE_OPTIONS = [
     { value: "video", label: "Videos" },
 ];
 
-const TEXT_OPERATORS = { is: "Is", contains: "Contains", empty: "Is empty" };
+const TEXT_OPERATORS = { is: "Is any of", contains: "Contains any of", empty: "Is empty" };
+// Resumen del nodo en singular cuando solo hay un valor.
+const TEXT_SUMMARIES = { is: ["Is", "Is any of"], contains: ["Contains", "Contains any of"] };
 const TAG_MATCHES = { any: "Has any of", all: "Has all of", empty: "Has no tags" };
 const SIZE_OPERATORS = { gt: "Larger than", lt: "Smaller than" };
 const RESOLUTION_OPERATORS = { min: "At least", max: "At most", exact: "Exactly" };
@@ -48,9 +50,11 @@ const textCondition = (label, subject, description) => ({
     category: "condition",
     label,
     description,
-    defaultConfig: { operator: "is", value: "" },
-    summarize: (config) => (config.operator === "empty" ? "Is empty" : `${TEXT_OPERATORS[config.operator]} “${config.value}”`),
-    validate: (config) => (config.operator !== "empty" && !config.value.trim() ? `Type the ${subject} to compare` : null),
+    defaultConfig: { operator: "is", values: [] },
+    // Varios valores: la condición se cumple si coincide cualquiera.
+    values: (config) => (config.operator === "empty" ? [] : config.values),
+    summarize: (config) => (config.operator === "empty" ? "Is empty" : TEXT_SUMMARIES[config.operator][config.values.length > 1 ? 1 : 0]),
+    validate: (config) => (config.operator !== "empty" && config.values.length === 0 ? `Add at least one ${subject}` : null),
 });
 
 const tagsAction = (label, description) => ({
@@ -65,7 +69,8 @@ const tagsAction = (label, description) => ({
 
 const noConfig = (category, label, description, summary) => ({ category, label, description, defaultConfig: {}, summarize: () => summary, validate: () => null });
 
-// icon: Font Awesome. tags(config): tags que el nodo pinta como chips. summarize(config, context): resumen breve.
+// icon: Font Awesome. tags(config) / values(config): tags o valores de texto que el nodo pinta como chips.
+// summarize(config, context): resumen breve.
 // validate(config, context): lo que falta por configurar (null si está completo). context.albumsById: álbumes.
 export const RULE_NODE_TYPES = {
     "trigger.mediaAdded": { ...noConfig("trigger", "Media added", "Runs when media are uploaded or added from Google Drive.", "Uploads and Google Drive"), icon: faPlus },

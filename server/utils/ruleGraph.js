@@ -10,6 +10,7 @@ const { isDriveTagName } = require("./driveTag");
 const MAX_NODES = 60;
 const MAX_EDGES = 120;
 const MAX_RULE_TAGS = 50;
+const MAX_RULE_VALUES = 50;
 const MAX_MEDIA_TAGS = 50;
 const MAX_POSITION = 100000;
 const MAX_DIMENSION = 100000;
@@ -29,18 +30,21 @@ const TRIGGER_EVENTS = {
 
 const normalizeKey = (value) => String(value || "").trim().toLowerCase();
 
-const sanitizeTagList = (value) => {
-    const tags = [];
+// Lista sin vacíos ni repetidos (sin distinguir mayúsculas), con un máximo de elementos y de caracteres.
+const sanitizeTextList = (value, maxItems, maxLength) => {
+    const items = [];
     const seen = new Set();
-    for (const item of Array.isArray(value) ? value : []) {
-        const tag = String(item ?? "").trim().slice(0, 100);
-        if (tag && !seen.has(normalizeKey(tag)) && tags.length < MAX_RULE_TAGS) {
-            seen.add(normalizeKey(tag));
-            tags.push(tag);
+    for (const rawItem of Array.isArray(value) ? value : []) {
+        const item = String(rawItem ?? "").trim().slice(0, maxLength);
+        if (item && !seen.has(normalizeKey(item)) && items.length < maxItems) {
+            seen.add(normalizeKey(item));
+            items.push(item);
         }
     }
-    return tags;
+    return items;
 };
+
+const sanitizeTagList = (value) => sanitizeTextList(value, MAX_RULE_TAGS, 100);
 
 const pickOption = (value, options, fallback) => (options.includes(value) ? value : fallback);
 
@@ -54,20 +58,21 @@ const toPositiveNumber = (value, max) => {
     return Number.isFinite(number) && number > 0 && number <= max ? Math.round(number * 100) / 100 : null;
 };
 
+// Nombre de media o autor comparado con varios valores: se cumple si coincide cualquiera de ellos.
+// Admite el formato anterior, con un solo "value".
 const textCondition = (maxLength, label) => ({
     category: "condition",
     sanitize: (config) => ({
         operator: pickOption(config.operator, ["is", "contains", "empty"], "is"),
-        value: String(config.value ?? "").trim().slice(0, maxLength),
+        values: sanitizeTextList(Array.isArray(config.values) ? config.values : [config.value], MAX_RULE_VALUES, maxLength),
     }),
-    validate: (config) => (config.operator !== "empty" && !config.value ? `Type the ${label} to compare` : null),
+    validate: (config) => (config.operator !== "empty" && config.values.length === 0 ? `Add at least one ${label}` : null),
 });
 
 const matchesText = (config, value) => {
     const current = normalizeKey(value);
     if (config.operator === "empty") return !current;
-    const expected = normalizeKey(config.value);
-    return config.operator === "contains" ? current.includes(expected) : current === expected;
+    return config.values.some((expected) => (config.operator === "contains" ? current.includes(normalizeKey(expected)) : current === normalizeKey(expected)));
 };
 
 const tagListAction = {
