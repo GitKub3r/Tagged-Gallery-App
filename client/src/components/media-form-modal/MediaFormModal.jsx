@@ -73,9 +73,35 @@ export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisable
     );
 };
 
-export const MediaMetadataFields = ({
-    displayNameInput,
-    authorInput,
+// Campo de texto con sugerencias (nombre de media, autor...). field identifica la lista de sugerencias activa.
+export const MetadataSuggestionField = ({
+    label,
+    field,
+    value,
+    maxLength,
+    placeholder,
+    autoFocus = false,
+    suggestions = [],
+    activeSuggestionField,
+    activeSuggestionIndex,
+    onChange,
+    onSelect,
+    onOpenSuggestions,
+    onCloseSuggestions,
+    onSuggestionKeyDown,
+}) => (
+    <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+        <span className="mb-1.5 block">{label}</span>
+        <div className="relative">
+            <input className={mediaFormInputClasses} type="text" maxLength={maxLength} value={value} onChange={onChange} onFocus={() => onOpenSuggestions(field)} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, field)} placeholder={placeholder} autoFocus={autoFocus} />
+            {activeSuggestionField === field ? <MediaSuggestionList items={suggestions} activeIndex={activeSuggestionIndex} onSelect={onSelect} /> : null}
+        </div>
+    </label>
+);
+
+// Campo de tags con sugerencias y la lista de tags elegidas (se quitan con un clic).
+export const MediaTagsField = ({
+    label = "Tags",
     tagInput,
     selectedTags,
     tagColorByName = {},
@@ -83,27 +109,16 @@ export const MediaMetadataFields = ({
     existingTagNames = [],
     activeSuggestionField,
     activeSuggestionIndex,
-    displayNameSuggestions = [],
-    authorSuggestions = [],
     tagSuggestions = [],
-    displayNamePlaceholder = "Undefined",
-    authorPlaceholder = "Optional",
     tagPlaceholder = "Type a tag and press Enter",
-    autoFocusDisplayName = false,
-    error,
-    onDisplayNameChange,
-    onAuthorChange,
+    autoFocus = false,
     onTagInputChange,
     onOpenSuggestions,
     onCloseSuggestions,
     onSuggestionKeyDown,
-    onSelectDisplayName,
-    onSelectAuthor,
     onAddTag,
     onRemoveTag,
     getTagStyle,
-    onApplyTemplate,
-    templateResetKey,
     // Tags que no se pueden quitar (p. ej. "Google Drive" en medias de Drive). Se muestran primero, con candado.
     lockedTags = [],
     compact = false,
@@ -120,66 +135,86 @@ export const MediaMetadataFields = ({
     }, [selectedTags.length]);
 
     return (
+        <>
+            <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                <span className="mb-1.5 flex items-center justify-between gap-3">
+                    <span>{label}</span>
+                    <span className="font-medium tabular-nums text-neutral-400 dark:text-neutral-500">
+                        {selectedTagCount} selected
+                    </span>
+                </span>
+                <div className="relative">
+                    <input className={mediaFormInputClasses} type="text" maxLength={100} value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} autoFocus={autoFocus} />
+                    {activeSuggestionField === "tag" ? <MediaSuggestionList items={tagSuggestions} activeIndex={activeSuggestionIndex} onSelect={onAddTag} /> : null}
+                </div>
+            </label>
+
+            <div
+                ref={selectedTagsContainerRef}
+                className={`flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50 ${compact ? "" : "md:min-h-32 md:max-h-none md:flex-1"}`}
+                aria-label={`Selected tags, ${selectedTagCount} selected`}
+            >
+                {lockedTags.map((tag) => (
+                    <span
+                        key={tag}
+                        className="inline-flex h-8 max-w-36 shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1 text-xs font-semibold"
+                        style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])}
+                        title="Added automatically to media from Google Drive"
+                    >
+                        <FontAwesomeIcon icon={faGoogleDrive} aria-hidden="true" />
+                        <span className="truncate">{tag}</span>
+                        <FontAwesomeIcon icon={faLock} className="opacity-70" aria-hidden="true" />
+                        <span className="sr-only">(can't be removed)</span>
+                    </span>
+                ))}
+                {removableTags.map((tag) => (
+                    <button key={tag} type="button" className="inline-flex! h-8! w-auto! max-w-36! shrink-0! items-center! gap-2! rounded-xl! border! px-2.5! py-1! text-xs! font-semibold! shadow-none! hover:opacity-80!" style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])} onClick={() => onRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
+                        <FontAwesomeIcon icon={getTagIcon(existingTagNameSet.has(String(tag).trim().toLowerCase()), tagTypeByName[String(tag).trim().toLowerCase()])} aria-hidden="true" />
+                        <span className="truncate">{tag}</span>
+                        <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
+                    </button>
+                ))}
+                {selectedTagCount === 0 ? <span className="text-xs text-neutral-400 dark:text-neutral-600">No tags selected</span> : null}
+            </div>
+        </>
+    );
+};
+
+export const MediaMetadataFields = ({
+    displayNameInput,
+    authorInput,
+    displayNameSuggestions = [],
+    authorSuggestions = [],
+    displayNamePlaceholder = "Undefined",
+    authorPlaceholder = "Optional",
+    autoFocusDisplayName = false,
+    error,
+    onDisplayNameChange,
+    onAuthorChange,
+    onSelectDisplayName,
+    onSelectAuthor,
+    onApplyTemplate,
+    templateResetKey,
+    compact = false,
+    ...tagFieldProps
+}) => {
+    const suggestionProps = {
+        activeSuggestionField: tagFieldProps.activeSuggestionField,
+        activeSuggestionIndex: tagFieldProps.activeSuggestionIndex,
+        onOpenSuggestions: tagFieldProps.onOpenSuggestions,
+        onCloseSuggestions: tagFieldProps.onCloseSuggestions,
+        onSuggestionKeyDown: tagFieldProps.onSuggestionKeyDown,
+    };
+
+    return (
     <div className={`flex flex-col justify-start gap-3 ${compact ? "" : "min-h-full"}`}>
         {onApplyTemplate ? <TemplateSelector key={templateResetKey} onApply={onApplyTemplate} /> : null}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-                <span className="mb-1.5 block">Media name</span>
-                <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" maxLength={255} value={displayNameInput} onChange={onDisplayNameChange} onFocus={() => onOpenSuggestions("displayname")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "displayname")} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} />
-                    {activeSuggestionField === "displayname" ? <MediaSuggestionList items={displayNameSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectDisplayName} /> : null}
-                </div>
-            </label>
-
-            <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-                <span className="mb-1.5 block">Author</span>
-                <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" maxLength={100} value={authorInput} onChange={onAuthorChange} onFocus={() => onOpenSuggestions("author")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "author")} placeholder={authorPlaceholder} />
-                    {activeSuggestionField === "author" ? <MediaSuggestionList items={authorSuggestions} activeIndex={activeSuggestionIndex} onSelect={onSelectAuthor} /> : null}
-                </div>
-            </label>
+            <MetadataSuggestionField {...suggestionProps} label="Media name" field="displayname" value={displayNameInput} maxLength={255} placeholder={displayNamePlaceholder} autoFocus={autoFocusDisplayName} suggestions={displayNameSuggestions} onChange={onDisplayNameChange} onSelect={onSelectDisplayName} />
+            <MetadataSuggestionField {...suggestionProps} label="Author" field="author" value={authorInput} maxLength={100} placeholder={authorPlaceholder} suggestions={authorSuggestions} onChange={onAuthorChange} onSelect={onSelectAuthor} />
         </div>
 
-        <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-            <span className="mb-1.5 flex items-center justify-between gap-3">
-                <span>Tags</span>
-                <span className="font-medium tabular-nums text-neutral-400 dark:text-neutral-500">
-                    {selectedTagCount} selected
-                </span>
-            </span>
-            <div className="relative">
-                <input className={mediaFormInputClasses} type="text" maxLength={100} value={tagInput} onChange={onTagInputChange} onFocus={() => onOpenSuggestions("tag")} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, "tag")} placeholder={tagPlaceholder} />
-                {activeSuggestionField === "tag" ? <MediaSuggestionList items={tagSuggestions} activeIndex={activeSuggestionIndex} onSelect={onAddTag} /> : null}
-            </div>
-        </label>
-
-        <div
-            ref={selectedTagsContainerRef}
-            className={`flex min-h-9 max-h-28 touch-pan-y flex-wrap content-start items-center gap-2 overflow-y-auto overscroll-contain rounded-xl border border-neutral-200 bg-neutral-100/60 p-2 pr-1 [scrollbar-gutter:stable] dark:border-neutral-800 dark:bg-neutral-950/50 ${compact ? "" : "md:min-h-32 md:max-h-none md:flex-1"}`}
-            aria-label={`Selected tags, ${selectedTagCount} selected`}
-        >
-            {lockedTags.map((tag) => (
-                <span
-                    key={tag}
-                    className="inline-flex h-8 max-w-36 shrink-0 items-center gap-2 rounded-xl border px-2.5 py-1 text-xs font-semibold"
-                    style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])}
-                    title="Added automatically to media from Google Drive"
-                >
-                    <FontAwesomeIcon icon={faGoogleDrive} aria-hidden="true" />
-                    <span className="truncate">{tag}</span>
-                    <FontAwesomeIcon icon={faLock} className="opacity-70" aria-hidden="true" />
-                    <span className="sr-only">(can't be removed)</span>
-                </span>
-            ))}
-            {removableTags.map((tag) => (
-                <button key={tag} type="button" className="inline-flex! h-8! w-auto! max-w-36! shrink-0! items-center! gap-2! rounded-xl! border! px-2.5! py-1! text-xs! font-semibold! shadow-none! hover:opacity-80!" style={getTagStyle(tagColorByName[String(tag).trim().toLowerCase()])} onClick={() => onRemoveTag(tag)} aria-label={`Remove tag ${tag}`}>
-                    <FontAwesomeIcon icon={getTagIcon(existingTagNameSet.has(String(tag).trim().toLowerCase()), tagTypeByName[String(tag).trim().toLowerCase()])} aria-hidden="true" />
-                    <span className="truncate">{tag}</span>
-                    <FontAwesomeIcon icon={faXmark} aria-hidden="true" />
-                </button>
-            ))}
-            {selectedTagCount === 0 ? <span className="text-xs text-neutral-400 dark:text-neutral-600">No tags selected</span> : null}
-        </div>
+        <MediaTagsField {...tagFieldProps} compact={compact} />
 
         <ErrorToast message={error} />
     </div>

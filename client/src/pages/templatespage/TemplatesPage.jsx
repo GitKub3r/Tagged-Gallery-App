@@ -11,13 +11,13 @@ import { LoadErrorState } from "../../components/load-error-state/LoadErrorState
 import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { MediaFormModal, MediaMetadataFields } from "../../components/media-form-modal/MediaFormModal";
 import { mediaFormInputClasses } from "../../components/media-form-modal/mediaFormStyles";
+import { TagChip } from "../../components/tag-chip/TagChip";
 import { ErrorToast } from "../../components/toast/ErrorToast";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useTemplates } from "../../hooks/useTemplates";
 import { useMediaMetadataForm } from "../../hooks/useMediaMetadataForm";
 import { useMetadata } from "../../hooks/useMetadata";
-import { getTagIcon } from "../../utils/tagIcon";
 import { buildTagChipStyle } from "../../utils/tagStyle";
 
 const TemplateEditor = ({ template, metadata, tagNames, tagColorByName, tagTypeByName, isSaving, error, onSave, onCancel }) => {
@@ -98,7 +98,7 @@ const TemplateCard = ({ template, tagNameSet, tagColorByName, tagTypeByName, met
                     <span className="mr-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400">Tags</span>
                     {template.tags.map((tag) => {
                         const key = tag.trim().toLowerCase();
-                        return <span key={tag} className="inline-flex max-w-full items-center gap-1.5 truncate rounded-xl border px-2 py-1 text-xs font-semibold" style={buildTagChipStyle(tagColorByName[key])} title={tag}><FontAwesomeIcon icon={getTagIcon(!metadataAvailable || tagNameSet.has(key), tagTypeByName[key])} aria-hidden="true" /><span className="truncate">{tag}</span></span>;
+                        return <TagChip key={tag} tag={tag} color={tagColorByName[key]} type={tagTypeByName[key]} isExisting={!metadataAvailable || tagNameSet.has(key)} />;
                     })}
                 </div>
             ) : null}
