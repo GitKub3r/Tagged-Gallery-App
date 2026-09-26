@@ -150,7 +150,10 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
   - Tablet (`sm`–`lg`): 2 columnas en listados y formularios, sidebar como drawer.
   - Laptop (`lg`–`xl`): toolbar en fila y rejillas de 2–3 columnas.
   - Escritorio (`xl`+): sidebar fija y plegable, padding `xl:p-8`, rejillas de media densas.
-- Listados de tarjetas de gestión (plantillas, etc.): `grid items-start gap-3 lg:grid-cols-2`.
+- Listados de tarjetas de gestión: `grid items-start gap-3 lg:grid-cols-2`.
+- Resumen de una colección de gestión: `StatTile` (receta de `DriveStats.jsx`: panel `rounded-xl border p-4`, etiqueta en mayúsculas con icono, valor `text-2xl font-black sm:text-3xl`) en `grid grid-cols-2 gap-3 lg:grid-cols-4`, encima del listado. Evita que la página sea solo una rejilla de elementos sueltos.
+- **Tarjeta "blueprint" (plantillas):** tratamiento propio de `TemplatesPage.jsx` para una entidad que es, conceptualmente, un plano reutilizable. Panel `relative overflow-hidden rounded-xl border border-dashed border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900` con textura de retícula (`bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[size:16px_16px]`, par `dark:` con `rgba(255,255,255,0.05)`) y cuatro marcas de registro en las esquinas (`absolute h-2.5 w-2.5` con dos bordes en L, `border-neutral-300`/`700`). Dentro: código de pieza (`TPL-01`, `text-xs font-bold uppercase tracking-widest tabular-nums text-neutral-400`) — es un identificador **estable ligado al orden de creación**, no a la posición actual en el grid: se calcula una vez sobre la lista ordenada por `created_at` y no cambia si el usuario reordena o filtra la vista —, título, una ficha de dos columnas separada por `border-dotted` con `SpecField` (icono + etiqueta en mayúsculas arriba, valor `text-sm font-semibold` debajo; sin dato, se muestra "Undefined" en `text-neutral-400` en vez de dejar el hueco vacío — media name con `faImage`, autor con `faUser`), y un cajetín inferior (`border-t border-dashed`, mismo eyebrow) con las acciones. Las tags se limitan a 4 visibles (`+N` en badge `rounded-full bg-neutral-200`) y cada chip lleva `max-w-[6.5rem] truncate`, con un contenedor `min-h-[1.75rem]` que muestra "No tags" si no hay ninguna: así todas las tarjetas de una fila miden lo mismo, sin que una plantilla con muchas tags rompa la simetría del grid.
+- **Orden de un listado de gestión con varios criterios** (plantillas): `<select>` con la receta de Select de §7.2 (`mediaFormInputClasses` + `appearance-none pr-10`, más `pl-9` si lleva icono a la izquierda) envuelto en un `<label>` de ancho fijo junto al contador de resultados. Icono `faArrowUpWideShort` para la acción de "ordenar / cambiar criterio". Solo neutrales y `border-dashed`/`border-dotted` para el lenguaje técnico — nunca azul ni otro color de marca. Reutilizar este panel (`BlueprintPanel`) para cualquier tratamiento futuro de plantillas antes de crear uno nuevo.
 - Formularios: `grid grid-cols-1 gap-3 sm:grid-cols-2`.
 - La sidebar es un drawer hasta `xl` y fija desde `xl` (`w-72`, plegable).
 - Alturas de viewport con `dvh`, nunca `vh`.
@@ -493,6 +496,7 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 | Volver / avanzar en acción | `faArrowLeft` / `faArrowRight` |
 | Desplegar | `faChevronDown` |
 | Reordenar (arrastrar) | `faGripVertical` |
+| Ordenar / cambiar criterio de orden | `faArrowUpWideShort` |
 | Tema claro / oscuro | `faSun` / `faMoon` |
 | Cuenta / usuarios | `faUser` / `faUsers` |
 | Cerrar sesión | `faRightFromBracket` |
