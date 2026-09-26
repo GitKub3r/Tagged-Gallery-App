@@ -18,7 +18,7 @@ class MetricsController {
                 });
             }
 
-            const result = await MetricsService.getDashboard(req.user, req.query.year);
+            const result = await MetricsService.getDashboard(req.user, req.query.year, req.query.utcOffset);
             return res.json(result);
         } catch (error) {
             console.error("Error in MetricsController.getDashboard:", error);

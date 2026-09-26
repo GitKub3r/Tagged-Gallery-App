@@ -145,29 +145,42 @@ body,
     min-height: 100%;
 }
 
-* {
-    scrollbar-width: thin;
-    scrollbar-color: var(--tagged-scrollbar-thumb) var(--tagged-scrollbar-track);
+/* Barras de desplazamiento finas en toda la app. En @layer base para que las utilidades (scrollbar-none) manden. */
+@layer base {
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--tagged-scrollbar-thumb) var(--tagged-scrollbar-track);
+    }
+
+    *::-webkit-scrollbar {
+        width: 9px;
+        height: 9px;
+    }
+
+    *::-webkit-scrollbar-track {
+        background: var(--tagged-scrollbar-track);
+    }
+
+    *::-webkit-scrollbar-thumb {
+        background: var(--tagged-scrollbar-thumb);
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+    }
+
+    *::-webkit-scrollbar-thumb:hover {
+        background: var(--tagged-scrollbar-thumb-hover);
+    }
 }
 
-*::-webkit-scrollbar {
-    width: 9px;
-    height: 9px;
-}
+/* Oculta la barra de un contenedor que se sigue desplazando con swipe, touchpad o sus propios botones
+   (p. ej. la tira de película del panel). */
+@utility scrollbar-none {
+    scrollbar-width: none;
 
-*::-webkit-scrollbar-track {
-    background: var(--tagged-scrollbar-track);
-}
-
-*::-webkit-scrollbar-thumb {
-    background: var(--tagged-scrollbar-thumb);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: content-box;
-}
-
-*::-webkit-scrollbar-thumb:hover {
-    background: var(--tagged-scrollbar-thumb-hover);
+    &::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 ul {

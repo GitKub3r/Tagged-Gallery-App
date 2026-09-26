@@ -10,7 +10,7 @@ import { RulesPage } from "./pages/rulespage/RulesPage";
 import { RuleEditorPage } from "./pages/rulespage/RuleEditorPage";
 import { DrivePage } from "./pages/drivepage/DrivePage";
 import { TrashPage } from "./pages/trashpage/TrashPage";
-import { DashboardPage } from "./pages/metricspage/MetricsPage";
+import { DashboardPage } from "./pages/dashboardpage/DashboardPage";
 import { AccountPage } from "./pages/accountpage/AccountPage";
 import { ProtectedLayout } from "./components/layout/ProtectedLayout";
 import { AlbumPage } from "./pages/albumspage/AlbumPage";
