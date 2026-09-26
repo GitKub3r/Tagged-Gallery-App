@@ -47,6 +47,19 @@ class AlbumModel {
         return rows;
     }
 
+    // Álbumes con más medias del usuario (vista previa del panel).
+    static async findLargestByUserId(userId, limit = 4) {
+        const [rows] = await pool.query(
+            `${ALBUM_SELECT}
+             WHERE a.user_id = ?
+             GROUP BY a.id
+             ORDER BY media_count DESC, a.id DESC
+             LIMIT ?`,
+            [userId, limit],
+        );
+        return rows;
+    }
+
     static async findById(id) {
         const [rows] = await pool.query(
             `${ALBUM_SELECT}

@@ -292,6 +292,84 @@ class MetricsModel {
         return rows;
     }
 
+    // Tamaño del vocabulario: autores y nombres distintos, y tags sin usar, usadas una vez o de copyright.
+    static async getVocabularyStats(requestUser) {
+        const mediaScope = this.buildScope(requestUser, "m");
+        const tagScope = this.buildScope(requestUser, "t");
+        const tagUsage = `SELECT COUNT(tm.id) AS usage_count
+                          FROM tags t
+                          LEFT JOIN media_tags mt ON mt.tagid = t.id
+                          LEFT JOIN media tm ON tm.id = mt.mediaid AND tm.deleted_at IS NULL
+                          WHERE ${tagScope.clause}
+                          GROUP BY t.id`;
+
+        const [rows] = await pool.query(
+            `SELECT
+                (SELECT COUNT(DISTINCT TRIM(m.author)) FROM media m
+                  WHERE ${mediaScope.clause} AND m.author IS NOT NULL AND TRIM(m.author) <> '') AS distinct_authors,
+                (SELECT COUNT(DISTINCT TRIM(m.displayname)) FROM media m
+                  WHERE ${mediaScope.clause} AND m.displayname IS NOT NULL AND TRIM(m.displayname) <> '') AS distinct_displaynames,
+                (SELECT COUNT(*) FROM tags t WHERE ${tagScope.clause} AND t.type = 'copyright') AS copyright_tags,
+                (SELECT COALESCE(SUM(usage_count = 0), 0) FROM (${tagUsage}) AS unused_usage) AS unused_tags,
+                (SELECT COALESCE(SUM(usage_count = 1), 0) FROM (${tagUsage}) AS single_usage) AS single_use_tags`,
+            [...mediaScope.params, ...mediaScope.params, ...tagScope.params, ...tagScope.params, ...tagScope.params],
+        );
+
+        return rows[0] || {};
+    }
+
+    // Cuántas medias tienen 0, 1-4, 5-9, 10-19 o 20 o más tags.
+    static async getTagsPerMediaDistribution(requestUser) {
+        const { clause, params } = this.buildScope(requestUser, "m");
+
+        const [rows] = await pool.query(
+            `SELECT bucket, COUNT(*) AS media_count
+             FROM (
+                 SELECT CASE
+                     WHEN tag_count = 0 THEN 0
+                     WHEN tag_count < 5 THEN 1
+                     WHEN tag_count < 10 THEN 2
+                     WHEN tag_count < 20 THEN 3
+                     ELSE 4
+                 END AS bucket
+                 FROM (
+                     SELECT m.id, COUNT(mt.id) AS tag_count
+                     FROM media m
+                     LEFT JOIN media_tags mt ON mt.mediaid = m.id
+                     WHERE ${clause}
+                     GROUP BY m.id
+                 ) AS media_tag_counts
+             ) AS buckets
+             GROUP BY bucket`,
+            params,
+        );
+
+        return rows;
+    }
+
+    // Vistas previas de las tarjetas del espacio de trabajo: últimos favoritos, lo último enviado a la
+    // papelera, plantillas y reglas.
+    static async getWorkspacePreviews(userId, limit = 4) {
+        const [[favourites], [trash], [templates], [rules]] = await Promise.all([
+            pool.query(
+                `SELECT ${selectMediaColumns("m")} FROM media m
+                 WHERE m.user_id = ? AND m.deleted_at IS NULL AND m.is_favourite = 1
+                 ORDER BY m.created_at DESC, m.id DESC LIMIT ?`,
+                [userId, limit],
+            ),
+            pool.query(
+                `SELECT ${selectMediaColumns("m")} FROM media m
+                 WHERE m.user_id = ? AND m.deleted_at IS NOT NULL
+                 ORDER BY m.deleted_at DESC, m.id DESC LIMIT ?`,
+                [userId, limit],
+            ),
+            pool.query("SELECT id, name FROM media_templates WHERE user_id = ? ORDER BY updated_at DESC, id DESC LIMIT ?", [userId, limit]),
+            pool.query("SELECT id, name, is_active FROM media_rules WHERE user_id = ? ORDER BY is_active DESC, name ASC LIMIT ?", [userId, limit]),
+        ]);
+
+        return { favourites, trash, templates, rules };
+    }
+
     // Álbumes, plantillas, reglas, Google Drive y papelera del usuario.
     static async getWorkspaceSummary(userId) {
         const [rows] = await pool.query(

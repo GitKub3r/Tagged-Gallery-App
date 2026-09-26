@@ -58,16 +58,48 @@ const YearControl = ({ year, availableYears, onChange, disabled }) => {
     );
 };
 
-const Stat = ({ label, value, hint }) => (
+// children: un gráfico pequeño junto a la cifra (las subidas por mes).
+const Stat = ({ label, value, hint, children }) => (
     <div className="min-w-0">
         <dt className="truncate text-xs font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">{label}</dt>
-        <dd className="mt-1 truncate text-2xl font-black tracking-tight">{value}</dd>
+        <dd className="mt-1 flex min-w-0 items-end gap-3">
+            <span className="truncate text-2xl font-black tracking-tight">{value}</span>
+            {children}
+        </dd>
         {hint ? <dd className="truncate text-xs font-semibold text-neutral-500 dark:text-neutral-400">{hint}</dd> : null}
     </div>
 );
 
-// 03 · Activity: subidas de un año por día (mapa de puntos) y por mes (barras). Pasar el ratón, tocar o
-// enfocar un mes muestra su dato en la lectura; los meses son botones, así que todo se alcanza con teclado.
+// Subidas por mes en 12 barras junto al total del año. Al señalar un mes, el mapa resalta sus días.
+// Para lectores de pantalla, la misma información va en una lista.
+const MonthSparkline = ({ year, months, activeMonth, onShowMonth, onPointerLeave }) => {
+    const max = months.reduce((value, month) => Math.max(value, month.mediaCount), 0);
+    return (
+        <>
+            <span className="flex h-9 shrink-0 items-end gap-0.5" onPointerLeave={onPointerLeave} aria-hidden="true">
+                {months.map((month) => {
+                    const isActive = activeMonth === month.monthIndex;
+                    const height = max > 0 && month.mediaCount > 0 ? Math.max((month.mediaCount / max) * 100, 12) : 0;
+                    return (
+                        <span key={month.monthKey} className="flex h-full w-2.5 flex-col justify-end" onPointerEnter={() => onShowMonth(month)} onPointerDown={() => onShowMonth(month)}>
+                            {height > 0 ? (
+                                <span className={`block w-full rounded-t-xl transition-colors ${isActive ? "bg-neutral-950 dark:bg-white" : "bg-neutral-400 dark:bg-neutral-500"}`} style={{ height: `${height}%` }} />
+                            ) : (
+                                <span className="block h-0.5 w-full rounded-full bg-neutral-200 dark:bg-neutral-800" />
+                            )}
+                        </span>
+                    );
+                })}
+            </span>
+            <span className="sr-only">
+                {months.map((month) => `${longMonth.format(MONTHS[month.monthIndex - 1])} ${year}: ${pluralize(month.mediaCount, "media", "media")}`).join(". ")}
+            </span>
+        </>
+    );
+};
+
+// 03 · Activity: subidas de un año por día (mapa de puntos) y por mes (barras junto al total). Señalar un día
+// o un mes muestra su dato en la lectura bajo el mapa.
 // controlYear: el año elegido, que puede ir por delante de year mientras llegan sus datos.
 export const ActivitySection = ({ year, controlYear, availableYears, dailyUploads, monthlyUploads, isUpdating, onYearChange }) => {
     const scrollRef = useRef(null);
@@ -76,7 +108,6 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
     const countsByDay = useMemo(() => new Map(dailyUploads.map((item) => [item.day, item.mediaCount])), [dailyUploads]);
     const maxDay = dailyUploads.reduce((max, item) => Math.max(max, item.mediaCount), 0);
     const busiestDay = dailyUploads.reduce((best, item) => (!best || item.mediaCount > best.mediaCount ? item : best), null);
-    const maxMonth = monthlyUploads.reduce((max, item) => Math.max(max, item.mediaCount), 0);
     const busiestMonth = monthlyUploads.reduce((best, item) => (!best || item.mediaCount > best.mediaCount ? item : best), null);
     const yearTotal = monthlyUploads.reduce((sum, item) => sum + item.mediaCount, 0);
     const today = toDayKey(new Date());
@@ -89,7 +120,7 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
     }, [year]);
 
     const showDay = (dayKey) => setReadout({ dayKey, label: formatDay(parseLocalDay(dayKey)), count: countsByDay.get(dayKey) || 0 });
-    const showMonth = (month) => setReadout({ label: longMonth.format(MONTHS[month.monthIndex - 1]), count: month.mediaCount });
+    const showMonth = (month) => setReadout({ monthIndex: month.monthIndex, label: longMonth.format(MONTHS[month.monthIndex - 1]), count: month.mediaCount });
     // La celda entera bajo el puntero cuenta, no solo el punto (objetivo mayor que la marca).
     const handleMapPointer = (event) => {
         const bounds = event.currentTarget.getBoundingClientRect();
@@ -112,7 +143,9 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
             action={<YearControl year={controlYear} availableYears={availableYears} onChange={onYearChange} disabled={isUpdating} />}
         >
             <dl className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                <Stat label="Uploads" value={formatNumber(yearTotal)} hint={`in ${year}`} />
+                <Stat label="Uploads" value={formatNumber(yearTotal)} hint={`in ${year}, by month`}>
+                    <MonthSparkline year={year} months={monthlyUploads} activeMonth={readout?.monthIndex ?? busiestMonth?.monthIndex} onShowMonth={showMonth} onPointerLeave={clearOnMouseLeave} />
+                </Stat>
                 <Stat label="Active days" value={formatNumber(dailyUploads.length)} hint={dailyUploads.length === 1 ? "day with uploads" : "days with uploads"} />
                 <Stat label="Busiest day" value={busiestDay ? formatDay(parseLocalDay(busiestDay.day)) : "—"} hint={busiestDay ? pluralize(busiestDay.mediaCount, "media", "media") : "No uploads"} />
                 <Stat label="Busiest month" value={busiestMonth?.mediaCount ? longMonth.format(MONTHS[busiestMonth.monthIndex - 1]) : "—"} hint={busiestMonth?.mediaCount ? pluralize(busiestMonth.mediaCount, "media", "media") : "No uploads"} />
@@ -125,7 +158,7 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
                     </div>
                 ) : null}
 
-                {/* Mapa de puntos: decorativo para lectores de pantalla, que tienen los meses en los botones de abajo.
+                {/* Mapa de puntos: decorativo para lectores de pantalla, que tienen los meses junto al total.
                     Es un SVG que se escala al ancho de la sección; en pantallas estrechas se desplaza. */}
                 <div ref={scrollRef} className="overflow-x-auto pb-2" aria-hidden="true">
                     <svg
@@ -149,6 +182,8 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
                             if (!date) return null;
                             const dayKey = toDayKey(date);
                             const isActive = readout?.dayKey === dayKey;
+                            // Con un mes señalado, los días de los demás meses se atenúan.
+                            const isDimmed = readout?.monthIndex && date.getMonth() + 1 !== readout.monthIndex;
                             return (
                                 <circle
                                     key={dayKey}
@@ -156,7 +191,7 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
                                     cy={MAP_HEADER + dayIndex * CELL + CELL / 2}
                                     r={DOT_RADIUS}
                                     strokeWidth="2"
-                                    className={`${LEVELS[getLevel(countsByDay.get(dayKey) || 0, maxDay)].fill} ${dayKey > today ? "opacity-40" : ""} ${isActive ? "stroke-neutral-500" : "stroke-transparent"}`}
+                                    className={`${LEVELS[getLevel(countsByDay.get(dayKey) || 0, maxDay)].fill} ${dayKey > today || isDimmed ? "opacity-30" : ""} ${isActive ? "stroke-neutral-500" : "stroke-transparent"}`}
                                 />
                             );
                         }))}
@@ -178,38 +213,6 @@ export const ActivitySection = ({ year, controlYear, availableYears, dailyUpload
                         {LEVELS.map((level) => <span key={level.bg} className={`h-2.5 w-2.5 rounded-full ${level.bg}`} />)}
                         More
                     </p>
-                </div>
-
-                {/* Subidas por mes: barras que también son el acceso por teclado y lector de pantalla a los datos. */}
-                <div className="mt-5 grid grid-cols-12 items-end gap-1 border-t border-neutral-200 pt-4 dark:border-neutral-800 sm:gap-2" onPointerLeave={clearOnMouseLeave}>
-                    {monthlyUploads.map((month) => {
-                        const height = maxMonth > 0 ? Math.max((month.mediaCount / maxMonth) * 100, month.mediaCount > 0 ? 4 : 0) : 0;
-                        const monthName = longMonth.format(MONTHS[month.monthIndex - 1]);
-                        const isBusiest = month === busiestMonth && month.mediaCount > 0;
-                        return (
-                            <button
-                                key={month.monthKey}
-                                type="button"
-                                className="group flex h-24 w-full flex-col items-center justify-end gap-1.5 rounded-xl border-0 bg-transparent p-0 shadow-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500"
-                                aria-label={`${monthName} ${year}: ${pluralize(month.mediaCount, "media", "media")}`}
-                                onPointerEnter={() => showMonth(month)}
-                                onFocus={() => showMonth(month)}
-                                onBlur={() => setReadout(null)}
-                                onClick={() => showMonth(month)}
-                            >
-                                <span className="flex w-full max-w-6 flex-1 items-end">
-                                    <span
-                                        className={`block w-full rounded-t-xl transition-colors ${isBusiest ? "bg-neutral-950 dark:bg-white" : "bg-neutral-300 group-hover:bg-neutral-500 group-focus-visible:bg-neutral-500 dark:bg-neutral-700 dark:group-hover:bg-neutral-400 dark:group-focus-visible:bg-neutral-400"}`}
-                                        style={{ height: `${height}%` }}
-                                    />
-                                </span>
-                                <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">
-                                    <span className="sm:hidden">{shortMonth.format(MONTHS[month.monthIndex - 1]).charAt(0)}</span>
-                                    <span className="hidden sm:inline">{shortMonth.format(MONTHS[month.monthIndex - 1])}</span>
-                                </span>
-                            </button>
-                        );
-                    })}
                 </div>
             </div>
         </DashboardSection>

@@ -1,12 +1,19 @@
 import { faFilm, faImage, faPhotoFilm } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { formatBytes, formatNumber, formatPercent, pluralize, share } from "../dashboardFormat";
+import { DashboardMeter } from "./DashboardMeter";
 import { DashboardSection } from "./DashboardSection";
 
 const MEDIA_TYPES = [
     { key: "image", label: "Images", icon: faImage },
     { key: "video", label: "Videos", icon: faFilm },
     { key: "gif", label: "GIFs", icon: faPhotoFilm },
+];
+
+// Dónde vive el original de cada media.
+const STORAGE_PROVIDERS = [
+    { key: "local", label: "Tagged" },
+    { key: "google_drive", label: "Drive" },
 ];
 
 // Forma de cada orientación (proporciones 3:2, 2:3 y 1:1) en un cuadro de 32 × 32.
@@ -16,21 +23,10 @@ const ORIENTATIONS = [
     { key: "square", label: "Square", rect: { x: 4, y: 4, width: 24, height: 24 } },
 ];
 
-// Medidor de DESIGN.md §7.7: pista y relleno del mismo tono. tone="strong" para el número de medias
-// y "soft" para el espacio, con el mismo significado en todas las filas.
-const Meter = ({ label, value, detail, tone }) => (
-    <div className="grid grid-cols-[4.5rem_minmax(0,1fr)_auto] items-center gap-3 text-xs font-semibold">
-        <span className="text-neutral-500 dark:text-neutral-400">{label}</span>
-        <span className="h-1.5 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800">
-            <span className={`block h-full rounded-full ${tone === "strong" ? "bg-neutral-950 dark:bg-white" : "bg-neutral-500 dark:bg-neutral-400"}`} style={{ width: `${Math.max(value * 100, value > 0 ? 2 : 0)}%` }} />
-        </span>
-        <span className="min-w-24 text-right tabular-nums text-neutral-600 dark:text-neutral-300">{detail}</span>
-    </div>
-);
-
-// 04 · Formats: cuánto hay de cada tipo, cuánto espacio ocupa y en qué orientación.
+// 04 · Formats: cuánto hay de cada tipo, cuánto espacio ocupa, dónde se guarda y en qué orientación.
 export const FormatsSection = ({ dashboard }) => {
-    const { totalMedia, totalBytes, mediaTypeBreakdown, orientation } = dashboard;
+    const { totalMedia, totalBytes, mediaTypeBreakdown, orientation, storageByProvider } = dashboard;
+    const providerByKey = new Map(storageByProvider.map((item) => [item.provider, item]));
     const typeByKey = new Map(mediaTypeBreakdown.map((item) => [item.mediatype, item]));
     const types = MEDIA_TYPES.filter((type) => type.key !== "gif" || typeByKey.has("gif"));
     const measured = orientation.landscape + orientation.portrait + orientation.square;
@@ -52,12 +48,29 @@ export const FormatsSection = ({ dashboard }) => {
                                 </span>
                                 <span className="text-sm font-bold tabular-nums">{formatNumber(item.mediaCount)}</span>
                             </div>
-                            <Meter label="Media" value={mediaShare} detail={formatPercent(mediaShare)} tone="strong" />
-                            <Meter label="Space" value={storageShare} detail={`${formatPercent(storageShare)} · ${formatBytes(item.totalBytes)}`} tone="soft" />
+                            <DashboardMeter label="Media" value={mediaShare} detail={formatPercent(mediaShare)} tone="strong" />
+                            <DashboardMeter label="Space" value={storageShare} detail={`${formatPercent(storageShare)} · ${formatBytes(item.totalBytes)}`} tone="soft" />
                         </li>
                     );
                 })}
             </ul>
+
+            <div className="mt-6 border-t border-neutral-200 pt-5 dark:border-neutral-800">
+                <h3 className="mb-3 text-sm font-semibold">Where it&apos;s stored</h3>
+                <div className="grid gap-2">
+                    {STORAGE_PROVIDERS.map((provider) => {
+                        const item = providerByKey.get(provider.key) || { mediaCount: 0, totalBytes: 0 };
+                        return (
+                            <DashboardMeter
+                                key={provider.key}
+                                label={provider.label}
+                                value={share(item.mediaCount, totalMedia)}
+                                detail={`${formatNumber(item.mediaCount)} · ${formatBytes(item.totalBytes)}`}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
 
             <div className="mt-6 border-t border-neutral-200 pt-5 dark:border-neutral-800">
                 <h3 className="text-sm font-semibold">Orientation</h3>

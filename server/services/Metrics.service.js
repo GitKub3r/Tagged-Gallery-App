@@ -1,4 +1,5 @@
 const MediaService = require("./Media.service");
+const AlbumModel = require("../models/Album.model");
 const MetricsModel = require("../models/Metrics.model");
 
 const toNumber = (value) => Number(value || 0);
@@ -35,10 +36,22 @@ const pickYear = (availableYears, requestedYear) => {
     return availableYears.includes(currentYear) ? currentYear : availableYears[availableYears.length - 1];
 };
 
-const buildWorkspace = (row) => {
+// Etiquetas de los grupos de getTagsPerMediaDistribution.
+const TAG_COUNT_BUCKETS = ["0", "1–4", "5–9", "10–19", "20+"];
+
+const buildWorkspace = (row, previews, albums) => {
     const trashOldestAt = row.trash_oldest_at ? new Date(row.trash_oldest_at) : null;
     return {
         totalAlbums: toNumber(row.total_albums),
+        largestAlbums: albums.map((album) => ({
+            id: album.id,
+            albumname: album.albumname,
+            albumthumbpath: album.albumthumbpath,
+            mediaCount: toNumber(album.media_count),
+        })),
+        recentFavourites: previews.favourites,
+        templates: previews.templates.map((template) => ({ id: template.id, name: template.name })),
+        rules: previews.rules.map((rule) => ({ id: rule.id, name: rule.name, isActive: Boolean(rule.is_active) })),
         mediaInAlbums: toNumber(row.media_in_albums),
         totalTemplates: toNumber(row.total_templates),
         totalRules: toNumber(row.total_rules),
@@ -53,6 +66,7 @@ const buildWorkspace = (row) => {
             mediaCount: toNumber(row.trash_count),
             totalBytes: toNumber(row.trash_bytes),
             retentionDays: TRASH_RETENTION_DAYS,
+            recentMedia: previews.trash,
             // La media más antigua de la papelera es la próxima que se borrará.
             nextPurgeAt: trashOldestAt ? new Date(trashOldestAt.getTime() + TRASH_RETENTION_DAYS * DAY_MS) : null,
         },
@@ -83,6 +97,10 @@ class MetricsService {
                 recentMediaRows,
                 topMediaRows,
                 workspaceRow,
+                workspacePreviews,
+                largestAlbums,
+                vocabularyStats,
+                tagsPerMediaRows,
             ] = await Promise.all([
                 MetricsModel.getMediaSummary(requestUser),
                 MetricsModel.getTagSummary(requestUser),
@@ -98,6 +116,10 @@ class MetricsService {
                 MetricsModel.getRecentMedia(requestUser, timestampColumn),
                 MetricsModel.getTopMediaWithTagCount(requestUser, 4),
                 MetricsModel.getWorkspaceSummary(requestUser.id),
+                MetricsModel.getWorkspacePreviews(requestUser.id),
+                AlbumModel.findLargestByUserId(requestUser.id),
+                MetricsModel.getVocabularyStats(requestUser),
+                MetricsModel.getTagsPerMediaDistribution(requestUser),
             ]);
 
             const totalMedia = toNumber(mediaSummary.total_media);
@@ -105,6 +127,7 @@ class MetricsService {
             const taggedMediaCount = toNumber(tagSummary.tagged_media_count);
             const totalTagAssignments = toNumber(tagSummary.total_tag_assignments);
             const dailyUploads = dailyUploadRows.map((row) => ({ day: row.day, mediaCount: toNumber(row.media_count) }));
+            const tagsPerMediaCounts = new Map(tagsPerMediaRows.map((row) => [Number(row.bucket), toNumber(row.media_count)]));
             const featuredMedia = await Promise.all(topMediaRows.map((mediaItem) => MediaService.enrichMediaWithTags(mediaItem)));
 
             return {
@@ -128,6 +151,14 @@ class MetricsService {
                         withDisplayname: toNumber(coverage.with_displayname),
                         withTags: taggedMediaCount,
                     },
+                    vocabulary: {
+                        distinctAuthors: toNumber(vocabularyStats.distinct_authors),
+                        distinctDisplaynames: toNumber(vocabularyStats.distinct_displaynames),
+                        copyrightTags: toNumber(vocabularyStats.copyright_tags),
+                        unusedTags: toNumber(vocabularyStats.unused_tags),
+                        singleUseTags: toNumber(vocabularyStats.single_use_tags),
+                    },
+                    tagsPerMedia: TAG_COUNT_BUCKETS.map((label, index) => ({ label, mediaCount: tagsPerMediaCounts.get(index) || 0 })),
                     orientation: {
                         landscape: toNumber(coverage.landscape),
                         portrait: toNumber(coverage.portrait),
@@ -156,7 +187,7 @@ class MetricsService {
                     monthlyUploads: buildMonthSeries(dailyUploads, selectedYear),
                     recentMedia: recentMediaRows,
                     featuredMedia,
-                    workspace: buildWorkspace(workspaceRow),
+                    workspace: buildWorkspace(workspaceRow, workspacePreviews, largestAlbums),
                 },
             };
         } catch (error) {
