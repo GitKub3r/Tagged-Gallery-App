@@ -31,6 +31,7 @@ const DEFAULT_ACTION_NAMES = {
     GOOGLE_DRIVE_IMPORT: "Import Google Drive media",
     MEDIA_RESTORE: "Restore media from trash",
     MEDIA_PURGE: "Delete media forever",
+    RULE_RUN: "Run rule on library",
 };
 
 class AuditService {

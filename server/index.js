@@ -11,6 +11,7 @@ const AuditService = require("./services/Audit.service");
 const UserModel = require("./models/User.model");
 const AlbumModel = require("./models/Album.model");
 const TemplateModel = require("./models/Template.model");
+const RuleModel = require("./models/Rule.model");
 const MediaModel = require("./models/Media.model");
 const GoogleDriveConnectionModel = require("./models/GoogleDriveConnection.model");
 const GoogleDriveService = require("./services/GoogleDrive.service");
@@ -103,6 +104,7 @@ const startServer = async () => {
         await UserModel.ensureDevRole();
         await AlbumModel.ensureCoverAdjustmentColumns();
         await TemplateModel.ensureTable();
+        await RuleModel.ensureTable();
         await MediaModel.ensureColumns();
         await GoogleDriveConnectionModel.ensureTable();
         await GoogleDriveService.ensureDriveTags();

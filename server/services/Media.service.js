@@ -3,6 +3,7 @@ const path = require("path");
 const MediaModel = require("../models/Media.model");
 const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
+const RuleEngineService = require("./RuleEngine.service");
 const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives, removeStoredMediaFiles, computeFileMd5 } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 const { enforceDriveTag, isDriveTagName, withoutDriveTag } = require("../utils/driveTag");
@@ -144,34 +145,7 @@ class MediaService {
     }
 
     static async getOrCreateTagIdsForUser(tagNames, userId) {
-        const tagIds = [];
-
-        for (const tagName of tagNames) {
-            let tag = await TagModel.findByTagnameForUser(tagName, userId);
-
-            if (!tag) {
-                try {
-                    tag = await TagModel.create({
-                        user_id: userId,
-                        tagname: tagName,
-                        tagcolor_hex: null,
-                        type: "default",
-                    });
-                } catch (error) {
-                    if (error.code === "ER_DUP_ENTRY") {
-                        tag = await TagModel.findByTagnameForUser(tagName, userId);
-                    } else {
-                        throw error;
-                    }
-                }
-            }
-
-            if (tag && tag.id) {
-                tagIds.push(tag.id);
-            }
-        }
-
-        return tagIds;
+        return TagModel.findOrCreateIdsForUser(tagNames, userId);
     }
 
     static async attachTagsToMedia(mediaId, tagNames, userId) {
@@ -568,6 +542,7 @@ class MediaService {
             createdMedia = await MediaModel.create(mediaData);
             if (shouldCancel()) throw new Error("Upload cancelled");
             await this.attachTagsToMedia(createdMedia.id, parsedTagNames.data, userId);
+            await RuleEngineService.runForEvent(userId, "added", [createdMedia.id]);
 
             const created = await MediaModel.findById(createdMedia.id);
 
@@ -654,6 +629,7 @@ class MediaService {
             }
 
             const createdIds = createdItems.map((item) => item.id);
+            await RuleEngineService.runForEvent(userId, "added", createdIds);
             const refreshedItems = [];
 
             for (const id of createdIds) {
@@ -779,6 +755,7 @@ class MediaService {
                 }
             }
 
+            await RuleEngineService.runForEvent(existing.user_id, "edited", [existing.id]);
             const updatedMedia = await MediaModel.findById(id);
             const enrichedUpdatedMedia = await this.enrichMediaWithTags(updatedMedia);
 
@@ -870,6 +847,7 @@ class MediaService {
             }
 
             await MediaModel.toggleFavourite(id);
+            await RuleEngineService.runForEvent(existing.user_id, "edited", [existing.id]);
             const updatedMedia = await MediaModel.findById(id);
 
             return {

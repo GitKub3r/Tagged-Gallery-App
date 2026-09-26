@@ -560,6 +560,23 @@ class MediaModel {
         return rows;
     }
 
+    // Datos que evalúan las reglas (utils/ruleGraph.js). Solo medias activas del usuario.
+    static async findRuleSnapshots(userId, { ids = null, afterId = 0, limit = null } = {}) {
+        if (Array.isArray(ids) && ids.length === 0) return [];
+        const conditions = ["user_id = ?", "deleted_at IS NULL", "id > ?"];
+        const values = [userId, afterId];
+        if (ids) {
+            conditions.push("id IN (?)");
+            values.push(ids);
+        }
+        const [rows] = await pool.query(
+            `SELECT id, user_id, displayname, author, size, width, height, mediatype, is_favourite, was_trashed, storage_provider
+             FROM media WHERE ${conditions.join(" AND ")} ORDER BY id ASC${limit ? " LIMIT ?" : ""}`,
+            limit ? [...values, limit] : values,
+        );
+        return rows;
+    }
+
     // Medias (también las de la papelera) sin resolución guardada.
     static async findWithoutDimensions() {
         const [rows] = await pool.query(

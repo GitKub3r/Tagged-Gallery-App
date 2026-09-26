@@ -171,6 +171,26 @@ CREATE TABLE media_templates (
 );
 
 -- =========================
+-- MEDIA RULES (workflows de nodos que etiquetan y organizan medias automáticamente)
+-- =========================
+CREATE TABLE media_rules (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT FALSE,
+    graph JSON NOT NULL, -- { nodes, edges }: ver server/utils/ruleGraph.js
+    applied_count INT UNSIGNED NOT NULL DEFAULT 0, -- medias que ha cambiado la regla
+    last_applied_at DATETIME NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_user_rule_name (user_id, name),
+    INDEX idx_media_rules_user_active (user_id, is_active),
+    CONSTRAINT fk_media_rules_user
+        FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE
+);
+
+-- =========================
 -- TAG + MEDIA RELATION
 -- =========================
 CREATE TABLE media_tags (

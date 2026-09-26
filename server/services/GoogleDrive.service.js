@@ -12,6 +12,7 @@ const AlbumModel = require("../models/Album.model");
 const MediaTagModel = require("../models/MediaTag.model");
 const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
+const RuleEngineService = require("./RuleEngine.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
 const {
     computeFileMd5,
@@ -927,6 +928,7 @@ class GoogleDriveService {
         }
 
         if (result.linked.length > 0) {
+            await RuleEngineService.runForEvent(user.id, "added", result.linked.map((item) => item.id));
             await AuditService.logEvent({
                 actionCode: "GOOGLE_DRIVE_LINK",
                 req,

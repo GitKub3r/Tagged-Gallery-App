@@ -123,6 +123,28 @@ class TagModel {
         };
     }
 
+    // Ids de las tags del usuario con esos nombres; crea con el estilo por defecto las que no existan.
+    static async findOrCreateIdsForUser(tagNames, userId) {
+        const tagIds = [];
+
+        for (const tagName of tagNames) {
+            let tag = await this.findByTagnameForUser(tagName, userId);
+
+            if (!tag) {
+                try {
+                    tag = await this.create({ user_id: userId, tagname: tagName, tagcolor_hex: null, type: "default" });
+                } catch (error) {
+                    if (error.code !== "ER_DUP_ENTRY") throw error;
+                    tag = await this.findByTagnameForUser(tagName, userId);
+                }
+            }
+
+            if (tag?.id) tagIds.push(tag.id);
+        }
+
+        return tagIds;
+    }
+
     static async update(id, tagData) {
         const fields = [];
         const values = [];
