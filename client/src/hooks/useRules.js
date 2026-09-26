@@ -74,13 +74,13 @@ export const useDeleteRule = () => {
 };
 
 // Una ejecución puede cambiar tags, favoritos y álbumes de cualquier media de la biblioteca.
+// El resultado lo enseña el editor (en el lienzo y con un toast al terminar la animación de ejecución).
 export const useRunRule = () => {
     const queryClient = useQueryClient();
     const { user } = useAuth();
     return useMutation({
         mutationFn: ruleApi.run,
-        onSuccess: ({ processedCount, changedCount }) => {
-            toast.success(`${changedCount} media changed`, { description: `The rule checked ${processedCount} media.` });
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ruleQueryKeys.forUser(user?.id) });
             queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
             queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });

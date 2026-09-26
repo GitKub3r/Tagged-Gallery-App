@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { SearchField } from "../../../components/search-field/SearchField";
 import { RULE_CATEGORIES, RULE_NODE_TYPES } from "../../../utils/ruleGraph";
+import { MODIFIER_KEY } from "./keyboardShortcuts";
 import { RuleNodeIcon } from "./RuleNodeIcon";
 
 // Tipo MIME del arrastre desde la paleta al lienzo.
 export const RULE_NODE_DRAG_TYPE = "application/x-tagged-rule-node";
 
 const NODE_ENTRIES = Object.entries(RULE_NODE_TYPES);
-const MODIFIER_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? "⌘" : "Ctrl";
 
 // Nodos disponibles por categoría. Se arrastran al lienzo o se añaden con un clic (en táctil no hay arrastre).
-export const NodePalette = ({ onAdd, autoFocusSearch = false }) => {
+// disabled: mientras se ejecuta la regla no se añaden nodos.
+export const NodePalette = ({ onAdd, autoFocusSearch = false, disabled = false }) => {
     const [search, setSearch] = useState("");
     const term = search.trim().toLowerCase();
     const matches = term ? NODE_ENTRIES.filter(([, definition]) => `${definition.label} ${definition.description}`.toLowerCase().includes(term)) : NODE_ENTRIES;
@@ -21,7 +22,7 @@ export const NodePalette = ({ onAdd, autoFocusSearch = false }) => {
             <p className="text-xs text-neutral-500 dark:text-neutral-400">Drag a node onto the canvas or select it to add it. With a node selected, the new one is connected after it.</p>
             {/* Los atajos solo sirven con teclado: en móvil se usa el botón "Duplicate" del nodo. */}
             <p className="hidden text-xs text-neutral-500 dark:text-neutral-400 sm:block">
-                Copy selected nodes with {MODIFIER_KEY} + C and paste them with {MODIFIER_KEY} + V, or with {MODIFIER_KEY} + Shift + V to paste them without settings.
+                Hold {MODIFIER_KEY} and drag on the canvas to select several nodes. Copy them with {MODIFIER_KEY} + C and paste them with {MODIFIER_KEY} + V, or with {MODIFIER_KEY} + Shift + V to paste them without settings. Undo with {MODIFIER_KEY} + Z.
             </p>
             <div className="-mr-2 min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
                 {RULE_CATEGORIES.map((category) => {
@@ -35,13 +36,14 @@ export const NodePalette = ({ onAdd, autoFocusSearch = false }) => {
                                     <li key={type}>
                                         <button
                                             type="button"
-                                            draggable
+                                            draggable={!disabled}
+                                            disabled={disabled}
                                             onDragStart={(event) => {
                                                 event.dataTransfer.setData(RULE_NODE_DRAG_TYPE, type);
                                                 event.dataTransfer.effectAllowed = "move";
                                             }}
                                             onClick={() => onAdd(type)}
-                                            className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-left shadow-none transition-colors hover:border-neutral-300 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700 dark:hover:bg-neutral-800"
+                                            className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-left shadow-none transition-colors hover:border-neutral-300 hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-neutral-700 dark:hover:bg-neutral-800"
                                         >
                                             <RuleNodeIcon icon={definition.icon} />
                                             <span className="min-w-0">

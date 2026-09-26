@@ -255,7 +255,7 @@ inline-flex h-10 w-auto items-center gap-2 rounded-xl border-0 bg-red-600 px-4 t
 
 **Texto / enlace:** acción terciaria, p. ej. "Clear", "Retry" o "Create one". `w-auto border-0 bg-transparent p-0 text-xs font-semibold text-neutral-600 underline shadow-none dark:text-neutral-300`. Un enlace de navegación usa `<Link>`, no `<button>`.
 
-**Solo icono:** siempre `IconButton` (`h-10 w-10 rounded-xl`, borde de control, `bg-neutral-50 dark:bg-neutral-900`), con `aria-label` y `title` si la acción no es obvia. Los iconos van con `aria-hidden="true"`.
+**Solo icono:** siempre `IconButton` (`h-10 w-10 rounded-xl`, borde de control, `bg-neutral-50 dark:bg-neutral-900`), con `aria-label` y `title` si la acción no es obvia. Los iconos van con `aria-hidden="true"`. Si activa o desactiva un modo, lleva `aria-pressed` e `isActive`, que lo pinta en invertido mientras está activo.
 
 **Segmented control / toggle de vista** (filtro de tipo, tarjetas o lista). En código nuevo, usar `SegmentedControl` (`components/segmented-control`, `labels="responsive"` o `"hidden"`, `disabled`); la galería aún lo tiene en línea (**legado**):
 
@@ -405,7 +405,7 @@ Todos los modales:
 | Error de petición | Automático desde `apiClient`; no duplicar toasts |
 | Progreso largo (subida, descarga ZIP) | `useAppToast` con `progress` y cancelación (`ProgressToast`) |
 | Carga inicial de página | `PageLoadingSkeleton` / `CollectionLoadingSkeleton` con la forma del contenido final |
-| Recarga de resultados con datos ya visibles | `ResultsLoadingIndicator` flotante; no vaciar la vista |
+| Recarga de resultados con datos ya visibles | `ResultsLoadingIndicator` flotante; no vaciar la vista. Con `placement="inline"` se coloca dentro de otro contenedor (p. ej. un panel del lienzo de reglas) |
 | Error al cargar | `LoadErrorState` con `onRetry={() => query.refetch()}`, `placement="page"` o `"section"` |
 | Sin datos / sin resultados | `EmptyState` con título, icono de la entidad y acción ("Create template" / "Clear search") |
 | Barra de progreso | Pista `h-1.5`/`h-2 rounded-full bg-neutral-200 dark:bg-neutral-700`; relleno `bg-neutral-950 dark:bg-white` |
@@ -431,11 +431,14 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 
 - **Página:** altura fija para el lienzo, `h-[calc(100dvh-6rem)] xl:h-[calc(100dvh-4rem)]` con `min-h-[34rem]`. Cabecera con `IconButton` de volver, eyebrow, `h1` y botón de renombrar; a la derecha, estado ("3 nodes · Unsaved changes", `aria-live`), `Switch` "Active", "Run rule" (secundario, `faPlay`) y "Save" (primario, `faFloppyDisk`, también Ctrl/Cmd + S). En móvil los dos botones comparten fila (`grid grid-cols-2`).
 - **Paleta de nodos:** panel `w-72` desde `lg`; por debajo, botón "Add node" sobre el lienzo que abre la misma paleta en un modal. Cada nodo es un botón `min-h-14` que se arrastra al lienzo o se añade con un clic. Con un nodo seleccionado, el nuevo se coloca a su derecha y se conecta a su salida ("True" en condiciones); así se construye el workflow en táctil sin arrastrar conexiones.
-- **Lienzo:** `rounded-xl border bg-neutral-50 dark:bg-neutral-950` con fondo de puntos. Zoom y encuadre con `IconButton` apilados abajo a la izquierda.
+- **Lienzo:** `rounded-xl border bg-neutral-50 dark:bg-neutral-950` con fondo de puntos. Zoom y encuadre con `IconButton` apilados abajo a la izquierda; deshacer, rehacer y "Select area" arriba a la derecha; abajo en el centro, la barra de selección múltiple y el estado o resultado de la ejecución (en teléfono, por encima de los botones de zoom).
 - **Nodo** (`RuleNode`): tarjeta `w-64` (`bg-white dark:bg-neutral-900`, borde de control) con icono en caja, categoría en eyebrow ("Trigger", "Condition", "Action") y título `text-sm font-bold`; debajo, resumen `text-xs`, chips de tag (`TagChip`, máximo 4 y "+N") y, si falta configuración, aviso `text-amber-600 dark:text-amber-400` con `faTriangleExclamation`. Seleccionado: anillo `ring-2` como `MediaCard`, con una barra flotante de `IconButton` (editar, duplicar y borrar) que sustituye al hover. Puntos de conexión `h-3.5 w-3.5 rounded-full` con zona táctil ampliada; las condiciones tienen dos salidas etiquetadas, "True" (`faCheck`) y "False" (`faXmark`). La categoría y las salidas se indican con texto, nunca solo con color.
-- **Conexión:** curva neutra con flecha. Al seleccionarla aparece un `IconButton` `faTrash` en su centro (tamaño fijo aunque cambie el zoom).
-- **Selección y configuración de un nodo:** el primer clic lo selecciona; un clic sobre un nodo ya seleccionado, un doble clic, Enter o el botón editar abren su configuración en un `MediaFormModal` compacto (arrastrarlo no la abre). Añadir un nodo no la abre: el nodo aparece seleccionado en el lienzo.
-- **Copiar y pegar:** Ctrl/⌘ + C copia los nodos seleccionados y las conexiones entre ellos; Ctrl/⌘ + V los pega con su configuración y Ctrl/⌘ + Shift + V los pega sin configurar, desplazados y seleccionados. No actúan mientras se escribe o hay un modal abierto, y el portapapeles se conserva al cambiar de regla. En táctil, el botón "Duplicate" (`faCopy`) de la barra del nodo. El modal muestra la descripción del nodo, sus campos y el pie "Delete node" (`dangerGhost`, a la izquierda), "Cancel" y "Apply". Los cambios se guardan en la regla con "Save".
+- **Conexión:** curva neutra con flecha. Si es lo único seleccionado aparece un `IconButton` `faTrash` en su centro (tamaño fijo aunque cambie el zoom).
+- **Selección y configuración de un nodo:** el primer clic lo selecciona; un clic sobre un nodo ya seleccionado, un doble clic, Enter o el botón editar abren su configuración en un `MediaFormModal` compacto (arrastrarlo no la abre). El modal muestra la descripción del nodo, sus campos y el pie "Delete node" (`dangerGhost`, a la izquierda), "Cancel" y "Apply"; los cambios se guardan en la regla con "Save". Añadir un nodo no la abre: el nodo aparece seleccionado en el lienzo. La barra flotante del nodo solo aparece con un único nodo seleccionado.
+- **Selección múltiple:** Ctrl/⌘ (o Shift) + arrastrar sobre el lienzo selecciona los nodos que toca el área, como la selección de medias en la galería; Ctrl/⌘ + clic suma o quita un nodo. En táctil, el `IconButton` "Select area" (`faObjectGroup`, `aria-pressed`) hace que arrastrar seleccione en lugar de mover el lienzo. Con varios nodos, una barra abajo ("2 nodes selected") permite duplicarlos (`faCopy`) o borrarlos (`faTrash`). Escape deselecciona.
+- **Copiar y pegar:** Ctrl/⌘ + C copia los nodos seleccionados y las conexiones entre ellos; Ctrl/⌘ + V los pega con su configuración y Ctrl/⌘ + Shift + V los pega sin configurar, desplazados y seleccionados. No actúan mientras se escribe o hay un modal abierto, y el portapapeles se conserva al cambiar de regla. En táctil, el botón "Duplicate" (`faCopy`) de la barra del nodo.
+- **Deshacer y rehacer:** Ctrl/⌘ + Z y Ctrl/⌘ + Shift + Z (o Ctrl + Y), también con sus `IconButton`. Cubren añadir, pegar, duplicar, mover y borrar nodos, conectar y cambiar la configuración de un nodo (no el nombre ni "Active"). Dentro de un campo de texto son los del propio campo.
+- **Ejecución:** la confirmación se cierra al momento y el lienzo muestra el progreso: conexiones animadas (quietas con movimiento reducido), un `faSpinner` en cada nodo conectado, `ResultsLoadingIndicator` en línea y "Running..." en el botón; el lienzo se bloquea mientras tanto (se puede mover y ampliar) y el estado se ve al menos 800 ms. Al terminar, cada conexión muestra en un badge cuántas medias pasaron, las salidas "True"/"False" su recuento, los disparadores "Checked N media" y las acciones "Changed X of Y media"; abajo, el resumen con "Clear results". El resultado se oculta si cambia el workflow y vuelve si se deshace el cambio.
 - **Pendientes:** aviso en línea ámbar sobre el lienzo con lo que falta para activar o ejecutar la regla; cada problema de un nodo es un enlace de texto que lo centra y selecciona.
 
 ---
@@ -489,6 +492,8 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 | Elemento gestionado por la app (no editable) | `faLock` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
 | Reglas / ejecutar una regla | `faDiagramProject` / `faPlay` |
+| Deshacer / rehacer | `faArrowRotateLeft` / `faArrowRotateRight` |
+| Seleccionar un área (modo selección del lienzo) | `faObjectGroup` |
 | Acercar / alejar / encajar la vista del lienzo | `faMagnifyingGlassPlus` / `faMagnifyingGlassMinus` / `faExpand` |
 | Falta configuración (aviso) | `faTriangleExclamation` |
 | Nodos disparadores: media añadida / editada / restaurada / ejecución manual | `faPlus` / `faPen` / `faRotateLeft` / `faHandPointer` |
