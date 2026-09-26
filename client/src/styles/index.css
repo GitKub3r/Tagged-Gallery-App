@@ -12,6 +12,14 @@
 
     /* Latido (animate-heartbeat): dos pulsaciones seguidas y 2,5 s de reposo, como un corazón. */
     --animate-heartbeat: heartbeat 3.1s ease-in-out infinite;
+    /* Señal (animate-signal): los trazos discontinuos de una pista avanzan (strokeDasharray "4 12", periodo 16). */
+    --animate-signal: signal 1s linear infinite;
+
+    @keyframes signal {
+        to {
+            stroke-dashoffset: -32;
+        }
+    }
 
     @keyframes heartbeat {
         0%,

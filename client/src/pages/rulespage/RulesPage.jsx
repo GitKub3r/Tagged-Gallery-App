@@ -6,14 +6,21 @@ import { buttonClasses } from "../../components/button/buttonClasses";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
-import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
 import { SearchField } from "../../components/search-field/SearchField";
 import { useAlbums } from "../../hooks/useAlbums";
 import { useDevTools } from "../../hooks/useDevTools";
 import { useCreateRule, useDeleteRule, useRules, useUpdateRule } from "../../hooks/useRules";
 import { getRuleIssues, toFlowEdges, toFlowNodes } from "../../utils/ruleGraph";
-import { RuleCard } from "./components/RuleCard";
+import { RuleCard, RuleCardSkeleton } from "./components/RuleCard";
 import { RuleNameModal } from "./components/RuleNameModal";
+
+const RULES_GRID_CLASSES = "grid gap-4 sm:grid-cols-2 xl:grid-cols-3";
+
+const RulesLoadingSkeleton = ({ label }) => (
+    <div className={RULES_GRID_CLASSES} role="status" aria-label={label}>
+        {Array.from({ length: 3 }, (_, index) => <RuleCardSkeleton key={index} />)}
+    </div>
+);
 
 export const RulesPage = () => {
     const navigate = useNavigate();
@@ -39,7 +46,7 @@ export const RulesPage = () => {
     const toggleActive = (rule, isActive) =>
         updateRule.mutate({ changes: { id: rule.id, is_active: isActive }, successMessage: isActive ? "Rule turned on" : "Rule turned off" });
 
-    if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced rules loading preview" /></section>;
+    if (forceLoading) return <section className="tagged-app-page"><RulesLoadingSkeleton label="Forced rules loading preview" /></section>;
 
     return (
         <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">
@@ -66,7 +73,7 @@ export const RulesPage = () => {
                 </div>
             ) : null}
 
-            {rulesQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading rules" /> : null}
+            {rulesQuery.isPending ? <RulesLoadingSkeleton label="Loading rules" /> : null}
             {rulesQuery.isError ? <LoadErrorState title="Could not load rules" onRetry={() => rulesQuery.refetch()} placement="section" /> : null}
             {!rulesQuery.isPending && !rulesQuery.isError && filteredRules.length === 0 ? (
                 <EmptyState
@@ -78,7 +85,7 @@ export const RulesPage = () => {
                 />
             ) : null}
             {filteredRules.length > 0 ? (
-                <ul className="grid items-start gap-3 lg:grid-cols-2" aria-label="Rules">
+                <ul className={RULES_GRID_CLASSES} aria-label="Rules">
                     {filteredRules.map((rule) => (
                         <RuleCard
                             key={rule.id}
