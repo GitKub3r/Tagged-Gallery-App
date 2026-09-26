@@ -14,6 +14,7 @@ const filesRoutes = require("./files.routes");
 const googleDriveRoutes = require("./googleDrive.routes");
 const trashRoutes = require("./trash.routes");
 const ruleRoutes = require("./rule.routes");
+const metadataRoutes = require("./metadata.routes");
 
 // Endpoint de bienvenida de la API v1
 router.get("/", (req, res) => {
@@ -40,6 +41,8 @@ router.get("/", (req, res) => {
             templates: "/api/v1/templates",
             rules: "/api/v1/rules",
             runRule: "/api/v1/rules/:id/run",
+            metadataMediaCount: "/api/v1/metadata/:kind/media-count",
+            removeMetadataFromMedia: "/api/v1/metadata/:kind/media",
             googleDriveStatus: "/api/v1/google-drive/status",
             albumCover: "/api/v1/albums/:id/cover",
             albumMedia: "/api/v1/albums/:id/media",
@@ -73,5 +76,6 @@ router.use("/files", filesRoutes);
 router.use("/google-drive", googleDriveRoutes);
 router.use("/trash", trashRoutes);
 router.use("/rules", ruleRoutes);
+router.use("/metadata", metadataRoutes);
 
 module.exports = router;

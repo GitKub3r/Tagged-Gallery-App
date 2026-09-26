@@ -22,7 +22,7 @@ import { DriveConnectionDetails } from "./components/DriveConnectionDetails";
 import { DriveHero } from "./components/DriveHero";
 import { DriveHowItWorks } from "./components/DriveHowItWorks";
 import { DriveLinkAll } from "./components/DriveLinkAll";
-import { DriveNotice } from "./components/DriveNotice";
+import { InlineNotice } from "../../components/inline-notice/InlineNotice";
 import { DriveRecentMedia } from "./components/DriveRecentMedia";
 import { DriveSection } from "./components/DriveSection";
 import { DriveStats } from "./components/DriveStats";
@@ -94,35 +94,41 @@ export const DrivePage = () => {
 
             <div className="mx-auto max-w-5xl">
                 {status.needsReconnect ? (
-                    <DriveNotice
-                        tone="warning"
-                        icon={faTriangleExclamation}
-                        title="Reconnect to update access"
-                        text="Tagged now needs a different Drive permission. Your linked media are kept."
-                        action={
-                            <button type="button" className={buttonClasses.secondary} onClick={() => isReady && !isConnecting && connect()} disabled={isConnecting}>
-                                <FontAwesomeIcon icon={faRotate} aria-hidden="true" />
-                                {isConnecting ? "Waiting for Google..." : "Reconnect"}
-                            </button>
-                        }
-                    />
+                    <div className="mt-6">
+                        <InlineNotice
+                            tone="warning"
+                            icon={faTriangleExclamation}
+                            title="Reconnect to update access"
+                            text="Tagged now needs a different Drive permission. Your linked media are kept."
+                            action={
+                                <button type="button" className={buttonClasses.secondary} onClick={() => isReady && !isConnecting && connect()} disabled={isConnecting}>
+                                    <FontAwesomeIcon icon={faRotate} aria-hidden="true" />
+                                    {isConnecting ? "Waiting for Google..." : "Reconnect"}
+                                </button>
+                            }
+                        />
+                    </div>
                 ) : null}
 
                 {status.configured && !status.connected && summary?.total > 0 ? (
-                    <DriveNotice
-                        tone="warning"
-                        icon={faTriangleExclamation}
-                        title={`${summary.total} ${summary.total === 1 ? "media is" : "media are"} waiting for Google Drive`}
-                        text="They keep their tags, albums and favourites, and open again as soon as you reconnect this account."
-                    />
+                    <div className="mt-6">
+                        <InlineNotice
+                            tone="warning"
+                            icon={faTriangleExclamation}
+                            title={`${summary.total} ${summary.total === 1 ? "media is" : "media are"} waiting for Google Drive`}
+                            text="They keep their tags, albums and favourites, and open again as soon as you reconnect this account."
+                        />
+                    </div>
                 ) : null}
 
                 {!status.configured ? (
-                    <DriveNotice
-                        icon={faScrewdriverWrench}
-                        title="Google Drive is not set up yet"
-                        text="The server is missing its Google credentials. Once they are added, you can connect your account here."
-                    />
+                    <div className="mt-6">
+                        <InlineNotice
+                            icon={faScrewdriverWrench}
+                            title="Google Drive is not set up yet"
+                            text="The server is missing its Google credentials. Once they are added, you can connect your account here."
+                        />
+                    </div>
                 ) : null}
 
                 {status.connected ? (

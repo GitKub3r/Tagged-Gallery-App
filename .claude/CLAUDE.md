@@ -43,7 +43,7 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 - **Subida individual y múltiple:** archivos de imagen y vídeo con metadatos compartidos, sugerencias y plantillas; generación de miniaturas en el backend.
 - **Organización:** favoritos, álbumes, portada y orden de medias en álbumes, además de filtros basados en tags.
 - **Papelera:** las medias borradas pasan 30 días en `/trash`, desde donde se restauran (vuelven a sus álbumes) o se borran definitivamente.
-- **Gestión de metadatos:** mantenimiento de nombres, autores y tags; color y tipo para tags.
+- **Gestión de metadatos:** mantenimiento de nombres, autores y tags; color y tipo para tags. Al abrir un registro se puede quitar de todas las medias activas ("Remove from all"): la tag se conserva; el nombre de media o el autor desaparece, porque solo existe mientras alguna media lo usa.
 - **Plantillas:** crear, buscar, editar, eliminar y aplicar datos reutilizables. La opción de favorito se aplica al guardar las medias que usan esa plantilla.
 - **Reglas:** listado en `/rules` (activar, desactivar, borrar) y editor de workflows en `/rules/:id` con paleta de nodos, arrastrar y soltar, conexiones, configuración de cada nodo y ejecución sobre toda la biblioteca.
 - **Panel de datos:** métricas y gráficos sobre la biblioteca, como actividad de subidas, tipos de media, autores y tags.

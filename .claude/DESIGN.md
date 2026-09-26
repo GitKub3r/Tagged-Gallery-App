@@ -31,7 +31,7 @@ Etiquetas usadas en este documento:
 - Semánticos, solo cuando hay un estado que comunicar:
   - **Error y peligro:** `red`. Texto `text-red-600 dark:text-red-400`. Botón `bg-red-600 hover:bg-red-500`. Fondo suave `bg-red-500/10`, borde `border-red-500/30`–`/50`.
   - **Éxito:** `green`. Borde de toast `border-green-500/50` y texto `text-green-600`.
-  - **Aviso:** `amber`. Aviso en línea `border-amber-500/30 bg-amber-500/10` con icono `text-amber-600 dark:text-amber-400` (`DriveNotice`, tono `warning`); punto de estado `bg-amber-500`.
+  - **Aviso:** `amber`. Aviso en línea `border-amber-500/30 bg-amber-500/10` con icono `text-amber-600 dark:text-amber-400` (`InlineNotice`, tono `warning`); punto de estado `bg-amber-500`.
   - **Información:** hoy no se usa. Si hace falta, `sky` con la misma estructura.
 - Los colores de las tags los elige el usuario. Solo se pintan mediante `utils/tagStyle.js` (sección 7.7).
 
@@ -251,7 +251,7 @@ inline-flex h-10 w-auto items-center gap-2 rounded-xl border-0 bg-red-600 px-4 t
 
 **Fantasma de peligro** (acción destructiva en menú o sidebar, p. ej. cerrar sesión): texto neutro con `hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500`.
 
-**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive). Es roja desde el principio, va dentro de un aviso en línea rojo (`DriveNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
+**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive o "Remove from all" en Metadata, que quita una tag, un nombre de media o un autor de todas las medias). Es roja desde el principio, va dentro de un aviso en línea rojo (`InlineNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
 
 **Texto / enlace:** acción terciaria, p. ej. "Clear", "Retry" o "Create one". `w-auto border-0 bg-transparent p-0 text-xs font-semibold text-neutral-600 underline shadow-none dark:text-neutral-300`. Un enlace de navegación usa `<Link>`, no `<button>`.
 
