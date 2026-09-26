@@ -102,7 +102,7 @@ export const RULE_NODE_TYPES = {
     "condition.resolution": {
         category: "condition",
         label: "Resolution",
-        description: "Compare the resolution. Portrait and landscape media both count, and media without a known resolution don't match.",
+        description: "Compare the resolution. Portrait and landscape media both count. Media without a known resolution stop here and follow neither output.",
         icon: faRulerCombined,
         defaultConfig: { operator: "min", width: "", height: "" },
         summarize: (config) => `${RESOLUTION_OPERATORS[config.operator]} ${config.width || "…"} × ${config.height || "…"}`,
@@ -111,7 +111,7 @@ export const RULE_NODE_TYPES = {
     "condition.orientation": {
         category: "condition",
         label: "Orientation",
-        description: "Check whether the media is landscape, portrait or square.",
+        description: "Check whether the media is landscape, portrait or square. Media without a known resolution stop here and follow neither output.",
         icon: faCropSimple,
         defaultConfig: { orientation: "landscape" },
         summarize: (config) => ORIENTATIONS[config.orientation],

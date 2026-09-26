@@ -127,9 +127,9 @@ const NODE_TYPES = {
             height: toPositiveInteger(config.height, MAX_DIMENSION),
         }),
         validate: (config) => (config.width === null || config.height === null ? "Enter a width and a height" : null),
-        // Una media sin resolución conocida no cumple la condición.
+        // Una media sin resolución conocida no sigue ninguna salida (ver executeGraph).
         evaluate: (config, media) => {
-            if (!media.width || !media.height) return false;
+            if (!media.width || !media.height) return null;
             const [long, short] = getSides(media.width, media.height);
             const [expectedLong, expectedShort] = getSides(config.width, config.height);
             if (config.operator === "exact") return long === expectedLong && short === expectedShort;
@@ -142,7 +142,7 @@ const NODE_TYPES = {
         sanitize: (config) => ({ orientation: pickOption(config.orientation, ["landscape", "portrait", "square"], "landscape") }),
         validate: () => null,
         evaluate: (config, media) => {
-            if (!media.width || !media.height) return false;
+            if (!media.width || !media.height) return null;
             const orientation = media.width > media.height ? "landscape" : media.width < media.height ? "portrait" : "square";
             return orientation === config.orientation;
         },
@@ -298,6 +298,8 @@ const getGraphIssues = (graph, context) => {
 // Ejecuta el workflow sobre la copia en memoria de una media (media.tags, media.is_favourite, media.albumIds...).
 // Parte de los disparadores del evento (o de todos, con "manual") y recorre las conexiones: cada condición
 // sigue su salida "true" o "false" y cada acción cambia la media y sigue su salida. Un nodo se ejecuta una vez.
+// Una condición que no se puede comprobar (evaluate devuelve null, p. ej. resolución desconocida) corta esa rama:
+// si siguiera "false", una cadena "¿horizontal? no → ¿vertical? no → cuadrada" etiquetaría mal esas medias.
 const executeGraph = (graph, event, media, context) => {
     const startNodes = graph.nodes.filter((node) => {
         const triggerEvent = TRIGGER_EVENTS[node.type];
@@ -317,7 +319,8 @@ const executeGraph = (graph, event, media, context) => {
         visited.add(node.id);
         const definition = NODE_TYPES[node.type];
         if (definition.category === "condition") {
-            visit(node, definition.evaluate(node.config, media, context) ? "true" : "false");
+            const result = definition.evaluate(node.config, media, context);
+            if (result !== null) visit(node, result ? "true" : "false");
         } else if (definition.category === "action") {
             definition.apply(node.config, media, context);
             visit(node, "out");
