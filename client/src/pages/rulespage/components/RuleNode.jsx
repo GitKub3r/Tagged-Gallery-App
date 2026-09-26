@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Handle, NodeToolbar, Position } from "@xyflow/react";
-import { faCheck, faCopy, faPen, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faPen, faSpinner, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../../components/icon-button/IconButton";
 import { TagChip } from "../../../components/tag-chip/TagChip";
@@ -19,6 +19,19 @@ const BRANCHES = [
     { id: "false", label: "False", icon: faXmark },
 ];
 
+// Recuento de la última ejecución (badge neutro de DESIGN.md §7.4).
+const CountBadge = ({ count }) => (
+    <span className="rounded-full bg-neutral-200 px-2 text-xs font-bold tabular-nums text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">{count}</span>
+);
+
+// Resultado de la última ejecución en disparadores y acciones: cuántas medias llegaron y cuántas cambió.
+const getResultText = (category, result) => {
+    const reached = result?.reached ?? 0;
+    if (category === "trigger") return `Checked ${reached} media`;
+    if (category === "action") return reached === 0 ? "No media reached this action" : `Changed ${result?.changed ?? 0} of ${reached} media`;
+    return null;
+};
+
 // Primeros chips de una lista y "+N" con los que no caben.
 const NodeChips = ({ items, renderChip }) => {
     const hiddenCount = items.length - MAX_VISIBLE_CHIPS;
@@ -32,7 +45,7 @@ const NodeChips = ({ items, renderChip }) => {
 };
 
 export const RuleNode = memo(({ id, data, selected }) => {
-    const { context, tagInfo, reachableIds, editNode, duplicateNode, deleteNode } = useRuleEditor();
+    const { context, tagInfo, reachableIds, editNode, duplicateNode, deleteNode, isRunning, runTrace, selectedNodeCount } = useRuleEditor();
     const definition = RULE_NODE_TYPES[data.type];
     const category = RULE_CATEGORIES.find((item) => item.key === definition.category);
     const issue = definition.validate(data.config, context);
@@ -40,10 +53,12 @@ export const RuleNode = memo(({ id, data, selected }) => {
     const tags = definition.tags?.(data.config) || [];
     const values = definition.values?.(data.config) || [];
     const isConnected = definition.category === "trigger" || reachableIds.has(id);
+    const runResult = runTrace?.nodes[id];
+    const resultText = runTrace && isConnected ? getResultText(definition.category, runResult) : null;
 
     return (
         <>
-            <NodeToolbar isVisible={selected} position={Position.Top} className="flex gap-1">
+            <NodeToolbar isVisible={selected && selectedNodeCount === 1 && !isRunning} position={Position.Top} className="flex gap-1">
                 <IconButton onClick={() => editNode(id)} aria-label={`Edit ${definition.label} node`} title="Edit node">
                     <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                 </IconButton>
@@ -67,10 +82,16 @@ export const RuleNode = memo(({ id, data, selected }) => {
                         <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">{category.label}</p>
                         <h3 className="truncate text-sm font-bold" title={definition.label}>{definition.label}</h3>
                     </div>
+                    {isRunning && isConnected ? (
+                        <span className="ml-auto shrink-0 text-neutral-400 dark:text-neutral-500">
+                            <FontAwesomeIcon icon={faSpinner} spin aria-hidden="true" />
+                            <span className="sr-only">Running</span>
+                        </span>
+                    ) : null}
                     {definition.category !== "condition" ? <Handle type="source" position={Position.Right} id="out" className={HANDLE_CLASSES} /> : null}
                 </header>
 
-                {summary || tags.length > 0 || values.length > 0 || issue || !isConnected ? (
+                {summary || tags.length > 0 || values.length > 0 || issue || !isConnected || resultText ? (
                     <div className="border-t border-neutral-200 px-3 py-2 dark:border-neutral-800">
                         {summary ? <p className="line-clamp-2 text-xs font-medium text-neutral-600 dark:text-neutral-300" title={summary}>{summary}</p> : null}
                         {tags.length > 0 ? (
@@ -100,6 +121,12 @@ export const RuleNode = memo(({ id, data, selected }) => {
                             </p>
                         ) : null}
                         {!issue && !isConnected ? <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">Not connected to a trigger</p> : null}
+                        {resultText ? (
+                            <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-neutral-700 dark:text-neutral-200">
+                                <FontAwesomeIcon icon={faCheck} className="text-green-600 dark:text-green-400" aria-hidden="true" />
+                                {resultText}
+                            </p>
+                        ) : null}
                     </div>
                 ) : null}
 
@@ -107,6 +134,7 @@ export const RuleNode = memo(({ id, data, selected }) => {
                     <div className="divide-y divide-neutral-200 border-t border-neutral-200 dark:divide-neutral-800 dark:border-neutral-800">
                         {BRANCHES.map((branch) => (
                             <div key={branch.id} className="relative flex h-8 items-center justify-end gap-1.5 px-4 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                                {runTrace && isConnected ? <CountBadge count={runResult?.[branch.id] ?? 0} /> : null}
                                 <FontAwesomeIcon icon={branch.icon} aria-hidden="true" />
                                 {branch.label}
                                 <Handle type="source" position={Position.Right} id={branch.id} className={HANDLE_CLASSES} />

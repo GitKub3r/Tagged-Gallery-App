@@ -264,7 +264,8 @@ textarea:focus-visible {
     }
 }
 
-/* Capa de tema de React Flow (editor de reglas): conexiones, línea de conexión, fondo y selección con la paleta neutra. */
+/* Capa de tema de React Flow (editor de reglas): conexiones, línea de conexión, fondo y selección con la paleta neutra.
+   Las conexiones animadas (regla en ejecución) se quedan quietas con movimiento reducido. */
 @layer components {
     .react-flow {
         --xy-edge-stroke: var(--color-neutral-400);
@@ -276,6 +277,12 @@ textarea:focus-visible {
         --xy-selection-background-color: color-mix(in oklab, var(--color-neutral-500) 10%, transparent);
         --xy-selection-border: 1px dashed var(--color-neutral-400);
         --xy-attribution-background-color: transparent;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .react-flow__edge.animated path {
+            animation: none;
+        }
     }
 
     [data-theme="dark"] .react-flow {
