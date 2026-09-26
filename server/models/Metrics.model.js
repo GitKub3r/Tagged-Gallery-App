@@ -1,22 +1,7 @@
-// Eliminado: declaración fuera de clase de getTopDisplayName
 const { pool } = require("../config/database");
+const { selectMediaColumns } = require("./mediaColumns");
 
 class MetricsModel {
-    static async getTopDisplayName(requestUser) {
-        const { clause, params } = this.buildScope(requestUser, "m");
-        const [rows] = await pool.query(
-            `SELECT TRIM(m.displayname) AS displayname, COUNT(*) AS usage_count
-                 FROM media m
-                 WHERE ${clause}
-                   AND m.displayname IS NOT NULL
-                   AND TRIM(m.displayname) <> ''
-                 GROUP BY TRIM(m.displayname)
-                 ORDER BY usage_count DESC, displayname ASC
-                 LIMIT 1`,
-            params,
-        );
-        return rows[0] || null;
-    }
     static timestampColumnCache = null;
 
     // Ámbito de usuario de cada métrica. Con el alias de medias ("m") excluye además las de la papelera.
@@ -45,12 +30,7 @@ class MetricsModel {
              FROM INFORMATION_SCHEMA.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE()
                AND TABLE_NAME = 'media'
-               AND COLUMN_NAME IN ('created_at', 'updatedAt')
-             ORDER BY CASE COLUMN_NAME
-                 WHEN 'created_at' THEN 0
-                 WHEN 'updatedAt' THEN 1
-                 ELSE 2
-             END`,
+               AND COLUMN_NAME IN ('created_at', 'updatedAt')`,
         );
 
         const availableColumns = rows.map((row) => row.column_name);
@@ -61,6 +41,12 @@ class MetricsModel {
 
     static quoteIdentifier(identifier) {
         return `\`${String(identifier).replace(/`/g, "")}\``;
+    }
+
+    // Fecha de subida en la hora local del usuario (utcOffsetMinutes): así los días y los meses de la
+    // actividad coinciden con los que ve en su calendario. El primer parámetro de la consulta es el desfase.
+    static localTimestamp(timestampColumn) {
+        return `TIMESTAMPADD(MINUTE, ?, CONVERT_TZ(m.${this.quoteIdentifier(timestampColumn)}, @@session.time_zone, '+00:00'))`;
     }
 
     static async getMediaSummary(requestUser) {
@@ -95,17 +81,37 @@ class MetricsModel {
         return rows[0] || { tagged_media_count: 0, total_tag_assignments: 0 };
     }
 
-    static async getAlbumCount(requestUser) {
-        const { clause, params } = this.buildScope(requestUser, "a");
+    // Cuántas medias tienen autor, nombre y resolución, y su orientación (de la resolución ya girada).
+    static async getCoverage(requestUser) {
+        const { clause, params } = this.buildScope(requestUser, "m");
 
         const [rows] = await pool.query(
-            `SELECT COUNT(*) AS total_albums
-             FROM albums a
+            `SELECT
+                COALESCE(SUM(m.author IS NOT NULL AND TRIM(m.author) <> ''), 0) AS with_author,
+                COALESCE(SUM(m.displayname IS NOT NULL AND TRIM(m.displayname) <> ''), 0) AS with_displayname,
+                COALESCE(SUM(m.width > m.height), 0) AS landscape,
+                COALESCE(SUM(m.width < m.height), 0) AS portrait,
+                COALESCE(SUM(m.width = m.height), 0) AS square
+             FROM media m
              WHERE ${clause}`,
             params,
         );
 
-        return rows[0] || { total_albums: 0 };
+        return rows[0] || {};
+    }
+
+    static async getStorageByProvider(requestUser) {
+        const { clause, params } = this.buildScope(requestUser, "m");
+
+        const [rows] = await pool.query(
+            `SELECT m.storage_provider, COUNT(*) AS media_count, COALESCE(SUM(m.size), 0) AS total_bytes
+             FROM media m
+             WHERE ${clause}
+             GROUP BY m.storage_provider`,
+            params,
+        );
+
+        return rows;
     }
 
     static async getTotalTagCount(requestUser) {
@@ -134,6 +140,24 @@ class MetricsModel {
                AND TRIM(m.author) <> ''
              GROUP BY TRIM(m.author)
              ORDER BY media_count DESC, author ASC
+             LIMIT ?`,
+            [...params, limit],
+        );
+
+        return rows;
+    }
+
+    static async getTopDisplayNames(requestUser, limit = 5) {
+        const { clause, params } = this.buildScope(requestUser, "m");
+
+        const [rows] = await pool.query(
+            `SELECT TRIM(m.displayname) AS displayname, COUNT(*) AS media_count
+             FROM media m
+             WHERE ${clause}
+               AND m.displayname IS NOT NULL
+               AND TRIM(m.displayname) <> ''
+             GROUP BY TRIM(m.displayname)
+             ORDER BY media_count DESC, displayname ASC
              LIMIT ?`,
             [...params, limit],
         );
@@ -171,14 +195,8 @@ class MetricsModel {
             `SELECT
                 m.mediatype,
                 COUNT(*) AS media_count,
-                COALESCE(SUM(CASE WHEN mt_summary.mediaid IS NOT NULL THEN 1 ELSE 0 END), 0) AS tagged_media_count,
-                COALESCE(SUM(m.is_favourite = 1), 0) AS favourite_media_count,
                 COALESCE(SUM(m.size), 0) AS total_bytes
              FROM media m
-             LEFT JOIN (
-                SELECT DISTINCT mediaid
-                FROM media_tags
-             ) AS mt_summary ON mt_summary.mediaid = m.id
              WHERE ${clause}
              GROUP BY m.mediatype
              ORDER BY media_count DESC, m.mediatype ASC`,
@@ -188,39 +206,67 @@ class MetricsModel {
         return rows;
     }
 
-    static async getAvailableYears(requestUser, timestampColumn) {
+    static async getAvailableYears(requestUser, timestampColumn, utcOffsetMinutes) {
         const { clause, params } = this.buildScope(requestUser, "m");
-        const quotedColumn = this.quoteIdentifier(timestampColumn);
+        const localTimestamp = this.localTimestamp(timestampColumn);
 
         const [rows] = await pool.query(
-            `SELECT DISTINCT YEAR(m.${quotedColumn}) AS year
+            `SELECT DISTINCT YEAR(${localTimestamp}) AS year
              FROM media m
              WHERE ${clause}
-               AND m.${quotedColumn} IS NOT NULL
+               AND m.${this.quoteIdentifier(timestampColumn)} IS NOT NULL
              ORDER BY year ASC`,
-            params,
+            [utcOffsetMinutes, ...params],
         );
 
         return rows.map((row) => Number(row.year)).filter((year) => Number.isInteger(year) && year > 0);
     }
 
-    static async getMonthlyUploads(requestUser, timestampColumn, year) {
+    // Subidas por día (hora local) de un año, para el mapa de actividad.
+    static async getDailyUploads(requestUser, timestampColumn, year, utcOffsetMinutes) {
         const { clause, params } = this.buildScope(requestUser, "m");
-        const quotedColumn = this.quoteIdentifier(timestampColumn);
-
-        const numericYear = Number(year);
-        const effectiveYear = Number.isInteger(numericYear) ? numericYear : new Date().getFullYear();
+        const localTimestamp = this.localTimestamp(timestampColumn);
 
         const [rows] = await pool.query(
-            `SELECT
-                MONTH(m.${quotedColumn}) AS month_index,
-                COUNT(*) AS media_count
+            `SELECT DATE_FORMAT(local_media.uploaded_at, '%Y-%m-%d') AS day, COUNT(*) AS media_count
+             FROM (
+                 SELECT ${localTimestamp} AS uploaded_at
+                 FROM media m
+                 WHERE ${clause}
+             ) AS local_media
+             WHERE YEAR(local_media.uploaded_at) = ?
+             GROUP BY day
+             ORDER BY day ASC`,
+            [utcOffsetMinutes, ...params, year],
+        );
+
+        return rows;
+    }
+
+    static async getFirstUploadAt(requestUser, timestampColumn) {
+        const { clause, params } = this.buildScope(requestUser, "m");
+
+        const [rows] = await pool.query(
+            `SELECT MIN(m.${this.quoteIdentifier(timestampColumn)}) AS first_upload_at
+             FROM media m
+             WHERE ${clause}`,
+            params,
+        );
+
+        return rows[0]?.first_upload_at || null;
+    }
+
+    // Últimas medias subidas (tira de película del panel).
+    static async getRecentMedia(requestUser, timestampColumn, limit = 16) {
+        const { clause, params } = this.buildScope(requestUser, "m");
+
+        const [rows] = await pool.query(
+            `SELECT ${selectMediaColumns("m")}
              FROM media m
              WHERE ${clause}
-               AND YEAR(m.${quotedColumn}) = ?
-             GROUP BY MONTH(m.${quotedColumn})
-             ORDER BY month_index ASC`,
-            [...params, effectiveYear],
+             ORDER BY m.${this.quoteIdentifier(timestampColumn)} DESC, m.id DESC
+             LIMIT ?`,
+            [...params, limit],
         );
 
         return rows;
@@ -230,20 +276,7 @@ class MetricsModel {
         const { clause, params } = this.buildScope(requestUser, "m");
 
         const [rows] = await pool.query(
-            `SELECT
-                m.id,
-                m.user_id,
-                m.displayname,
-                m.author,
-                m.filename,
-                m.size,
-                m.filepath,
-                m.thumbpath,
-                m.previewpath,
-                m.mediatype,
-                m.is_favourite,
-                m.updatedAt,
-                COALESCE(tag_counts.tag_count, 0) AS tag_count
+            `SELECT ${selectMediaColumns("m")}, COALESCE(tag_counts.tag_count, 0) AS tag_count
              FROM media m
              LEFT JOIN (
                  SELECT mediaid, COUNT(*) AS tag_count
@@ -251,12 +284,38 @@ class MetricsModel {
                  GROUP BY mediaid
              ) AS tag_counts ON tag_counts.mediaid = m.id
              WHERE ${clause}
-             ORDER BY tag_count DESC, m.updatedAt DESC, m.id DESC
+             ORDER BY tag_count DESC, m.id DESC
              LIMIT ?`,
             [...params, limit],
         );
 
         return rows;
+    }
+
+    // Álbumes, plantillas, reglas, Google Drive y papelera del usuario.
+    static async getWorkspaceSummary(userId) {
+        const [rows] = await pool.query(
+            `SELECT
+                (SELECT COUNT(*) FROM albums a WHERE a.user_id = ?) AS total_albums,
+                (SELECT COUNT(DISTINCT ma.mediaid)
+                   FROM media_albums ma
+                   JOIN albums a ON a.id = ma.albumid
+                   JOIN media m ON m.id = ma.mediaid AND m.deleted_at IS NULL
+                  WHERE a.user_id = ?) AS media_in_albums,
+                (SELECT COUNT(*) FROM media_templates mt WHERE mt.user_id = ?) AS total_templates,
+                (SELECT COUNT(*) FROM media_rules r WHERE r.user_id = ?) AS total_rules,
+                (SELECT COUNT(*) FROM media_rules r WHERE r.user_id = ? AND r.is_active = TRUE) AS active_rules,
+                (SELECT COALESCE(SUM(r.applied_count), 0) FROM media_rules r WHERE r.user_id = ?) AS rule_changes,
+                (SELECT MAX(r.last_applied_at) FROM media_rules r WHERE r.user_id = ?) AS rules_last_applied_at,
+                (SELECT g.status FROM google_drive_connections g WHERE g.user_id = ?) AS drive_status,
+                (SELECT g.google_account_email FROM google_drive_connections g WHERE g.user_id = ?) AS drive_email,
+                (SELECT COUNT(*) FROM media m WHERE m.user_id = ? AND m.deleted_at IS NOT NULL) AS trash_count,
+                (SELECT COALESCE(SUM(m.size), 0) FROM media m WHERE m.user_id = ? AND m.deleted_at IS NOT NULL) AS trash_bytes,
+                (SELECT MIN(m.deleted_at) FROM media m WHERE m.user_id = ? AND m.deleted_at IS NOT NULL) AS trash_oldest_at`,
+            Array(12).fill(userId),
+        );
+
+        return rows[0] || {};
     }
 }
 
