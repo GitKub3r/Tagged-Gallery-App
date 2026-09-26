@@ -190,7 +190,8 @@ export const NodeConfigModal = ({ node, onApply, onDelete, onClose }) => {
                         Delete node
                     </button>
                     <button type="button" className={buttonClasses.secondary} onClick={onClose}>Cancel</button>
-                    <button type="submit" className={buttonClasses.primary}>
+                    {/* Sin campos que enfocar, el foco entra en el diálogo por el botón principal. */}
+                    <button type="submit" className={buttonClasses.primary} autoFocus={Object.keys(config).length === 0}>
                         <FontAwesomeIcon icon={faCheck} aria-hidden="true" />
                         Apply
                     </button>

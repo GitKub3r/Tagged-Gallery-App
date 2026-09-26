@@ -52,8 +52,9 @@ export const MediaFormModal = ({ titleId, title, subtitle, onClose, closeDisable
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        // detail > 1: segunda pulsación de un doble clic que abrió el modal; no debe cerrarlo.
         onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !closeDisabled) onClose();
+            if (event.target === event.currentTarget && event.detail < 2 && !closeDisabled) onClose();
         }}
     >
         <section className={`flex w-full flex-col overflow-hidden rounded-xl border border-neutral-300 bg-neutral-50 text-neutral-950 shadow-2xl dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-100 ${compact ? "max-h-[calc(100dvh-1rem)] max-w-2xl sm:max-h-[calc(100dvh-2rem)]" : "h-[calc(100dvh-1rem)] max-w-5xl sm:h-[min(44rem,calc(100dvh-2rem))]"}`}>

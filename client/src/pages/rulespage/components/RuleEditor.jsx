@@ -62,7 +62,6 @@ const findFreePosition = (position, nodes) => {
 };
 
 const getSnapshot = (name, isActive, nodes, edges) => JSON.stringify({ name, isActive, graph: toApiGraph(nodes, edges) });
-const hasSettings = (type) => Object.keys(RULE_NODE_TYPES[type].defaultConfig).length > 0;
 const getAnimationDuration = () => (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 250);
 const pluralNodes = (count) => `${count} ${count === 1 ? "node" : "nodes"}`;
 // Enlace de texto de DESIGN.md §7.1 (acción terciaria) dentro del aviso.
@@ -182,7 +181,6 @@ export const RuleEditor = ({ rule }) => {
         }
         setIsPaletteOpen(false);
         if (!dropPosition) revealPosition(position);
-        if (hasSettings(type)) setEditingNodeId(id);
     };
 
     const onConnect = useCallback((connection) => setEdges((current) => addEdge({ ...connection, id: createRuleId("edge"), ...EDGE_DEFAULTS }, current)), [setEdges]);
@@ -324,7 +322,11 @@ export const RuleEditor = ({ rule }) => {
                             nodeTypes={NODE_TYPES}
                             edgeTypes={EDGE_TYPES}
                             defaultEdgeOptions={EDGE_DEFAULTS}
-                            onNodeDoubleClick={(_, node) => editNode(node.id)}
+                            // Un clic en el nodo abre su configuración. Arrastrarlo no cuenta como clic, y tocar un punto
+                            // de conexión sirve para conectar, no para configurar.
+                            onNodeClick={(event, node) => {
+                                if (!event.target.closest?.(".react-flow__handle")) editNode(node.id);
+                            }}
                             deleteKeyCode={hasOpenModal ? null : ["Backspace", "Delete"]}
                             fitView
                             fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
