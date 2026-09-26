@@ -299,9 +299,11 @@ El foco de un campo se muestra cambiando el borde a `neutral-500`, porque el CSS
 - Los errores de formulario se muestran como toast (`ErrorToast`). Si un error es de un campo concreto, se pone debajo con `mt-1 text-xs font-semibold text-red-600 dark:text-red-400`, se añade `aria-invalid` y el borde pasa a `border-red-500/50`.
 - `maxLength` coherente con la base de datos: nombre 255, autor y tag 100, plantilla 100.
 
-**Búsqueda:** `SearchField`: lupa a la izquierda (`pl-9`), botón de limpiar `h-8 w-8` a la derecha y `h-11`. Dentro de paneles densos (sidebar) se usa `h-10`.
+**Búsqueda:** `SearchField`: lupa a la izquierda (`pl-9`), botón de limpiar `h-8 w-8` a la derecha y `h-11`. Dentro de paneles densos (sidebar, paleta de nodos) se usa `size="compact"` (`h-10`).
 
-**Select:** `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
+**Select:** `SelectField` (`components/select-field`, con `label`, `options` y `placeholder` opcional): `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
+
+**Nombre, autor y tags con sugerencias:** `MetadataSuggestionField` y `MediaTagsField` (exportados desde `MediaFormModal.jsx`) con el estado de `useMediaMetadataForm`. `MediaMetadataFields` los compone; se usan sueltos cuando solo hace falta uno (p. ej. en los nodos de reglas).
 
 **Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se usa `CheckboxOption` (`title`, `description`), que la envuelve en una tarjeta clicable:
 
@@ -311,7 +313,7 @@ flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral
 
 Dentro va un título `text-sm font-semibold` y una ayuda `text-xs text-neutral-500`.
 
-**Interruptor (switch):** pista `h-5 w-9 rounded-full p-0.5` (encendida `bg-neutral-950 dark:bg-white`, apagada `bg-neutral-300 dark:bg-neutral-700`) y bola `h-4 w-4 rounded-full` desplazada con `translate-x-4`. Lleva `role="switch"` y `aria-checked`. Si se usa en más de un sitio, extraerlo a un componente `Switch`.
+**Interruptor (switch):** `Switch` (`components/switch`, con `label` y `showLabel`): botón `h-10` con pista `h-5 w-9 rounded-full p-0.5` (encendida `bg-neutral-950 dark:bg-white`, apagada `bg-neutral-300 dark:bg-neutral-700`) y bola `h-4 w-4 rounded-full` desplazada con `translate-x-4`. Lleva `role="switch"` y `aria-checked`. **Legado:** el interruptor dibujado dentro del ítem "Loading mode" de la sidebar.
 
 **Sugerencias / autocompletado:** lista con el patrón de `MediaSuggestionList`:
 
@@ -339,7 +341,7 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
 
 ### 7.4 Tags y chips
 
-- **Chip de tag** (canónico en toda la app):
+- **Chip de tag** (canónico en toda la app; de solo lectura, `TagChip` en `components/tag-chip`):
   - Clases: `inline-flex max-w-full items-center gap-1.5 truncate rounded-xl border px-2 py-1 text-xs font-semibold`.
   - Color: `style={buildTagChipStyle(color)}` (o `buildDefaultTagStyle` para tags sin color).
   - Icono: `getTagIcon(...)`, que distingue tag guardada, tag nueva y tag de copyright.
@@ -421,6 +423,18 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 - Iconos con `drop-shadow` cuando van sin fondo.
 - Deben verse sin hover en táctil. En escritorio pueden atenuarse, pero nunca ocultarse del todo si la acción es esencial.
 
+### 7.10 Editor de workflows (reglas)
+
+Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow** (`@xyflow/react`), con la capa de tema de `styles/index.css` (sus estilos base van en `@layer components`, así que las utilidades de Tailwind mandan). No usar sus componentes con estilo propio (`Controls`, `MiniMap`): los controles se hacen con `IconButton`.
+
+- **Página:** altura fija para el lienzo, `h-[calc(100dvh-6rem)] xl:h-[calc(100dvh-4rem)]` con `min-h-[34rem]`. Cabecera con `IconButton` de volver, eyebrow, `h1` y botón de renombrar; a la derecha, estado ("3 nodes · Unsaved changes", `aria-live`), `Switch` "Active", "Run rule" (secundario, `faPlay`) y "Save" (primario, `faFloppyDisk`, también Ctrl/Cmd + S). En móvil los dos botones comparten fila (`grid grid-cols-2`).
+- **Paleta de nodos:** panel `w-72` desde `lg`; por debajo, botón "Add node" sobre el lienzo que abre la misma paleta en un modal. Cada nodo es un botón `min-h-14` que se arrastra al lienzo o se añade con un clic. Con un nodo seleccionado, el nuevo se coloca a su derecha y se conecta a su salida ("True" en condiciones); así se construye el workflow en táctil sin arrastrar conexiones.
+- **Lienzo:** `rounded-xl border bg-neutral-50 dark:bg-neutral-950` con fondo de puntos. Zoom y encuadre con `IconButton` apilados abajo a la izquierda.
+- **Nodo** (`RuleNode`): tarjeta `w-64` (`bg-white dark:bg-neutral-900`, borde de control) con icono en caja, categoría en eyebrow ("Trigger", "Condition", "Action") y título `text-sm font-bold`; debajo, resumen `text-xs`, chips de tag (`TagChip`, máximo 4 y "+N") y, si falta configuración, aviso `text-amber-600 dark:text-amber-400` con `faTriangleExclamation`. Seleccionado: anillo `ring-2` como `MediaCard`, con una barra flotante de `IconButton` (editar y borrar) que sustituye al hover. Puntos de conexión `h-3.5 w-3.5 rounded-full` con zona táctil ampliada; las condiciones tienen dos salidas etiquetadas, "True" (`faCheck`) y "False" (`faXmark`). La categoría y las salidas se indican con texto, nunca solo con color.
+- **Conexión:** curva neutra con flecha. Al seleccionarla aparece un `IconButton` `faTrash` en su centro (tamaño fijo aunque cambie el zoom).
+- **Configuración de un nodo:** `MediaFormModal` compacto (doble clic, Enter o botón editar), con la descripción del nodo, sus campos y el pie "Delete node" (`dangerGhost`, a la izquierda), "Cancel" y "Apply". Los cambios se guardan en la regla con "Save".
+- **Pendientes:** aviso en línea ámbar sobre el lienzo con lo que falta para activar o ejecutar la regla; cada problema de un nodo es un enlace de texto que lo centra y selecciona.
+
 ---
 
 ## 8. Iconografía
@@ -471,6 +485,12 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Desconectar una integración | `faLinkSlash` |
 | Elemento gestionado por la app (no editable) | `faLock` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
+| Reglas / ejecutar una regla | `faDiagramProject` / `faPlay` |
+| Acercar / alejar / encajar la vista del lienzo | `faMagnifyingGlassPlus` / `faMagnifyingGlassMinus` / `faExpand` |
+| Falta configuración (aviso) | `faTriangleExclamation` |
+| Nodos disparadores: media añadida / editada / restaurada / ejecución manual | `faPlus` / `faPen` / `faRotateLeft` / `faHandPointer` |
+| Nodos de condición: nombre de media / autor / tamaño / resolución / orientación / tipo de media / historial de papelera | `faFont` / `faUserPen` / `faWeightHanging` / `faRulerCombined` / `faCropSimple` / `faPhotoFilm` / `faTrashCan` |
+| Nodos de acción: añadir tags / quitar tags / favorito / añadir a álbum | `faTag` / `faEraser` / `faHeart` / `faFolderPlus` |
 
 Para una acción que no esté en la tabla, se elige el icono, se usa en todos los sitios de esa acción y se añade aquí.
 
@@ -480,7 +500,7 @@ Para una acción que no esté en la tabla, se elige el icono, se usa en todos lo
 
 - La interfaz está en **inglés**. La documentación y los comentarios están en español.
 - Mayúscula solo al inicio (sentence case) en títulos, botones y etiquetas: "Add to album", no "Add To Album".
-- Los nombres de entidad son siempre los mismos: *media* (singular y plural), *tag*, *album*, *template*, *favourites* (ortografía británica, como en las rutas), *author*, *media name*.
+- Los nombres de entidad son siempre los mismos: *media* (singular y plural), *tag*, *album*, *template*, *rule* (y *node* para sus piezas: *trigger*, *condition*, *action*), *favourites* (ortografía británica, como en las rutas), *author*, *media name*.
 - Pluralización explícita: `1 template` / `3 templates`.
 - Los placeholders dan un ejemplo o la acción ("For example: Travel photos", "Type a tag and press Enter"); no repiten la etiqueta.
 - El texto del botón de confirmación nombra la acción ("Delete album"), no "OK" ni "Yes".
