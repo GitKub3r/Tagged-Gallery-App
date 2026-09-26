@@ -18,7 +18,7 @@ const toOptions = (labels) => Object.entries(labels).map(([value, label]) => ({ 
 const NumberField = ({ label, value, onChange, placeholder, step = "1" }) => (
     <label className="min-w-0 text-xs font-semibold text-neutral-600 dark:text-neutral-300">
         <span className="mb-1.5 block">{label}</span>
-        <input className={mediaFormInputClasses} type="number" inputMode={step === "1" ? "numeric" : "decimal"} min="0" step={step} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+        <input className={mediaFormInputClasses} type="number" inputMode={step === "1" ? "numeric" : "decimal"} min="0" step={step} value={value ?? ""} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
     </label>
 );
 
