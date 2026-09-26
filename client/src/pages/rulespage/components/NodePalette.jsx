@@ -7,6 +7,7 @@ import { RuleNodeIcon } from "./RuleNodeIcon";
 export const RULE_NODE_DRAG_TYPE = "application/x-tagged-rule-node";
 
 const NODE_ENTRIES = Object.entries(RULE_NODE_TYPES);
+const MODIFIER_KEY = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent) ? "⌘" : "Ctrl";
 
 // Nodos disponibles por categoría. Se arrastran al lienzo o se añaden con un clic (en táctil no hay arrastre).
 export const NodePalette = ({ onAdd, autoFocusSearch = false }) => {
@@ -18,6 +19,10 @@ export const NodePalette = ({ onAdd, autoFocusSearch = false }) => {
         <div className="flex min-h-0 flex-1 flex-col gap-3">
             <SearchField label="Search nodes" value={search} onChange={setSearch} onClear={() => setSearch("")} placeholder="Search nodes" size="compact" autoFocus={autoFocusSearch} />
             <p className="text-xs text-neutral-500 dark:text-neutral-400">Drag a node onto the canvas or select it to add it. With a node selected, the new one is connected after it.</p>
+            {/* Los atajos solo sirven con teclado: en móvil se usa el botón "Duplicate" del nodo. */}
+            <p className="hidden text-xs text-neutral-500 dark:text-neutral-400 sm:block">
+                Copy selected nodes with {MODIFIER_KEY} + C and paste them with {MODIFIER_KEY} + V, or with {MODIFIER_KEY} + Shift + V to paste them without settings.
+            </p>
             <div className="-mr-2 min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
                 {RULE_CATEGORIES.map((category) => {
                     const entries = matches.filter(([, definition]) => definition.category === category.key);

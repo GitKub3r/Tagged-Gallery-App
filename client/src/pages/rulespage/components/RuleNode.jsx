@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Handle, NodeToolbar, Position } from "@xyflow/react";
-import { faCheck, faPen, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCheck, faCopy, faPen, faTrash, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { IconButton } from "../../../components/icon-button/IconButton";
 import { TagChip } from "../../../components/tag-chip/TagChip";
@@ -32,7 +32,7 @@ const NodeChips = ({ items, renderChip }) => {
 };
 
 export const RuleNode = memo(({ id, data, selected }) => {
-    const { context, tagInfo, reachableIds, editNode, deleteNode } = useRuleEditor();
+    const { context, tagInfo, reachableIds, editNode, duplicateNode, deleteNode } = useRuleEditor();
     const definition = RULE_NODE_TYPES[data.type];
     const category = RULE_CATEGORIES.find((item) => item.key === definition.category);
     const issue = definition.validate(data.config, context);
@@ -46,6 +46,9 @@ export const RuleNode = memo(({ id, data, selected }) => {
             <NodeToolbar isVisible={selected} position={Position.Top} className="flex gap-1">
                 <IconButton onClick={() => editNode(id)} aria-label={`Edit ${definition.label} node`} title="Edit node">
                     <FontAwesomeIcon icon={faPen} aria-hidden="true" />
+                </IconButton>
+                <IconButton onClick={() => duplicateNode(id)} aria-label={`Duplicate ${definition.label} node`} title="Duplicate node">
+                    <FontAwesomeIcon icon={faCopy} aria-hidden="true" />
                 </IconButton>
                 <IconButton onClick={() => deleteNode(id)} aria-label={`Delete ${definition.label} node`} title="Delete node">
                     <FontAwesomeIcon icon={faTrash} aria-hidden="true" />

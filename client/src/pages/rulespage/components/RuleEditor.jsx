@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import { Background, BackgroundVariant, MarkerType, Panel, ReactFlow, addEdge, useEdgesState, useNodesState, useReactFlow } from "@xyflow/react";
 import {
     faArrowLeft,
@@ -34,6 +35,7 @@ import {
 } from "../../../utils/ruleGraph";
 import { NodeConfigModal } from "./NodeConfigModal";
 import { NodePalette, RULE_NODE_DRAG_TYPE } from "./NodePalette";
+import { copyToRuleClipboard, hasRuleClipboard, takeRuleClipboard } from "./ruleClipboard";
 import { RuleEdge } from "./RuleEdge";
 import { RuleEditorContext } from "./ruleEditorContext";
 import { RuleNameModal } from "./RuleNameModal";
@@ -60,6 +62,11 @@ const findFreePosition = (position, nodes) => {
     for (let attempt = 0; attempt < 30 && overlapsNode(candidate, nodes); attempt += 1) candidate = { x: candidate.x, y: candidate.y + 48 };
     return candidate;
 };
+
+// Separación de cada copia pegada o duplicada respecto al original.
+const PASTE_OFFSET = 40;
+
+const isEditableTarget = (target) => Boolean(target?.closest?.("input, textarea, select, [contenteditable='true']"));
 
 const getSnapshot = (name, isActive, nodes, edges) => JSON.stringify({ name, isActive, graph: toApiGraph(nodes, edges) });
 const getAnimationDuration = () => (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 250);
@@ -140,11 +147,64 @@ export const RuleEditor = ({ rule }) => {
     );
     const deleteEdge = useCallback((edgeId) => deleteElements({ edges: [{ id: edgeId }] }), [deleteElements]);
 
+    // Inserta copias de unos nodos (con las conexiones que hay entre ellos) desplazadas y seleccionadas.
+    // fresh: mismo tipo de nodo pero con la configuración inicial, como recién añadido desde la paleta.
+    const insertNodeCopies = (sourceNodes, sourceEdges, { fresh, offset }) => {
+        const newIds = new Map(sourceNodes.map((node) => [node.id, createRuleId(RULE_NODE_TYPES[node.type].category)]));
+        const copies = sourceNodes.map((node) => ({
+            id: newIds.get(node.id),
+            type: "rule",
+            position: { x: node.position.x + offset, y: node.position.y + offset },
+            selected: true,
+            data: { type: node.type, config: structuredClone(fresh ? RULE_NODE_TYPES[node.type].defaultConfig : node.config) },
+        }));
+        const edgeCopies = sourceEdges.map((edge) => ({
+            id: createRuleId("edge"),
+            source: newIds.get(edge.source),
+            sourceHandle: edge.sourceHandle,
+            target: newIds.get(edge.target),
+            targetHandle: "in",
+            ...EDGE_DEFAULTS,
+        }));
+        setNodes((current) => [...current.map((node) => ({ ...node, selected: false })), ...copies]);
+        setEdges((current) => [...current.map((edge) => ({ ...edge, selected: false })), ...edgeCopies]);
+        revealPosition(copies[0].position);
+    };
+
+    const toCopySource = (node) => ({ id: node.id, type: node.data.type, position: node.position, config: structuredClone(node.data.config) });
+
+    // Ctrl/Cmd + C: copia los nodos seleccionados y las conexiones entre ellos. Devuelve si había algo que copiar.
+    const copySelectedNodes = () => {
+        const selectedNodes = nodes.filter((node) => node.selected);
+        if (selectedNodes.length === 0) return false;
+        const selectedIds = new Set(selectedNodes.map((node) => node.id));
+        copyToRuleClipboard({
+            nodes: selectedNodes.map(toCopySource),
+            edges: edges.filter((edge) => selectedIds.has(edge.source) && selectedIds.has(edge.target)).map(({ source, sourceHandle, target }) => ({ source, sourceHandle, target })),
+        });
+        toast.success(selectedNodes.length === 1 ? "Node copied" : `${selectedNodes.length} nodes copied`);
+        return true;
+    };
+
+    // Ctrl/Cmd + V pega los nodos copiados con su configuración; con Shift, solo el tipo de nodo (sin configurar).
+    // Cada pegado se desplaza un poco más para no quedar encima del anterior.
+    const pasteNodes = (fresh) => {
+        const content = takeRuleClipboard();
+        if (content) insertNodeCopies(content.nodes, content.edges, { fresh, offset: PASTE_OFFSET * content.pasteCount });
+    };
+
+    // Botón "Duplicate" de la barra del nodo: el equivalente táctil de copiar y pegar.
+    const duplicateNode = (nodeId) => {
+        const node = nodes.find((item) => item.id === nodeId);
+        if (node) insertNodeCopies([toCopySource(node)], [], { fresh: false, offset: PASTE_OFFSET });
+    };
+
     const editorContext = {
         context: validationContext,
         tagInfo: { tagColorByName, tagTypeByName, tagNameSet, isLoaded: Boolean(metadata) },
         reachableIds,
         editNode,
+        duplicateNode,
         deleteNode,
         deleteEdge,
     };
@@ -225,12 +285,24 @@ export const RuleEditor = ({ rule }) => {
 
     const leave = () => (isDirty ? setPendingConfirm("leave") : navigate("/rules"));
 
-    // Ctrl/Cmd + S guarda, como en n8n.
+    // Atajos, como en n8n: Ctrl/Cmd + S guarda; C y V copian y pegan nodos (Shift + V, sin su configuración).
+    // Copiar y pegar no actúan mientras se escribe en un campo, hay texto seleccionado o hay un modal abierto.
     useEffect(() => {
         const handleKeyDown = (event) => {
-            if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "s") return;
-            event.preventDefault();
-            if (isDirty && !isBusy) save().catch(() => null);
+            if (!(event.metaKey || event.ctrlKey) || event.altKey) return;
+            const key = event.key.toLowerCase();
+            if (key === "s") {
+                event.preventDefault();
+                if (isDirty && !isBusy) save().catch(() => null);
+                return;
+            }
+            if ((key !== "c" && key !== "v") || hasOpenModal || isEditableTarget(event.target) || window.getSelection()?.toString()) return;
+            if (key === "c") {
+                if (copySelectedNodes()) event.preventDefault();
+            } else if (hasRuleClipboard()) {
+                event.preventDefault();
+                pasteNodes(event.shiftKey);
+            }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
@@ -322,10 +394,15 @@ export const RuleEditor = ({ rule }) => {
                             nodeTypes={NODE_TYPES}
                             edgeTypes={EDGE_TYPES}
                             defaultEdgeOptions={EDGE_DEFAULTS}
-                            // Un clic en el nodo abre su configuración. Arrastrarlo no cuenta como clic, y tocar un punto
-                            // de conexión sirve para conectar, no para configurar.
+                            // El primer clic selecciona el nodo (para copiarlo o encadenar otro detrás); un clic sobre un nodo
+                            // ya seleccionado, o un doble clic, abre su configuración. node.selected es el estado previo al clic.
+                            // Arrastrarlo no cuenta como clic, tocar un punto de conexión sirve para conectar y con una tecla
+                            // modificadora el clic solo cambia la selección. Los clics de la barra del nodo (un portal) también
+                            // llegan aquí por React: solo cuentan los que ocurren dentro del propio nodo.
                             onNodeClick={(event, node) => {
-                                if (!event.target.closest?.(".react-flow__handle")) editNode(node.id);
+                                const isInsideNode = event.currentTarget.contains(event.target);
+                                const isSelectionClick = event.metaKey || event.ctrlKey || event.shiftKey;
+                                if (isInsideNode && node.selected && !isSelectionClick && !event.target.closest(".react-flow__handle")) editNode(node.id);
                             }}
                             deleteKeyCode={hasOpenModal ? null : ["Backspace", "Delete"]}
                             fitView
