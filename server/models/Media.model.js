@@ -20,12 +20,21 @@ class MediaModel {
             // Papelera: fecha en la que se envió a la papelera (NULL = activa). Se borra definitivamente a los 30 días.
             ["deleted_at", "DATETIME NULL DEFAULT NULL"],
             ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER deleted_at"],
+            // Resolución del original (la que se ve, ya girada). NULL si no se pudo leer: ver dimensions:backfill.
+            ["width", "INT UNSIGNED NULL AFTER size"],
+            ["height", "INT UNSIGNED NULL AFTER width"],
+            // Se marca al enviarla a la papelera y se conserva al restaurarla (regla "Was in the trash").
+            ["was_trashed", "BOOLEAN NOT NULL DEFAULT FALSE AFTER deleted_at"],
         ];
 
         for (const [name, definition] of columnDefinitions) {
             if (!existingColumns.has(name)) {
                 await pool.query(`ALTER TABLE media ADD COLUMN ${name} ${definition}`);
             }
+        }
+        // Las que ya estaban en la papelera al crear la columna también cuentan.
+        if (!existingColumns.has("was_trashed")) {
+            await pool.query("UPDATE media SET was_trashed = TRUE WHERE deleted_at IS NOT NULL");
         }
 
         const [indexRows] = await pool.query("SHOW INDEX FROM media");
@@ -444,6 +453,8 @@ class MediaModel {
             mediatype,
             is_favourite,
             checksum_md5 = null,
+            width = null,
+            height = null,
             storage_provider = "local",
             source_file_id = null,
             source_mime_type = null,
@@ -455,15 +466,17 @@ class MediaModel {
         const normalizedAuthor = author === undefined || author === null || author === "" ? null : author;
 
         const [result] = await pool.query(
-            `INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5,
+            `INSERT INTO media (user_id, displayname, author, filename, size, width, height, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5,
                 storage_provider, source_file_id, source_mime_type, source_modified_time, last_synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 user_id,
                 normalizedDisplayName,
                 normalizedAuthor,
                 filename,
                 size,
+                width,
+                height,
                 filepath,
                 thumbpath,
                 previewpath,
@@ -522,12 +535,13 @@ class MediaModel {
     }
 
     // Pasa una media de Drive a almacenamiento local (solo si sigue siendo de Drive).
-    static async convertDriveToLocal(mediaId, { filename, size, filepath, thumbpath, previewpath, checksum_md5 }) {
+    static async convertDriveToLocal(mediaId, { filename, size, width = null, height = null, filepath, thumbpath, previewpath, checksum_md5 }) {
         const [result] = await pool.query(
             `UPDATE media SET storage_provider = 'local', storage_status = 'available', source_file_id = NULL, source_mime_type = NULL,
-                 source_modified_time = NULL, last_synced_at = NULL, filename = ?, size = ?, filepath = ?, thumbpath = ?, previewpath = ?, checksum_md5 = ?
+                 source_modified_time = NULL, last_synced_at = NULL, filename = ?, size = ?, width = COALESCE(?, width), height = COALESCE(?, height),
+                 filepath = ?, thumbpath = ?, previewpath = ?, checksum_md5 = ?
              WHERE id = ? AND storage_provider = 'google_drive'`,
-            [filename, size, filepath, thumbpath, previewpath, checksum_md5, mediaId],
+            [filename, size, width, height, filepath, thumbpath, previewpath, checksum_md5, mediaId],
         );
         return result.affectedRows > 0;
     }
@@ -544,6 +558,18 @@ class MediaModel {
                AND source_mime_type LIKE 'image/%' AND source_mime_type <> 'image/gif'`,
         );
         return rows;
+    }
+
+    // Medias (también las de la papelera) sin resolución guardada.
+    static async findWithoutDimensions() {
+        const [rows] = await pool.query(
+            "SELECT id, user_id, filename, mediatype, storage_provider, source_file_id FROM media WHERE width IS NULL OR height IS NULL ORDER BY id ASC",
+        );
+        return rows;
+    }
+
+    static async updateDimensions(mediaId, { width, height }) {
+        await pool.query("UPDATE media SET width = ?, height = ? WHERE id = ?", [width, height, mediaId]);
     }
 
     static async updateStorageStatus(mediaId, status) {
@@ -675,7 +701,7 @@ class MediaModel {
     // Envía medias activas a la papelera. Sus tags y álbumes se conservan para poder restaurarlas.
     static async moveToTrash(ids) {
         if (!ids.length) return 0;
-        const [result] = await pool.query("UPDATE media SET deleted_at = NOW() WHERE id IN (?) AND deleted_at IS NULL", [ids]);
+        const [result] = await pool.query("UPDATE media SET deleted_at = NOW(), was_trashed = TRUE WHERE id IN (?) AND deleted_at IS NULL", [ids]);
         return result.affectedRows || 0;
     }
 
@@ -740,6 +766,8 @@ class MediaModel {
             item.author === undefined || item.author === null || item.author === "" ? null : item.author,
             item.filename,
             item.size,
+            item.width ?? null,
+            item.height ?? null,
             item.filepath,
             item.thumbpath,
             item.previewpath || null,
@@ -749,7 +777,7 @@ class MediaModel {
         ]);
 
         const [result] = await pool.query(
-            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5) VALUES ?",
+            "INSERT INTO media (user_id, displayname, author, filename, size, width, height, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5) VALUES ?",
             [values],
         );
 

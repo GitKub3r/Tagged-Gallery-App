@@ -8,7 +8,8 @@
         "start": "node index.js",
         "previews:heic": "node scripts/generateHeicPreviews.js",
         "previews:drive": "node scripts/generateDrivePreviews.js",
-        "checksums:backfill": "node scripts/backfillMediaChecksums.js"
+        "checksums:backfill": "node scripts/backfillMediaChecksums.js",
+        "dimensions:backfill": "node scripts/backfillMediaDimensions.js"
     },
     "dependencies": {
         "@googleapis/drive": "^26.0.0",

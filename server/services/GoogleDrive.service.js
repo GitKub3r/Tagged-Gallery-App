@@ -47,7 +47,8 @@ const MAX_IMPORT_MEDIA = 10;
 // "Add all": máximo de fotos y vídeos que se revisan de una vez en "Mi unidad".
 const MAX_LINK_ALL_SCAN = 10000;
 const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{10,200}$/;
-const DRIVE_FILE_FIELDS = "id, name, mimeType, size, md5Checksum, modifiedTime, thumbnailLink, trashed";
+const DRIVE_FILE_FIELDS =
+    "id, name, mimeType, size, md5Checksum, modifiedTime, thumbnailLink, trashed, imageMediaMetadata(width, height, rotation), videoMediaMetadata(width, height)";
 const HEIC_MIME_TYPES = new Set(["image/heic", "image/heif"]);
 
 const isSupportedDriveMimeType = (mimeType = "") => mimeType.startsWith("image/") || mimeType.startsWith("video/");
@@ -362,6 +363,20 @@ class GoogleDriveService {
         // Las portadas de álbum que usaban el original de Drive pasan al preview local.
         await AlbumModel.replaceCoverPaths(media.user_id, [media.filepath], previewpath, thumbpath || media.thumbpath);
         return previewpath;
+    }
+
+    // Resolución de una media de Drive vinculada antes de guardar width y height (script dimensions:backfill).
+    static async readDriveDimensions(media) {
+        const { client, ...clientError } = await this.getAuthorizedClient(media.user_id);
+        if (!client) throw new Error(clientError.error);
+
+        const driveApi = createDriveApi({ version: "v3", auth: client });
+        const { data: driveFile } = await driveApi.files.get({
+            fileId: media.source_file_id,
+            fields: "id, imageMediaMetadata(width, height, rotation), videoMediaMetadata(width, height)",
+            supportsAllDrives: true,
+        });
+        return getDriveFileDimensions(driveFile);
     }
 
     // Vistas previas de los archivos elegidos para el modal de revisión. Se devuelven como data URL y no se guardan.
@@ -688,6 +703,7 @@ class GoogleDriveService {
         }
 
         const derivatives = await this.cacheDriveDerivatives(client, driveFile, user.id);
+        const dimensions = getDriveFileDimensions(driveFile);
         let created;
         try {
             created = await MediaModel.create({
@@ -696,6 +712,8 @@ class GoogleDriveService {
                 author: MediaService.normalizeOptionalText(body.author),
                 filename: driveFile.name,
                 size: Number(driveFile.size) || 0,
+                width: dimensions?.width ?? null,
+                height: dimensions?.height ?? null,
                 // Ruta interna virtual: el original se sirve desde Drive, nunca desde el disco.
                 filepath: `/uploads/drive/${user.id}-${driveFile.id}`,
                 thumbpath: derivatives.thumbpath,
@@ -810,6 +828,8 @@ class GoogleDriveService {
             const converted = await MediaModel.convertDriveToLocal(media.id, {
                 filename,
                 size,
+                width: derivatives.width,
+                height: derivatives.height,
                 filepath: `/uploads/media/${filename}`,
                 thumbpath: derivatives.thumbnailPath,
                 previewpath: derivatives.previewPath,

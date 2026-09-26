@@ -45,6 +45,8 @@ CREATE TABLE media (
     author VARCHAR(100),
     filename VARCHAR(255) NOT NULL,
     size BIGINT UNSIGNED NOT NULL, -- bytes
+    width INT UNSIGNED NULL, -- resolución del original, ya girada (NULL si no se pudo leer)
+    height INT UNSIGNED NULL,
     filepath VARCHAR(500) NOT NULL,
     thumbpath VARCHAR(500),
     previewpath VARCHAR(500) NULL, -- JPEG para visualizar formatos no soportados por el navegador (HEIC)
@@ -58,6 +60,7 @@ CREATE TABLE media (
     last_synced_at DATETIME NULL,
     checksum_md5 CHAR(32) NULL, -- detecta duplicados entre medias locales y de Drive
     deleted_at DATETIME NULL DEFAULT NULL, -- papelera: NULL = activa; se borra definitivamente a los 30 días
+    was_trashed BOOLEAN NOT NULL DEFAULT FALSE, -- estuvo alguna vez en la papelera (se conserva al restaurar)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_media_user_id (user_id),
