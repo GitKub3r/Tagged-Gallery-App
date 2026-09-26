@@ -251,7 +251,7 @@ inline-flex h-10 w-auto items-center gap-2 rounded-xl border-0 bg-red-600 px-4 t
 
 **Fantasma de peligro** (acción destructiva en menú o sidebar, p. ej. cerrar sesión): texto neutro con `hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500`.
 
-**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive). Es roja desde el principio, va dentro de un aviso en línea rojo (`InlineNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
+**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive o "Remove from all" en Metadata, que quita una tag, un nombre de media o un autor de todas las medias). Es roja desde el principio, va dentro de un aviso en línea rojo (`InlineNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
 
 **Texto / enlace:** acción terciaria, p. ej. "Clear", "Retry" o "Create one". `w-auto border-0 bg-transparent p-0 text-xs font-semibold text-neutral-600 underline shadow-none dark:text-neutral-300`. Un enlace de navegación usa `<Link>`, no `<button>`.
 

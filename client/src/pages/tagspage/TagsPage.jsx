@@ -26,6 +26,7 @@ import { LoadErrorState } from "../../components/load-error-state/LoadErrorState
 import { useDevTools } from "../../hooks/useDevTools";
 import { useAuth } from "../../hooks/useAuth";
 import { buildDefaultTagStyle, isDefaultTagColor } from "../../utils/tagStyle";
+import { RemoveFromAllMedia } from "./components/RemoveFromAllMedia";
 
 const DEFAULT_TAG_COLOR = "#643aff";
 
@@ -55,7 +56,7 @@ const TagColorPicker = ({ value, onChange, compact = false, disabled = false, la
     if (compact) {
         return (
             <label
-                className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-black/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-neutral-500"
+                className="relative z-10 h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-black/10 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-neutral-500"
                 style={isDefaultTagColor(value) ? buildDefaultTagStyle() : { backgroundColor: normalizedValue }}
                 title={label}
             >
@@ -121,6 +122,12 @@ const MetadataEditor = ({ managerType, item, isSaving, error, onClose, onSave })
                         <button type="submit" className="h-10! w-full! rounded-xl! border-0! bg-neutral-950! px-4! py-2! text-sm! font-semibold! text-white! shadow-none! hover:bg-neutral-800! disabled:opacity-50! dark:bg-neutral-100! dark:text-neutral-950! dark:hover:bg-white! sm:w-auto!" disabled={isSaving || !name.trim()}>{isSaving ? "Saving..." : item ? "Save changes" : config.create}</button>
                     </footer>
                 </form>
+                {/* Quitar el valor de todas las medias: solo al editar uno que ya existe. */}
+                {item ? (
+                    <div className="border-t border-neutral-200 p-5 dark:border-neutral-800">
+                        <RemoveFromAllMedia managerType={managerType} value={managerType === "tags" ? item.tagname : item.value} onRemoved={onClose} />
+                    </div>
+                ) : null}
             </section>
         </div>, document.body,
     );
@@ -239,10 +246,10 @@ export const MetadataPage = () => {
                                 const label = String(item[config.field] || "");
                                 // La tag "Google Drive" la gestiona la app: solo se le puede cambiar el color.
                                 const isSystemTag = managerType === "tags" && isDriveTagName(label);
-                                return <li key={item.id ?? label} className="group flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white/70 p-3 transition-colors hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900">
+                                return <li key={item.id ?? label} className="group relative flex min-w-0 items-center gap-3 rounded-xl border border-neutral-200 bg-white/70 p-3 transition-colors hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/70 dark:hover:bg-neutral-900">
                                     {managerType === "tags" ? <TagColorPicker compact value={item.tagcolor_hex} disabled={quickColorMutation.isPending} label={`Change color for ${label}`} onChange={(color) => quickColorMutation.mutate({ item, color })} /> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"><FontAwesomeIcon icon={config.icon} /></span>}
-                                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold" title={label}>{label}</p>{managerType === "tags" ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">{isSystemTag ? <><FontAwesomeIcon icon={faGoogleDrive} /> Added to Google Drive media</> : item.type === "copyright" ? <><FontAwesomeIcon icon={faCopyright} /> Copyright</> : "Standard tag"}</p> : <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Reusable {config.singular}</p>}</div>
-                                    {isSystemTag ? <span className="grid h-9 w-9 shrink-0 place-items-center text-neutral-400 dark:text-neutral-500" title="Managed by Tagged"><FontAwesomeIcon icon={faLock} aria-hidden="true" /><span className="sr-only">Managed by Tagged, can't be edited or deleted</span></span> : <div className="flex shrink-0 gap-1"><IconButton className="h-9 w-9 border-transparent bg-transparent" onClick={() => openEditor(item)} aria-label={`Edit ${label}`} title={`Edit ${label}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton className="h-9 w-9 border-transparent bg-transparent hover:text-red-500" onClick={() => setPendingDelete(item)} aria-label={`Delete ${label}`} title={`Delete ${label}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div>}
+                                    <div className="min-w-0 flex-1">{isSystemTag ? <p className="truncate text-sm font-bold" title={label}>{label}</p> : <button type="button" className="block w-full truncate rounded-xl border-0 bg-transparent p-0 text-left text-sm font-bold text-neutral-950 shadow-none after:absolute after:inset-0 after:rounded-xl focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-neutral-500 dark:text-neutral-100" title={label} onClick={() => openEditor(item)}>{label}</button>}{managerType === "tags" ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400">{isSystemTag ? <><FontAwesomeIcon icon={faGoogleDrive} /> Added to Google Drive media</> : item.type === "copyright" ? <><FontAwesomeIcon icon={faCopyright} /> Copyright</> : "Standard tag"}</p> : <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">Reusable {config.singular}</p>}</div>
+                                    {isSystemTag ? <span className="grid h-9 w-9 shrink-0 place-items-center text-neutral-400 dark:text-neutral-500" title="Managed by Tagged"><FontAwesomeIcon icon={faLock} aria-hidden="true" /><span className="sr-only">Managed by Tagged, can't be edited or deleted</span></span> : <div className="relative z-10 flex shrink-0 gap-1"><IconButton className="h-9 w-9 border-transparent bg-transparent" onClick={() => openEditor(item)} aria-label={`Edit ${label}`} title={`Edit ${label}`}><FontAwesomeIcon icon={faPen} /></IconButton><IconButton className="h-9 w-9 border-transparent bg-transparent hover:text-red-500" onClick={() => setPendingDelete(item)} aria-label={`Delete ${label}`} title={`Delete ${label}`}><FontAwesomeIcon icon={faTrash} /></IconButton></div>}
                                 </li>;
                             })}
                         </ul>

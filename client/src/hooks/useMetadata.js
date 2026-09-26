@@ -1,4 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { galleryQueryKeys } from "../api/galleryApi";
 import { metadataApi, metadataQueryKeys } from "../api/metadataApi";
 import { uniqueNames } from "./useMediaMetadataForm";
 import { useAuth } from "./useAuth";
@@ -27,4 +29,26 @@ export const useMetadata = () => {
         tagColorByName: Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.tagcolor_hex])),
         tagTypeByName: Object.fromEntries(knownTags.map((tag) => [tag.tagname.trim().toLowerCase(), tag.type])),
     };
+};
+
+// Cuántas medias se verían afectadas al quitar un valor de todas ellas (se pide al abrir la confirmación).
+export const useMetadataMediaCount = (managerType, value, enabled) =>
+    useQuery({
+        queryKey: metadataQueryKeys.mediaCount(managerType, value),
+        queryFn: () => metadataApi.getMediaCount({ managerType, value }),
+        enabled: enabled && Boolean(value),
+        staleTime: 0,
+    });
+
+// Quitar una tag, un nombre de media o un autor de todas las medias cambia la galería y los metadatos.
+export const useRemoveFromAllMedia = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: metadataApi.removeFromAllMedia,
+        onSuccess: ({ removedCount }, { label }) => {
+            toast.success(`${label} removed from ${removedCount} media`);
+            queryClient.invalidateQueries({ queryKey: metadataQueryKeys.all });
+            queryClient.invalidateQueries({ queryKey: galleryQueryKeys.all });
+        },
+    });
 };
