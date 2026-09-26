@@ -60,7 +60,7 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 
 ## Stack tecnológico
 
-- **Frontend (`client/`):** React 19, Vite 7, React Router 7, Tailwind CSS 4 (plugin `@tailwindcss/vite`, sin `tailwind.config`; tokens en CSS), Axios, TanStack React Query 5, Font Awesome (`free-solid` y `free-regular` con `react-fontawesome`), Sonner (toasts), Recharts (gráficos), React Flow (`@xyflow/react`, editor de reglas), `react-selecto` (selección con marquesina), JSZip y `heic2any`. JavaScript con JSX; no hay TypeScript.
+- **Frontend (`client/`):** React 19, Vite 7, React Router 7, Tailwind CSS 4 (plugin `@tailwindcss/vite`, sin `tailwind.config`; tokens en CSS), Axios, TanStack React Query 5, Font Awesome (`free-solid` y `free-regular` con `react-fontawesome`), Sonner (toasts), Recharts (gráficos), React Flow (`@xyflow/react`, editor de reglas), Floating UI (`@floating-ui/react`, tooltips), `react-selecto` (selección con marquesina), JSZip y `heic2any`. JavaScript con JSX; no hay TypeScript.
 - **Backend (`server/`):** Node 22, Express 4 en CommonJS (`require`), MySQL con `mysql2`, JWT (acceso + refresh) con `bcrypt`, `multer` para subidas, `sharp`, `heic-convert` y `ffmpeg-static`/`fluent-ffmpeg` para miniaturas.
 - **Infraestructura:** Docker Compose (app + MySQL + phpMyAdmin). Vite hace proxy de `/api` y `/uploads` al backend (puerto 3000); el frontend usa `VITE_API_URL=/api/v1`.
 - **Calidad:** ESLint 9 en el cliente (`npm run lint --prefix client`) y `npm run build --prefix client`. No hay suite de pruebas automatizadas; verificar a mano y con lint/build.

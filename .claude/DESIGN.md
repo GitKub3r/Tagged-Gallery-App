@@ -177,7 +177,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
 |---|---|
 | ninguna (`shadow-none`) | Por defecto: botones, tarjetas, inputs y paneles |
 | `shadow-2xl` | Caja de modal |
-| `shadow-xl` | Menús desplegables, listas de sugerencias y toasts |
+| `shadow-xl` | Menús desplegables, listas de sugerencias, tooltips y toasts |
 | `shadow-lg` | Indicadores flotantes (`ResultsLoadingIndicator`) |
 | `shadow-sm` / `shadow-md` | Botón flotante del menú móvil y controles sobre media |
 
@@ -198,6 +198,7 @@ Se usa siempre esta escala; no inventar valores intermedios:
 | Modal principal (subida, edición, formulario) | `z-[1200]` |
 | Modal abierto desde otro modal | `z-[1300]` |
 | Confirmaciones y diálogos sobre cualquier modal | `z-[1400]` |
+| Tooltips (`Tooltip`), por encima de cualquier modal | `z-[1500]` |
 | Capa de selección con marquesina | `z-[2000]` |
 
 ### 5.5 Superposiciones
@@ -410,6 +411,14 @@ Todos los modales:
 | Sin datos / sin resultados | `EmptyState` con título, icono de la entidad y acción ("Create template" / "Clear search") |
 | Barra de progreso | Pista `h-1.5`/`h-2 rounded-full bg-neutral-200 dark:bg-neutral-700`; relleno `bg-neutral-950 dark:bg-white` |
 
+**Tooltip:** `Tooltip` (`components/tooltip`, sobre `@floating-ui/react`). Envuelve a un único elemento disparador (sin `ref` propia) y se coloca solo donde cabe, en un portal. Panel `max-w-xs rounded-xl border bg-white text-xs shadow-xl dark:bg-neutral-900` en `z-[1500]`.
+
+- `openOn="hover"` (por defecto): etiqueta breve que aparece con el ratón (300 ms) o con el foco. Sustituye a `title` en los `IconButton`, que conservan su `aria-label`. `shortcut={[MODIFIER_KEY, "Z"]}` añade el atajo con `Kbd`. Nunca contiene información esencial que no esté también en el `aria-label`.
+- `openOn="click"`: ayuda más larga (texto, listas de atajos) que se abre y cierra al pulsar, también en táctil; recibe el foco al abrirse y se cierra con Escape o clic fuera. Se dispara desde un `IconButton` con `faCircleQuestion` y lleva `label` como nombre accesible. Ejemplo: `RuleEditorHelp`.
+- No crear tooltips con `title` en controles nuevos ni otro componente de tooltip.
+
+**Tecla de atajo:** `Kbd` (`components/kbd`): `<kbd>` `h-5 rounded-xl border bg-neutral-100 px-1.5 text-xs font-semibold dark:bg-neutral-800`, una por tecla ("Ctrl", "Shift", "Z").
+
 - Los mensajes de toast son frases cortas en inglés: "Media updated", "3 files uploaded", "Could not delete album".
 - Los contadores y estados dinámicos llevan `aria-live="polite"`. Los indicadores de carga llevan `role="status"` y texto `sr-only`.
 
@@ -429,7 +438,9 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 
 Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow** (`@xyflow/react`), con la capa de tema de `styles/index.css` (sus estilos base van en `@layer components`, así que las utilidades de Tailwind mandan). No usar sus componentes con estilo propio (`Controls`, `MiniMap`): los controles se hacen con `IconButton`.
 
-- **Página:** altura fija para el lienzo, `h-[calc(100dvh-6rem)] xl:h-[calc(100dvh-4rem)]` con `min-h-[34rem]`. Cabecera con `IconButton` de volver, eyebrow, `h1` y botón de renombrar; a la derecha, estado ("3 nodes · Unsaved changes", `aria-live`), `Switch` "Active", "Run rule" (secundario, `faPlay`) y "Save" (primario, `faFloppyDisk`, también Ctrl/Cmd + S). En móvil los dos botones comparten fila (`grid grid-cols-2`).
+- **Página:** altura fija para el lienzo, `h-[calc(100dvh-6rem)] xl:h-[calc(100dvh-4rem)]` con `min-h-[34rem]`. Es una herramienta, así que su cabecera no es la de página: es una barra compacta como la de un IDE (`rounded-xl border bg-neutral-50 p-2 dark:bg-neutral-900`). A la izquierda, `IconButton` de volver, separador vertical (`h-6 w-px`), ruta "Rules /" (desde `sm`) y el nombre como `h1` `text-base font-bold`, que es un botón para renombrar con `faPen`; un punto `h-2 w-2 rounded-full` indica cambios sin guardar, como la pestaña de un editor, y al final va la ayuda (`RuleEditorHelp`). A la derecha, `Switch` "Active", separador, "Run rule" (secundario, `faPlay`) y "Save" (primario, `faFloppyDisk`, también Ctrl/Cmd + S). En móvil la barra ocupa dos filas y los dos botones comparten la segunda (`grid grid-cols-2`) junto al interruptor.
+- **Barra de estado:** bajo el lienzo, `h-8 rounded-xl border bg-neutral-50 text-xs font-semibold tabular-nums`, como la de VS Code: punto y texto "Active"/"Inactive" (verde o neutro, nunca solo color), "3 nodes", "4 connections" y "1 issue" en ámbar (desde `sm`) y, a la derecha, el guardado ("Unsaved changes", `aria-live`).
+- **Ayuda:** los consejos y atajos del editor van en el `Tooltip` de ayuda de la barra superior, no como texto fijo en la paleta. Los botones de icono del lienzo usan `Tooltip` con su atajo.
 - **Paleta de nodos:** panel `w-72` desde `lg`; por debajo, botón "Add node" sobre el lienzo que abre la misma paleta en un modal. Cada nodo es un botón `min-h-14` que se arrastra al lienzo o se añade con un clic. Con un nodo seleccionado, el nuevo se coloca a su derecha y se conecta a su salida ("True" en condiciones); así se construye el workflow en táctil sin arrastrar conexiones.
 - **Lienzo:** `rounded-xl border bg-neutral-50 dark:bg-neutral-950` con fondo de puntos. Zoom y encuadre con `IconButton` apilados abajo a la izquierda; deshacer, rehacer y "Select area" arriba a la derecha; abajo en el centro, la barra de selección múltiple y el estado o resultado de la ejecución (en teléfono, por encima de los botones de zoom).
 - **Nodo** (`RuleNode`): tarjeta `w-64` (`bg-white dark:bg-neutral-900`, borde de control) con icono en caja, categoría en eyebrow ("Trigger", "Condition", "Action") y título `text-sm font-bold`; debajo, resumen `text-xs`, chips de tag (`TagChip`, máximo 4 y "+N") y, si falta configuración, aviso `text-amber-600 dark:text-amber-400` con `faTriangleExclamation`. Seleccionado: anillo `ring-2` como `MediaCard`, con una barra flotante de `IconButton` (editar, duplicar y borrar) que sustituye al hover. Puntos de conexión `h-3.5 w-3.5 rounded-full` con zona táctil ampliada; las condiciones tienen dos salidas etiquetadas, "True" (`faCheck`) y "False" (`faXmark`). La categoría y las salidas se indican con texto, nunca solo con color.
@@ -496,6 +507,7 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 | Seleccionar un área (modo selección del lienzo) | `faObjectGroup` |
 | Acercar / alejar / encajar la vista del lienzo | `faMagnifyingGlassPlus` / `faMagnifyingGlassMinus` / `faExpand` |
 | Falta configuración (aviso) | `faTriangleExclamation` |
+| Ayuda (abre un `Tooltip` con `openOn="click"`) | `faCircleQuestion` |
 | Nodos disparadores: media añadida / editada / restaurada / ejecución manual | `faPlus` / `faPen` / `faRotateLeft` / `faHandPointer` |
 | Nodos de condición: nombre de media / autor / tamaño / resolución / orientación / tipo de media / historial de papelera | `faFont` / `faUserPen` / `faWeightHanging` / `faRulerCombined` / `faCropSimple` / `faPhotoFilm` / `faTrashCan` |
 | Nodos de acción: añadir tags / quitar tags / favorito / añadir a álbum | `faTag` / `faEraser` / `faHeart` / `faFolderPlus` |

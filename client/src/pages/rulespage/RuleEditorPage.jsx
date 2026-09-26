@@ -10,15 +10,16 @@ import { RuleEditor } from "./components/RuleEditor";
 
 const EditorSkeleton = () => (
     <div className="flex h-[calc(100dvh-6rem)] min-h-[34rem] flex-col gap-4 xl:h-[calc(100dvh-4rem)]" role="status" aria-label="Loading rule">
-        <div className="flex items-center gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+        <div className="flex items-center gap-2 rounded-xl border border-neutral-200 p-2 dark:border-neutral-800">
             <Skeleton className="h-10 w-10" />
-            <div className="flex-1 space-y-2"><Skeleton className="h-3 w-16" /><Skeleton className="h-9 w-64 max-w-full" /></div>
-            <Skeleton className="hidden h-11 w-56 sm:block" />
+            <Skeleton className="h-6 w-48 max-w-full" />
+            <Skeleton className="ml-auto hidden h-11 w-72 sm:block" />
         </div>
         <div className="flex min-h-0 flex-1 gap-4">
             <Skeleton className="hidden w-72 lg:block" />
             <Skeleton className="flex-1" />
         </div>
+        <Skeleton className="h-8" />
         <span className="sr-only">Loading rule</span>
     </div>
 );

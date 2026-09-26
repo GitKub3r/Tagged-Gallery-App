@@ -28,6 +28,7 @@ import { IconButton } from "../../../components/icon-button/IconButton";
 import { MediaFormModal } from "../../../components/media-form-modal/MediaFormModal";
 import { ResultsLoadingIndicator } from "../../../components/results-loading-indicator/ResultsLoadingIndicator";
 import { Switch } from "../../../components/switch/Switch";
+import { Tooltip } from "../../../components/tooltip/Tooltip";
 import { useAlbums } from "../../../hooks/useAlbums";
 import { useMetadata } from "../../../hooks/useMetadata";
 import { useRunRule, useUpdateRule } from "../../../hooks/useRules";
@@ -46,6 +47,7 @@ import { NodePalette, RULE_NODE_DRAG_TYPE } from "./NodePalette";
 import { MODIFIER_KEY, isEditableTarget } from "./keyboardShortcuts";
 import { copyToRuleClipboard, hasRuleClipboard, takeRuleClipboard } from "./ruleClipboard";
 import { RuleEdge } from "./RuleEdge";
+import { RuleEditorHelp } from "./RuleEditorHelp";
 import { RuleEditorContext } from "./ruleEditorContext";
 import { RuleNameModal } from "./RuleNameModal";
 import { RuleNode } from "./RuleNode";
@@ -117,7 +119,26 @@ const RunResultNotice = ({ result, onClear }) => (
 
 const getSnapshot = (name, isActive, nodes, edges) => JSON.stringify({ name, isActive, graph: toApiGraph(nodes, edges) });
 const getAnimationDuration = () => (window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 250);
-const pluralNodes = (count) => `${count} ${count === 1 ? "node" : "nodes"}`;
+const pluralize = (count, noun) => `${count} ${noun}${count === 1 ? "" : "s"}`;
+
+// Barra de estado bajo el lienzo, como la de un editor de código: estado de la regla, tamaño del workflow y guardado.
+const StatusBar = ({ isActive, nodeCount, edgeCount, issueCount, saveState }) => (
+    <footer className="flex h-8 shrink-0 items-center gap-4 overflow-hidden whitespace-nowrap rounded-xl border border-neutral-200 bg-neutral-50 px-3 text-xs font-semibold text-neutral-500 tabular-nums dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+        <span className="flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${isActive ? "bg-green-500" : "bg-neutral-400 dark:bg-neutral-600"}`} aria-hidden="true" />
+            {isActive ? "Active" : "Inactive"}
+        </span>
+        <span>{pluralize(nodeCount, "node")}</span>
+        <span className="hidden sm:inline">{pluralize(edgeCount, "connection")}</span>
+        {issueCount > 0 ? (
+            <span className="hidden items-center gap-1.5 text-amber-600 dark:text-amber-400 sm:flex">
+                <FontAwesomeIcon icon={faTriangleExclamation} aria-hidden="true" />
+                {pluralize(issueCount, "issue")}
+            </span>
+        ) : null}
+        <span className="ml-auto" aria-live="polite">{saveState}</span>
+    </footer>
+);
 
 // Lista de lo que falta para poder activar o ejecutar la regla. Cada problema de un nodo lo centra en el lienzo.
 const IssuesNotice = ({ issues, nodes, isActive, onFocusNode }) => (
@@ -445,44 +466,58 @@ export const RuleEditor = ({ rule }) => {
     }, [isDirty]);
 
     const canRun = issues.length === 0;
-    const statusText = `${pluralNodes(nodes.length)} · ${updateRule.isPending ? "Saving..." : isDirty ? "Unsaved changes" : "All changes saved"}`;
+    const saveState = updateRule.isPending ? "Saving..." : isDirty ? "Unsaved changes" : "All changes saved";
 
     return (
         <RuleEditorContext.Provider value={editorContext}>
             <section className="flex h-[calc(100dvh-6rem)] min-h-[34rem] flex-col gap-4 text-neutral-950 dark:text-neutral-100 xl:h-[calc(100dvh-4rem)]">
-                <header className="flex flex-col gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800 lg:flex-row lg:items-end lg:justify-between">
-                    <div className="flex min-w-0 items-center gap-3">
-                        <IconButton onClick={leave} aria-label="Back to rules" title="Back to rules">
-                            <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
-                        </IconButton>
-                        <div className="min-w-0">
-                            <p className="text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Rule</p>
-                            <div className="flex min-w-0 items-center gap-2">
-                                <h1 className="truncate text-3xl font-black tracking-tight sm:text-4xl" title={name}>{name}</h1>
-                                <IconButton onClick={() => setIsRenaming(true)} aria-label="Rename rule" title="Rename rule">
-                                    <FontAwesomeIcon icon={faPen} aria-hidden="true" />
-                                </IconButton>
-                            </div>
+                {/* Barra de herramientas compacta, como la de un IDE: ruta y nombre a la izquierda, acciones a la derecha. */}
+                <header className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-800 dark:bg-neutral-900 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                        <Tooltip content="Back to rules" placement="bottom">
+                            <IconButton onClick={leave} aria-label="Back to rules">
+                                <FontAwesomeIcon icon={faArrowLeft} aria-hidden="true" />
+                            </IconButton>
+                        </Tooltip>
+                        <span className="mx-1 h-6 w-px shrink-0 bg-neutral-200 dark:bg-neutral-800" aria-hidden="true" />
+                        <span className="hidden shrink-0 text-sm font-semibold text-neutral-500 dark:text-neutral-400 sm:inline">Rules</span>
+                        <span className="hidden shrink-0 text-sm text-neutral-400 dark:text-neutral-600 sm:inline" aria-hidden="true">/</span>
+                        <h1 className="min-w-0">
+                            <Tooltip content="Rename rule" placement="bottom">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsRenaming(true)}
+                                    className="flex h-10 w-full min-w-0 items-center gap-2 rounded-xl border-0 bg-transparent px-2 text-left text-base font-bold tracking-tight text-neutral-950 shadow-none transition-colors hover:bg-neutral-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:text-neutral-100 dark:hover:bg-neutral-800"
+                                >
+                                    <span className="truncate">{name}</span>
+                                    <span className="sr-only">, rename rule</span>
+                                    <FontAwesomeIcon icon={faPen} className="shrink-0 text-xs text-neutral-400 dark:text-neutral-500" aria-hidden="true" />
+                                </button>
+                            </Tooltip>
+                        </h1>
+                        {/* Cambios sin guardar: punto como en la pestaña de un editor de código. El estado se anuncia en la barra inferior. */}
+                        {isDirty ? <span className="h-2 w-2 shrink-0 rounded-full bg-neutral-500 dark:bg-neutral-400" title="Unsaved changes" aria-hidden="true" /> : null}
+                        <div className="ml-auto shrink-0 pl-1">
+                            <RuleEditorHelp />
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-end lg:gap-4">
-                        <div className="flex items-center justify-between gap-4">
-                            <p className="text-xs font-semibold text-neutral-500 tabular-nums dark:text-neutral-400" aria-live="polite">{statusText}</p>
-                            <Switch
-                                checked={isActive}
-                                onChange={setIsActive}
-                                label="Active"
-                                disabled={!isActive && !canRun}
-                                title={!isActive && !canRun ? "Finish the workflow to turn the rule on" : "Active rules run automatically"}
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 sm:flex">
+                    <div className="flex items-center gap-3 sm:gap-2">
+                        <span className="hidden h-6 w-px shrink-0 bg-neutral-200 dark:bg-neutral-800 sm:block" aria-hidden="true" />
+                        <Switch
+                            checked={isActive}
+                            onChange={setIsActive}
+                            label="Active"
+                            disabled={!isActive && !canRun}
+                            title={!isActive && !canRun ? "Finish the workflow to turn the rule on" : "Active rules run automatically"}
+                        />
+                        <span className="hidden h-6 w-px shrink-0 bg-neutral-200 dark:bg-neutral-800 sm:block" aria-hidden="true" />
+                        <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 whitespace-nowrap sm:flex">
                             <button type="button" className={buttonClasses.secondary} onClick={() => setPendingConfirm("run")} disabled={!canRun || isBusy || isRunning} title={canRun ? "Apply the rule to every media in your library" : "Finish the workflow to run it"}>
                                 <FontAwesomeIcon icon={isRunning ? faSpinner : faPlay} spin={isRunning} aria-hidden="true" />
                                 {isRunning ? "Running..." : "Run rule"}
                             </button>
-                            <button type="button" className={buttonClasses.primary} onClick={handleSave} disabled={!isDirty || isBusy || isRunning}>
+                            <button type="button" className={buttonClasses.primary} onClick={handleSave} disabled={!isDirty || isBusy || isRunning} title={`Save (${MODIFIER_KEY} + S)`}>
                                 <FontAwesomeIcon icon={faFloppyDisk} aria-hidden="true" />
                                 {updateRule.isPending ? "Saving..." : "Save"}
                             </button>
@@ -565,21 +600,30 @@ export const RuleEditor = ({ rule }) => {
                                 </button>
                             </Panel>
                             <Panel position="top-right" className="flex gap-1">
-                                <IconButton onClick={undo} disabled={history.past.length === 0 || isRunning} aria-label="Undo" title={`Undo (${MODIFIER_KEY} + Z)`}>
-                                    <FontAwesomeIcon icon={faArrowRotateLeft} aria-hidden="true" />
-                                </IconButton>
-                                <IconButton onClick={redo} disabled={history.future.length === 0 || isRunning} aria-label="Redo" title={`Redo (${MODIFIER_KEY} + Shift + Z)`}>
-                                    <FontAwesomeIcon icon={faArrowRotateRight} aria-hidden="true" />
-                                </IconButton>
-                                <IconButton
-                                    onClick={() => setIsAreaSelecting((current) => !current)}
-                                    isActive={isAreaSelecting}
-                                    aria-pressed={isAreaSelecting}
-                                    aria-label="Select area"
-                                    title={isAreaSelecting ? "Drag to select nodes. Turn off to move the canvas" : `Select area (or hold ${MODIFIER_KEY} and drag)`}
+                                <Tooltip content="Undo" shortcut={[MODIFIER_KEY, "Z"]} placement="bottom">
+                                    <IconButton onClick={undo} disabled={history.past.length === 0 || isRunning} aria-label="Undo">
+                                        <FontAwesomeIcon icon={faArrowRotateLeft} aria-hidden="true" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip content="Redo" shortcut={[MODIFIER_KEY, "Shift", "Z"]} placement="bottom">
+                                    <IconButton onClick={redo} disabled={history.future.length === 0 || isRunning} aria-label="Redo">
+                                        <FontAwesomeIcon icon={faArrowRotateRight} aria-hidden="true" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip
+                                    content={isAreaSelecting ? "Drag to select nodes. Turn off to move the canvas" : "Select area"}
+                                    shortcut={isAreaSelecting ? undefined : [MODIFIER_KEY, "Drag"]}
+                                    placement="bottom-end"
                                 >
-                                    <FontAwesomeIcon icon={faObjectGroup} aria-hidden="true" />
-                                </IconButton>
+                                    <IconButton
+                                        onClick={() => setIsAreaSelecting((current) => !current)}
+                                        isActive={isAreaSelecting}
+                                        aria-pressed={isAreaSelecting}
+                                        aria-label="Select area"
+                                    >
+                                        <FontAwesomeIcon icon={faObjectGroup} aria-hidden="true" />
+                                    </IconButton>
+                                </Tooltip>
                             </Panel>
                             {/* En teléfono se sube por encima de los botones de zoom, que ocupan la esquina inferior. */}
                             <Panel position="bottom-center" className="mb-40 flex flex-col items-center gap-2 whitespace-nowrap sm:mb-4">
@@ -588,19 +632,27 @@ export const RuleEditor = ({ rule }) => {
                                 {!isRunning && visibleRunResult ? <RunResultNotice result={visibleRunResult} onClear={() => setRunResult(null)} /> : null}
                             </Panel>
                             <Panel position="bottom-left" className="flex flex-col gap-1">
-                                <IconButton onClick={() => zoomIn({ duration: getAnimationDuration() })} aria-label="Zoom in" title="Zoom in">
-                                    <FontAwesomeIcon icon={faMagnifyingGlassPlus} aria-hidden="true" />
-                                </IconButton>
-                                <IconButton onClick={() => zoomOut({ duration: getAnimationDuration() })} aria-label="Zoom out" title="Zoom out">
-                                    <FontAwesomeIcon icon={faMagnifyingGlassMinus} aria-hidden="true" />
-                                </IconButton>
-                                <IconButton onClick={() => fitView({ maxZoom: 1, padding: 0.3, duration: getAnimationDuration() })} aria-label="Fit workflow to screen" title="Fit workflow to screen">
-                                    <FontAwesomeIcon icon={faExpand} aria-hidden="true" />
-                                </IconButton>
+                                <Tooltip content="Zoom in" placement="right">
+                                    <IconButton onClick={() => zoomIn({ duration: getAnimationDuration() })} aria-label="Zoom in">
+                                        <FontAwesomeIcon icon={faMagnifyingGlassPlus} aria-hidden="true" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip content="Zoom out" placement="right">
+                                    <IconButton onClick={() => zoomOut({ duration: getAnimationDuration() })} aria-label="Zoom out">
+                                        <FontAwesomeIcon icon={faMagnifyingGlassMinus} aria-hidden="true" />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip content="Fit workflow to screen" placement="right">
+                                    <IconButton onClick={() => fitView({ maxZoom: 1, padding: 0.3, duration: getAnimationDuration() })} aria-label="Fit workflow to screen">
+                                        <FontAwesomeIcon icon={faExpand} aria-hidden="true" />
+                                    </IconButton>
+                                </Tooltip>
                             </Panel>
                         </ReactFlow>
                     </div>
                 </div>
+
+                <StatusBar isActive={isActive} nodeCount={nodes.length} edgeCount={edges.length} issueCount={issues.length} saveState={saveState} />
             </section>
 
             {editingNode ? <NodeConfigModal key={editingNode.id} node={editingNode} onApply={applyNodeConfig} onDelete={() => deleteNode(editingNode.id)} onClose={() => setEditingNodeId(null)} /> : null}
