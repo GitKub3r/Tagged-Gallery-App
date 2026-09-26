@@ -6,6 +6,8 @@ import { MediaDetailPage } from "./pages/gallerypage/MediaDetailPage";
 import { FavouritesPage } from "./pages/favouritespage/FavouritesPage";
 import { MetadataPage } from "./pages/tagspage/TagsPage";
 import { TemplatesPage } from "./pages/templatespage/TemplatesPage";
+import { RulesPage } from "./pages/rulespage/RulesPage";
+import { RuleEditorPage } from "./pages/rulespage/RuleEditorPage";
 import { DrivePage } from "./pages/drivepage/DrivePage";
 import { TrashPage } from "./pages/trashpage/TrashPage";
 import { DashboardPage } from "./pages/metricspage/MetricsPage";
@@ -51,6 +53,8 @@ function App() {
                         <Route path="/albums/:albumId" element={<AlbumDetailPage />} />
                         <Route path="/metadata" element={<MetadataPage />} />
                         <Route path="/templates" element={<TemplatesPage />} />
+                        <Route path="/rules" element={<RulesPage />} />
+                        <Route path="/rules/:ruleId" element={<RuleEditorPage />} />
                         <Route path="/drive" element={<DrivePage />} />
                         <Route path="/trash" element={<TrashPage />} />
                         <Route path="/tags" element={<Navigate to="/metadata" replace />} />

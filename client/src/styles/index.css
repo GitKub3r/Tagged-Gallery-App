@@ -2,6 +2,8 @@
 @import url("https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap");
 @import "tailwindcss";
 @import "./variables.css";
+/* Estilos mínimos de React Flow (editor de reglas) en una capa inferior: las utilidades de Tailwind los sobrescriben. */
+@import "@xyflow/react/dist/base.css" layer(components);
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 body {
@@ -259,5 +261,28 @@ textarea:focus-visible {
     .tagged-app-page {
         min-height: calc(100dvh - 6.3rem);
         border-radius: var(--tagged-radius-md);
+    }
+}
+
+/* Capa de tema de React Flow (editor de reglas): conexiones, línea de conexión, fondo y selección con la paleta neutra. */
+@layer components {
+    .react-flow {
+        --xy-edge-stroke: var(--color-neutral-400);
+        --xy-edge-stroke-width: 1.5;
+        --xy-edge-stroke-selected: var(--color-neutral-950);
+        --xy-connectionline-stroke: var(--color-neutral-500);
+        --xy-connectionline-stroke-width: 1.5;
+        --xy-background-pattern-dots-color: var(--color-neutral-300);
+        --xy-selection-background-color: color-mix(in oklab, var(--color-neutral-500) 10%, transparent);
+        --xy-selection-border: 1px dashed var(--color-neutral-400);
+        --xy-attribution-background-color: transparent;
+    }
+
+    [data-theme="dark"] .react-flow {
+        --xy-edge-stroke: var(--color-neutral-600);
+        --xy-edge-stroke-selected: var(--color-neutral-100);
+        --xy-connectionline-stroke: var(--color-neutral-400);
+        --xy-background-pattern-dots-color: var(--color-neutral-800);
+        --xy-selection-border: 1px dashed var(--color-neutral-600);
     }
 }
