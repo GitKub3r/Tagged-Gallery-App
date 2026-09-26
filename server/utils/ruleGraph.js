@@ -295,10 +295,16 @@ const getGraphIssues = (graph, context) => {
     return issues;
 };
 
+// Lo que pueden cambiar las acciones de una media: sirve para saber si una regla o una acción la ha cambiado.
+const getMediaSignature = (media) =>
+    JSON.stringify([media.tags.map(normalizeKey).sort(), media.is_favourite, [...media.albumIds].sort((a, b) => a - b)]);
+
 // Ejecuta el workflow sobre la copia en memoria de una media (media.tags, media.is_favourite, media.albumIds...).
 // Parte de los disparadores del evento (o de todos, con "manual") y recorre las conexiones: cada condición
 // sigue su salida "true" o "false" y cada acción cambia la media y sigue su salida. Un nodo se ejecuta una vez.
-const executeGraph = (graph, event, media, context) => {
+// trace (opcional) acumula el recorrido para enseñarlo en el editor: por nodo, cuántas medias llegaron
+// (reached), cuántas siguieron por "true" y "false" y cuántas cambió (changed); por conexión, cuántas pasaron.
+const executeGraph = (graph, event, media, context, trace = null) => {
     const startNodes = graph.nodes.filter((node) => {
         const triggerEvent = TRIGGER_EVENTS[node.type];
         return triggerEvent && (event === "manual" || triggerEvent === event);
@@ -306,28 +312,43 @@ const executeGraph = (graph, event, media, context) => {
     const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
     const visited = new Set();
 
+    const count = (group, id, key) => {
+        if (!trace) return;
+        trace[group][id] ||= {};
+        trace[group][id][key] = (trace[group][id][key] || 0) + 1;
+    };
+
     const visit = (node, handle) => {
         graph.edges
             .filter((edge) => edge.source === node.id && edge.sourceHandle === handle)
-            .forEach((edge) => run(nodesById.get(edge.target)));
+            .forEach((edge) => {
+                count("edges", edge.id, "passed");
+                run(nodesById.get(edge.target));
+            });
     };
 
     const run = (node) => {
         if (!node || visited.has(node.id)) return;
         visited.add(node.id);
+        count("nodes", node.id, "reached");
         const definition = NODE_TYPES[node.type];
         if (definition.category === "condition") {
-            visit(node, definition.evaluate(node.config, media, context) ? "true" : "false");
+            const handle = definition.evaluate(node.config, media, context) ? "true" : "false";
+            count("nodes", node.id, handle);
+            visit(node, handle);
         } else if (definition.category === "action") {
+            const before = trace ? getMediaSignature(media) : null;
             definition.apply(node.config, media, context);
+            if (trace && getMediaSignature(media) !== before) count("nodes", node.id, "changed");
             visit(node, "out");
         }
     };
 
     startNodes.forEach((node) => {
         visited.add(node.id);
+        count("nodes", node.id, "reached");
         visit(node, "out");
     });
 };
 
-module.exports = { NODE_TYPES, TRIGGER_EVENTS, sanitizeGraph, getGraphIssues, executeGraph };
+module.exports = { NODE_TYPES, TRIGGER_EVENTS, sanitizeGraph, getGraphIssues, executeGraph, getMediaSignature };

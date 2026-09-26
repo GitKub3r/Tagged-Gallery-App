@@ -4,16 +4,12 @@ const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
 const MediaAlbumModel = require("../models/MediaAlbum.model");
 const AlbumModel = require("../models/Album.model");
-const { executeGraph, getGraphIssues } = require("../utils/ruleGraph");
+const { executeGraph, getGraphIssues, getMediaSignature } = require("../utils/ruleGraph");
 
 // Una ejecución manual recorre la biblioteca por tandas para no cargarla entera en memoria.
 const RUN_BATCH_SIZE = 200;
 
 const normalizeKey = (value) => String(value || "").trim().toLowerCase();
-
-// Firma de lo que pueden cambiar las acciones, para saber si una regla ha cambiado la media.
-const getSignature = (media) =>
-    JSON.stringify([media.tags.map(normalizeKey).sort(), media.is_favourite, [...media.albumIds].sort((a, b) => a - b)]);
 
 // Copia en memoria de cada media con sus tags y álbumes. Las reglas trabajan sobre ella y al final
 // solo se guarda la diferencia con el estado original.
@@ -48,20 +44,21 @@ const saveChanges = async ({ original, state }) => {
     }
 };
 
-// Aplica las reglas a un grupo de medias y guarda los cambios. Devuelve cuántas medias cambió cada regla.
-const applyRules = async (rules, event, rows, context) => {
+// Aplica las reglas a un grupo de medias y guarda los cambios. Devuelve cuántas medias cambiaron.
+// trace: recorrido acumulado de la ejecución (ver executeGraph), solo en las ejecuciones manuales.
+const applyRules = async (rules, event, rows, context, trace = null) => {
     const entries = await loadMediaStates(rows);
     const countsByRuleId = new Map();
     let changedCount = 0;
 
     for (const entry of entries) {
-        const initialSignature = getSignature(entry.state);
+        const initialSignature = getMediaSignature(entry.state);
         for (const rule of rules) {
-            const before = getSignature(entry.state);
-            executeGraph(rule.graph, event, entry.state, context);
-            if (getSignature(entry.state) !== before) countsByRuleId.set(rule.id, (countsByRuleId.get(rule.id) || 0) + 1);
+            const before = getMediaSignature(entry.state);
+            executeGraph(rule.graph, event, entry.state, context, trace);
+            if (getMediaSignature(entry.state) !== before) countsByRuleId.set(rule.id, (countsByRuleId.get(rule.id) || 0) + 1);
         }
-        if (getSignature(entry.state) !== initialSignature) {
+        if (getMediaSignature(entry.state) !== initialSignature) {
             await saveChanges(entry);
             changedCount += 1;
         }
@@ -100,15 +97,16 @@ class RuleEngineService {
         let afterId = 0;
         let processedCount = 0;
         let changedCount = 0;
+        const trace = { nodes: {}, edges: {} };
         for (;;) {
             const rows = await MediaModel.findRuleSnapshots(userId, { afterId, limit: RUN_BATCH_SIZE });
             if (rows.length === 0) break;
             processedCount += rows.length;
-            changedCount += await applyRules([rule], "manual", rows, context);
+            changedCount += await applyRules([rule], "manual", rows, context, trace);
             afterId = rows[rows.length - 1].id;
             if (rows.length < RUN_BATCH_SIZE) break;
         }
-        return { data: { processedCount, changedCount } };
+        return { data: { processedCount, changedCount, trace } };
     }
 }
 
