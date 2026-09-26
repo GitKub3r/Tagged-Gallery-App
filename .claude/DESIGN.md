@@ -166,7 +166,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
   - **Cabecera de retención** (`RetentionPanel`): cifra protagonista (`text-5xl font-black`) con "media waiting to be deleted" y la ficha técnica sin cajas (espacio a liberar, próximo borrado —en ámbar si faltan `URGENT_DAYS` o menos— y medias de Drive). Debajo, una **cuña de grises** de los días de retención (tramos `flex-1` separados por `gap-px` dentro de un contenedor `h-10 rounded-xl overflow-hidden`, de claro hoy a oscuro el último día, con la opacidad calculada), un punto sobre cada día en que se borra algo (ámbar si es inminente), escala "Today · 1 week · 2 weeks · 3 weeks · 30 days" (en móvil solo las que no se solapan) y una lectura al señalar un día. Aviso en línea ámbar si algo se borra en `URGENT_DAYS` días o menos.
   - **Grupos por día de borrado** (`TrashGroup`), calculados por días de calendario desde `expires_at` (`trashTime.js`): eyebrow con la fecha (ámbar con `faTriangleExclamation` si es inminente), título "Deleted forever in N days", recuento y "Select"/"Deselect" para el grupo. Orden con `SegmentedControl`: "Recently deleted" (`faClock`) o "Expiring first" (`faHourglassHalf`).
   - **Tarjeta:** botón de restaurar sobre la imagen (`mediaAction` con `faRotateLeft`) y, en `footer`, la mecha de la cuenta atrás: barra `h-1 rounded-full` que se acorta con los días y "N days left" (ámbar con icono al final).
-  - **Selección:** barra flotante `sticky bottom-4` (`TrashSelectionBar`: recuento, limpiar, "Restore" primario y "Delete forever" `dangerOutline`), con los botones en dos columnas en móvil.
+  - **Selección:** barra flotante fija abajo en la pantalla (`TrashSelectionBar`: recuento, limpiar, "Restore" primario y "Delete forever" `dangerOutline`), con los botones en dos columnas en móvil. Es `fixed bottom-4 z-30`, no `sticky`: `main` tiene `overflow-x: hidden` y un sticky se quedaría al final de la página. Se centra en el área de contenido: desde `xl` empieza tras la barra lateral (`xl:left-72`, o `5.5rem` si está plegada, con `body:has(#tagged-sidebar[data-collapsed=true])`). Al final de la lista deja un hueco para no tapar la última fila.
 - **Orden de un listado de gestión con varios criterios** (plantillas): `<select>` con la receta de Select de §7.2 (`mediaFormInputClasses` + `appearance-none pr-10`, más `pl-9` si lleva icono a la izquierda) envuelto en un `<label>` de ancho fijo junto al contador de resultados. Icono `faArrowUpWideShort` para la acción de "ordenar / cambiar criterio". Solo neutrales y `border-dashed`/`border-dotted` para el lenguaje técnico — nunca azul ni otro color de marca. Reutilizar este panel (`BlueprintPanel`) para cualquier tratamiento futuro de plantillas antes de crear uno nuevo.
 - Formularios: `grid grid-cols-1 gap-3 sm:grid-cols-2`.
 - La sidebar es un drawer hasta `xl` y fija desde `xl` (`w-72`, plegable).
@@ -207,6 +207,7 @@ Se usa siempre esta escala; no inventar valores intermedios:
 | Capa | Valor |
 |---|---|
 | Elementos dentro de tarjeta o media (controles superpuestos) | `z-10` / `z-20` |
+| Barra flotante de selección de una página (fija abajo) | `z-30` |
 | Listas de sugerencias y desplegables en línea | `z-30` (dentro de modal) / `z-50` (en página) |
 | Fondo del drawer de sidebar | `z-40` |
 | Sidebar en drawer | `z-50` |
