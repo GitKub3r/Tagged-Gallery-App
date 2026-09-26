@@ -5,7 +5,7 @@ import { buttonClasses } from "../../../components/button/buttonClasses";
 import { DeleteConfirmationModal } from "../../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { useLinkAllDriveFiles, useLinkAllPreview } from "../../../hooks/useGoogleDrive";
 import { formatMediaSize } from "../../../utils/mediaFormat";
-import { DriveNotice } from "./DriveNotice";
+import { InlineNotice } from "../../../components/inline-notice/InlineNotice";
 
 const pluralFiles = (count) => `${count.toLocaleString("en-US")} ${count === 1 ? "file" : "files"}`;
 
@@ -81,18 +81,20 @@ export const DriveLinkAll = () => {
 
     return (
         <>
-            <DriveNotice
-                tone="danger"
-                icon={faTriangleExclamation}
-                title="Add every photo and video in My Drive"
-                text="Links all of them to your library in one go, which can mean thousands of files. Use it only if you want your whole Drive in Tagged."
-                action={
-                    <button type="button" className={buttonClasses.dangerOutline} onClick={() => setIsConfirmOpen(true)} disabled={linkAllMutation.isPending}>
-                        <FontAwesomeIcon icon={linkAllMutation.isPending ? faSpinner : faPlus} spin={linkAllMutation.isPending} aria-hidden="true" />
-                        {linkAllMutation.isPending ? `Adding ${processed} of ${total}...` : "Add all"}
-                    </button>
-                }
-            />
+            <div className="mt-6">
+                <InlineNotice
+                    tone="danger"
+                    icon={faTriangleExclamation}
+                    title="Add every photo and video in My Drive"
+                    text="Links all of them to your library in one go, which can mean thousands of files. Use it only if you want your whole Drive in Tagged."
+                    action={
+                        <button type="button" className={buttonClasses.dangerOutline} onClick={() => setIsConfirmOpen(true)} disabled={linkAllMutation.isPending}>
+                            <FontAwesomeIcon icon={linkAllMutation.isPending ? faSpinner : faPlus} spin={linkAllMutation.isPending} aria-hidden="true" />
+                            {linkAllMutation.isPending ? `Adding ${processed} of ${total}...` : "Add all"}
+                        </button>
+                    }
+                />
+            </div>
 
             <DeleteConfirmationModal
                 isOpen={isConfirmOpen}

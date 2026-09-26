@@ -16,6 +16,7 @@ const unwrap = (response, fallbackMessage) => {
 
 export const metadataQueryKeys = {
     all: ["metadata"],
+    mediaCount: (managerType, value) => ["metadata", "media-count", managerType, value],
 };
 
 export const metadataApi = {
@@ -56,6 +57,16 @@ export const metadataApi = {
             ? await apiClient.put(endpoint, payload, config)
             : await apiClient.post(endpoint, payload, config);
         return unwrap(response, "Could not save value");
+    },
+
+    // Medias activas que usan una tag, un nombre de media o un autor (managerType: tags, displaynames, authors).
+    async getMediaCount({ managerType, value }) {
+        return unwrap(await apiClient.get(`/metadata/${managerType}/media-count`, { params: { value } }), "Could not count media");
+    },
+
+    // Quita el valor de todas las medias activas: la tag se conserva; el nombre de media o el autor desaparece.
+    async removeFromAllMedia({ managerType, value }) {
+        return unwrap(await apiClient.delete(`/metadata/${managerType}/media`, { data: { value } }), "Could not remove it from media");
     },
 
     async remove({ managerType, item, accessToken }) {

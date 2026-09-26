@@ -2,10 +2,41 @@
 @import url("https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400..700&family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap");
 @import "tailwindcss";
 @import "./variables.css";
+/* Estilos mínimos de React Flow (editor de reglas) en una capa inferior: las utilidades de Tailwind los sobrescriben. */
+@import "@xyflow/react/dist/base.css" layer(components);
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/* Fuente única de la app (DESIGN.md §3): también la usa font-sans, p. ej. en <kbd>. */
+@theme {
+    --font-sans: "Nunito Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+
+    /* Latido (animate-heartbeat): dos pulsaciones seguidas y 2,5 s de reposo, como un corazón. */
+    --animate-heartbeat: heartbeat 3.1s ease-in-out infinite;
+    /* Señal (animate-signal): los trazos discontinuos de una pista avanzan (strokeDasharray "4 12", periodo 16). */
+    --animate-signal: signal 1s linear infinite;
+
+    @keyframes signal {
+        to {
+            stroke-dashoffset: -32;
+        }
+    }
+
+    @keyframes heartbeat {
+        0%,
+        9%,
+        19%,
+        100% {
+            transform: scale(1);
+        }
+        4.5%,
+        13.5% {
+            transform: scale(1.6);
+        }
+    }
+}
+
 body {
-    font-family: "Nunito Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-family: var(--font-sans);
     background-color: var(--tagged-primary-color);
     color: var(--tagged-text-color);
     line-height: 1.6;
@@ -259,5 +290,35 @@ textarea:focus-visible {
     .tagged-app-page {
         min-height: calc(100dvh - 6.3rem);
         border-radius: var(--tagged-radius-md);
+    }
+}
+
+/* Capa de tema de React Flow (editor de reglas): conexiones, línea de conexión, fondo y selección con la paleta neutra.
+   Las conexiones animadas (regla en ejecución) se quedan quietas con movimiento reducido. */
+@layer components {
+    .react-flow {
+        --xy-edge-stroke: var(--color-neutral-400);
+        --xy-edge-stroke-width: 1.5;
+        --xy-edge-stroke-selected: var(--color-neutral-950);
+        --xy-connectionline-stroke: var(--color-neutral-500);
+        --xy-connectionline-stroke-width: 1.5;
+        --xy-background-pattern-dots-color: var(--color-neutral-300);
+        --xy-selection-background-color: color-mix(in oklab, var(--color-neutral-500) 10%, transparent);
+        --xy-selection-border: 1px dashed var(--color-neutral-400);
+        --xy-attribution-background-color: transparent;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .react-flow__edge.animated path {
+            animation: none;
+        }
+    }
+
+    [data-theme="dark"] .react-flow {
+        --xy-edge-stroke: var(--color-neutral-600);
+        --xy-edge-stroke-selected: var(--color-neutral-100);
+        --xy-connectionline-stroke: var(--color-neutral-400);
+        --xy-background-pattern-dots-color: var(--color-neutral-800);
+        --xy-selection-border: 1px dashed var(--color-neutral-600);
     }
 }

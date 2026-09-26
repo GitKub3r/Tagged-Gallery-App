@@ -2,6 +2,7 @@ const MediaModel = require("../models/Media.model");
 const AlbumModel = require("../models/Album.model");
 const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
+const RuleEngineService = require("./RuleEngine.service");
 const { removeStoredMediaFiles } = require("../utils/media");
 
 // Días que una media pasa en la papelera antes de borrarse definitivamente.
@@ -43,8 +44,11 @@ class TrashService {
         const { ids, ...idsError } = parseIds(body?.ids);
         if (!ids) return idsError;
 
-        const restoredCount = await MediaModel.restoreFromTrash(ids, user.id);
+        // Solo las que estaban en la papelera disparan las reglas de "Media restored".
+        const trashedIds = (await MediaModel.findTrashedForUser(user.id, ids)).map((media) => media.id);
+        const restoredCount = await MediaModel.restoreFromTrash(trashedIds, user.id);
         if (restoredCount > 0) {
+            await RuleEngineService.runForEvent(user.id, "restored", trashedIds);
             await AuditService.logEvent({ actionCode: "MEDIA_RESTORE", req, statusCode: 200, message: `Restored ${restoredCount} media from trash`, metadata: { ids } });
         }
         return { data: { restoredCount } };

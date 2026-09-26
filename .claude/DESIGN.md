@@ -31,7 +31,7 @@ Etiquetas usadas en este documento:
 - Semánticos, solo cuando hay un estado que comunicar:
   - **Error y peligro:** `red`. Texto `text-red-600 dark:text-red-400`. Botón `bg-red-600 hover:bg-red-500`. Fondo suave `bg-red-500/10`, borde `border-red-500/30`–`/50`.
   - **Éxito:** `green`. Borde de toast `border-green-500/50` y texto `text-green-600`.
-  - **Aviso:** `amber`. Aviso en línea `border-amber-500/30 bg-amber-500/10` con icono `text-amber-600 dark:text-amber-400` (`DriveNotice`, tono `warning`); punto de estado `bg-amber-500`.
+  - **Aviso:** `amber`. Aviso en línea `border-amber-500/30 bg-amber-500/10` con icono `text-amber-600 dark:text-amber-400` (`InlineNotice`, tono `warning`); punto de estado `bg-amber-500`.
   - **Información:** hoy no se usa. Si hace falta, `sky` con la misma estructura.
 - Los colores de las tags los elige el usuario. Solo se pintan mediante `utils/tagStyle.js` (sección 7.7).
 
@@ -153,6 +153,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
 - Listados de tarjetas de gestión: `grid items-start gap-3 lg:grid-cols-2`.
 - Resumen de una colección de gestión: `StatTile` (receta de `DriveStats.jsx`: panel `rounded-xl border p-4`, etiqueta en mayúsculas con icono, valor `text-2xl font-black sm:text-3xl`) en `grid grid-cols-2 gap-3 lg:grid-cols-4`, encima del listado. Evita que la página sea solo una rejilla de elementos sueltos.
 - **Tarjeta "blueprint" (plantillas):** tratamiento propio de `TemplatesPage.jsx` para una entidad que es, conceptualmente, un plano reutilizable. Panel `relative overflow-hidden rounded-xl border border-dashed border-neutral-300 bg-white dark:border-neutral-700 dark:bg-neutral-900` con textura de retícula (`bg-[linear-gradient(rgba(0,0,0,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.05)_1px,transparent_1px)] bg-[size:16px_16px]`, par `dark:` con `rgba(255,255,255,0.05)`) y cuatro marcas de registro en las esquinas (`absolute h-2.5 w-2.5` con dos bordes en L, `border-neutral-300`/`700`). Dentro: código de pieza (`TPL-01`, `text-xs font-bold uppercase tracking-widest tabular-nums text-neutral-400`) — es un identificador **estable ligado al orden de creación**, no a la posición actual en el grid: se calcula una vez sobre la lista ordenada por `created_at` y no cambia si el usuario reordena o filtra la vista —, título, una ficha de dos columnas separada por `border-dotted` con `SpecField` (icono + etiqueta en mayúsculas arriba, valor `text-sm font-semibold` debajo; sin dato, se muestra "Undefined" en `text-neutral-400` en vez de dejar el hueco vacío — media name con `faImage`, autor con `faUser`), y un cajetín inferior (`border-t border-dashed`, mismo eyebrow) con las acciones. Las tags se limitan a 4 visibles (`+N` en badge `rounded-full bg-neutral-200`) y cada chip lleva `max-w-[6.5rem] truncate`, con un contenedor `min-h-[1.75rem]` que muestra "No tags" si no hay ninguna: así todas las tarjetas de una fila miden lo mismo, sin que una plantilla con muchas tags rompa la simetría del grid.
+- **Tarjeta "circuito" (reglas):** `RuleCard` trata cada regla como un módulo electrónico, igual que las plantillas son un plano; no se mezclan los dos lenguajes. Tarjeta de gestión con borde **continuo** (el discontinuo es del blueprint), `overflow-hidden`, y cuatro franjas: cabecera `p-4` con LED de estado (`h-2 w-2 rounded-full ring-4`: verde "Running", ámbar "Paused" si está activa pero incompleta, neutro "Off"; el texto va siempre junto al LED) en el eyebrow, título `text-lg font-black` y `Switch` a la derecha; esquema del workflow (`RuleSchematic`, `h-32`, fondo de puntos `bg-[radial-gradient(...)] bg-[size:12px_12px]` entre `border-y`), donde cada nodo es un chip con patillas y el icono de su tipo (disparador invertido, condición con contorno, acción rellena en gris) y las conexiones son pistas en ángulo recto con pads en los extremos; con la regla en marcha, una señal discontinua recorre las pistas (`animate-signal`, quieta con movimiento reducido). El esquema es `aria-hidden`: los mismos datos van en texto debajo, en tres lecturas `grid-cols-3 divide-x` ("Triggers", "Conditions", "Actions", eyebrow + número `text-xl font-black tabular-nums`). Pie `min-h-14 border-t` con la lectura de actividad ("Changed 41 media · Last on …") o el aviso ámbar de lo que falta, y el `IconButton` de borrar. Toda la tarjeta abre el editor. Rejilla `grid gap-4 sm:grid-cols-2 xl:grid-cols-3` y esqueleto `RuleCardSkeleton` con la misma forma.
 - **Orden de un listado de gestión con varios criterios** (plantillas): `<select>` con la receta de Select de §7.2 (`mediaFormInputClasses` + `appearance-none pr-10`, más `pl-9` si lleva icono a la izquierda) envuelto en un `<label>` de ancho fijo junto al contador de resultados. Icono `faArrowUpWideShort` para la acción de "ordenar / cambiar criterio". Solo neutrales y `border-dashed`/`border-dotted` para el lenguaje técnico — nunca azul ni otro color de marca. Reutilizar este panel (`BlueprintPanel`) para cualquier tratamiento futuro de plantillas antes de crear uno nuevo.
 - Formularios: `grid grid-cols-1 gap-3 sm:grid-cols-2`.
 - La sidebar es un drawer hasta `xl` y fija desde `xl` (`w-72`, plegable).
@@ -180,7 +181,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
 |---|---|
 | ninguna (`shadow-none`) | Por defecto: botones, tarjetas, inputs y paneles |
 | `shadow-2xl` | Caja de modal |
-| `shadow-xl` | Menús desplegables, listas de sugerencias y toasts |
+| `shadow-xl` | Menús desplegables, listas de sugerencias, tooltips y toasts |
 | `shadow-lg` | Indicadores flotantes (`ResultsLoadingIndicator`) |
 | `shadow-sm` / `shadow-md` | Botón flotante del menú móvil y controles sobre media |
 
@@ -201,6 +202,7 @@ Se usa siempre esta escala; no inventar valores intermedios:
 | Modal principal (subida, edición, formulario) | `z-[1200]` |
 | Modal abierto desde otro modal | `z-[1300]` |
 | Confirmaciones y diálogos sobre cualquier modal | `z-[1400]` |
+| Tooltips (`Tooltip`), por encima de cualquier modal | `z-[1500]` |
 | Capa de selección con marquesina | `z-[2000]` |
 
 ### 5.5 Superposiciones
@@ -220,6 +222,8 @@ Se usa siempre esta escala; no inventar valores intermedios:
   - `hover:scale-105` en la tarjeta de media.
   - Desplazamiento `group-hover:translate-x-1` de la flecha en acciones de estado vacío.
   - Latido del favorito.
+  - Señal que recorre las pistas del esquema de una regla activa (`animate-signal`).
+  - Latido del punto de cambios sin guardar (`animate-heartbeat`, token de `styles/index.css`): dos pulsaciones y 2,5 s de reposo.
   - `animate-pulse` en skeletons.
   - `spin` en `faSpinner`.
 - Todo movimiento que no sea un cambio de color lleva `motion-reduce:transition-none` / `motion-reduce:animate-none`.
@@ -254,11 +258,11 @@ inline-flex h-10 w-auto items-center gap-2 rounded-xl border-0 bg-red-600 px-4 t
 
 **Fantasma de peligro** (acción destructiva en menú o sidebar, p. ej. cerrar sesión): texto neutro con `hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-500`.
 
-**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive). Es roja desde el principio, va dentro de un aviso en línea rojo (`DriveNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
+**Contorno de peligro** (`dangerOutline`): acción de gran alcance que no debe pulsarse por error (p. ej. "Add all" en Google Drive o "Remove from all" en Metadata, que quita una tag, un nombre de media o un autor de todas las medias). Es roja desde el principio, va dentro de un aviso en línea rojo (`InlineNotice` con tono `danger`) y su confirmación muestra antes el alcance (número de archivos y tamaño) y usa `requireText`.
 
 **Texto / enlace:** acción terciaria, p. ej. "Clear", "Retry" o "Create one". `w-auto border-0 bg-transparent p-0 text-xs font-semibold text-neutral-600 underline shadow-none dark:text-neutral-300`. Un enlace de navegación usa `<Link>`, no `<button>`.
 
-**Solo icono:** siempre `IconButton` (`h-10 w-10 rounded-xl`, borde de control, `bg-neutral-50 dark:bg-neutral-900`), con `aria-label` y `title` si la acción no es obvia. Los iconos van con `aria-hidden="true"`.
+**Solo icono:** siempre `IconButton` (`h-10 w-10 rounded-xl`, borde de control, `bg-neutral-50 dark:bg-neutral-900`), con `aria-label` y `title` si la acción no es obvia. Los iconos van con `aria-hidden="true"`. Si activa o desactiva un modo, lleva `aria-pressed` e `isActive`, que lo pinta en invertido mientras está activo.
 
 **Segmented control / toggle de vista** (filtro de tipo, tarjetas o lista). En código nuevo, usar `SegmentedControl` (`components/segmented-control`, `labels="responsive"` o `"hidden"`, `disabled`); la galería aún lo tiene en línea (**legado**):
 
@@ -302,9 +306,13 @@ El foco de un campo se muestra cambiando el borde a `neutral-500`, porque el CSS
 - Los errores de formulario se muestran como toast (`ErrorToast`). Si un error es de un campo concreto, se pone debajo con `mt-1 text-xs font-semibold text-red-600 dark:text-red-400`, se añade `aria-invalid` y el borde pasa a `border-red-500/50`.
 - `maxLength` coherente con la base de datos: nombre 255, autor y tag 100, plantilla 100.
 
-**Búsqueda:** `SearchField`: lupa a la izquierda (`pl-9`), botón de limpiar `h-8 w-8` a la derecha y `h-11`. Dentro de paneles densos (sidebar) se usa `h-10`.
+**Búsqueda:** `SearchField`: lupa a la izquierda (`pl-9`), botón de limpiar `h-8 w-8` a la derecha y `h-11`. Dentro de paneles densos (sidebar, paleta de nodos) se usa `size="compact"` (`h-10`).
 
-**Select:** `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
+**Select:** `SelectField` (`components/select-field`, con `label`, `options` y `placeholder` opcional): `mediaFormInputClasses` + `appearance-none pr-10`, con icono `faChevronDown` en `absolute right-3.5 text-xs text-neutral-500`.
+
+**Nombre, autor y tags con sugerencias:** `MetadataSuggestionField` y `MediaTagsField` (exportados desde `MediaFormModal.jsx`) con el estado de `useMediaMetadataForm`. `MediaMetadataFields` los compone; se usan sueltos cuando solo hace falta uno.
+
+**Lista de valores:** `ChipListField` (en `MediaFormModal.jsx`): input con sugerencias que añade con Enter y chips que se quitan con un clic, con contador "N selected". `MediaTagsField` es un `ChipListField` con chips de tag; para otras listas (varios autores o nombres de media en una regla) los chips son neutros y llevan el icono de la entidad.
 
 **Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se usa `CheckboxOption` (`title`, `description`), que la envuelve en una tarjeta clicable:
 
@@ -314,7 +322,7 @@ flex min-h-14 cursor-pointer items-center gap-3 rounded-xl border border-neutral
 
 Dentro va un título `text-sm font-semibold` y una ayuda `text-xs text-neutral-500`.
 
-**Interruptor (switch):** pista `h-5 w-9 rounded-full p-0.5` (encendida `bg-neutral-950 dark:bg-white`, apagada `bg-neutral-300 dark:bg-neutral-700`) y bola `h-4 w-4 rounded-full` desplazada con `translate-x-4`. Lleva `role="switch"` y `aria-checked`. Si se usa en más de un sitio, extraerlo a un componente `Switch`.
+**Interruptor (switch):** `Switch` (`components/switch`, con `label` y `showLabel`): botón `h-10` con pista `h-5 w-9 rounded-full p-0.5` (encendida `bg-neutral-950 dark:bg-white`, apagada `bg-neutral-300 dark:bg-neutral-700`) y bola `h-4 w-4 rounded-full` desplazada con `translate-x-4`. Lleva `role="switch"` y `aria-checked`. **Legado:** el interruptor dibujado dentro del ítem "Loading mode" de la sidebar.
 
 **Sugerencias / autocompletado:** lista con el patrón de `MediaSuggestionList`:
 
@@ -342,7 +350,7 @@ min-w-0 rounded-xl border border-neutral-200 bg-white p-4 transition-colors hove
 
 ### 7.4 Tags y chips
 
-- **Chip de tag** (canónico en toda la app):
+- **Chip de tag** (canónico en toda la app; de solo lectura, `TagChip` en `components/tag-chip`):
   - Clases: `inline-flex max-w-full items-center gap-1.5 truncate rounded-xl border px-2 py-1 text-xs font-semibold`.
   - Color: `style={buildTagChipStyle(color)}` (o `buildDefaultTagStyle` para tags sin color).
   - Icono: `getTagIcon(...)`, que distingue tag guardada, tag nueva y tag de copyright.
@@ -404,10 +412,18 @@ Todos los modales:
 | Error de petición | Automático desde `apiClient`; no duplicar toasts |
 | Progreso largo (subida, descarga ZIP) | `useAppToast` con `progress` y cancelación (`ProgressToast`) |
 | Carga inicial de página | `PageLoadingSkeleton` / `CollectionLoadingSkeleton` con la forma del contenido final |
-| Recarga de resultados con datos ya visibles | `ResultsLoadingIndicator` flotante; no vaciar la vista |
+| Recarga de resultados con datos ya visibles | `ResultsLoadingIndicator` flotante; no vaciar la vista. Con `placement="inline"` se coloca dentro de otro contenedor (p. ej. un panel del lienzo de reglas) |
 | Error al cargar | `LoadErrorState` con `onRetry={() => query.refetch()}`, `placement="page"` o `"section"` |
 | Sin datos / sin resultados | `EmptyState` con título, icono de la entidad y acción ("Create template" / "Clear search") |
 | Barra de progreso | Pista `h-1.5`/`h-2 rounded-full bg-neutral-200 dark:bg-neutral-700`; relleno `bg-neutral-950 dark:bg-white` |
+
+**Tooltip:** `Tooltip` (`components/tooltip`, sobre `@floating-ui/react`). Envuelve a un único elemento disparador (sin `ref` propia) y se coloca solo donde cabe, en un portal. Panel `max-w-xs rounded-xl border bg-white text-xs shadow-xl dark:bg-neutral-900` en `z-[1500]`.
+
+- `openOn="hover"` (por defecto): etiqueta breve que aparece con el ratón (300 ms) o con el foco. Sustituye a `title` en los `IconButton`, que conservan su `aria-label`. `shortcut={[MODIFIER_KEY, "Z"]}` añade el atajo con `Kbd`. Nunca contiene información esencial que no esté también en el `aria-label`.
+- `openOn="click"`: ayuda más larga (texto, listas de atajos) que se abre y cierra al pulsar, también en táctil; recibe el foco al abrirse y se cierra con Escape o clic fuera. Se dispara desde un `IconButton` con `faCircleQuestion` y lleva `label` como nombre accesible. Ejemplo: `RuleEditorHelp`.
+- No crear tooltips con `title` en controles nuevos ni otro componente de tooltip.
+
+**Tecla de atajo:** `Kbd` (`components/kbd`): `<kbd>` `h-5 rounded-xl border bg-neutral-100 px-1.5 text-xs font-semibold dark:bg-neutral-800`, una por tecla ("Ctrl", "Shift", "Z").
 
 - Los mensajes de toast son frases cortas en inglés: "Media updated", "3 files uploaded", "Could not delete album".
 - Los contadores y estados dinámicos llevan `aria-live="polite"`. Los indicadores de carga llevan `role="status"` y texto `sr-only`.
@@ -423,6 +439,24 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 - Botón: `bg-black/65 text-white hover:bg-black/80 rounded-xl`.
 - Iconos con `drop-shadow` cuando van sin fondo.
 - Deben verse sin hover en táctil. En escritorio pueden atenuarse, pero nunca ocultarse del todo si la acción es esencial.
+
+### 7.10 Editor de workflows (reglas)
+
+Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow** (`@xyflow/react`), con la capa de tema de `styles/index.css` (sus estilos base van en `@layer components`, así que las utilidades de Tailwind mandan). No usar sus componentes con estilo propio (`Controls`, `MiniMap`): los controles se hacen con `IconButton`.
+
+- **Página:** altura fija para el lienzo, `h-[calc(100dvh-6rem)] xl:h-[calc(100dvh-4rem)]` con `min-h-[34rem]`. Es una herramienta, así que su cabecera no es la de página: es una barra compacta como la de un IDE (`rounded-xl border bg-neutral-50 p-2 dark:bg-neutral-900`). A la izquierda, `IconButton` de volver, separador vertical (`h-6 w-px`), ruta "Rules /" (desde `sm`) y el nombre como `h1` `text-base font-bold`, que es un botón para renombrar con `faPen` (sin fondo en hover: solo el lápiz pasa de gris a `neutral-950`/`white`); un punto `h-2 w-2 rounded-full` con `animate-heartbeat` indica cambios sin guardar, como la pestaña de un editor, y al final va la ayuda (`RuleEditorHelp`). A la derecha, `Switch` "Active", separador, "Run rule" (`faPlay`) y "Save" (`faFloppyDisk`, también Ctrl/Cmd + S). Excepción a una sola acción primaria: los dos son secundarios (y deshabilitados) mientras no se pueden usar y pasan a primarios cuando sí: "Run rule" con el workflow completo y "Save" con cambios sin guardar. En móvil la barra ocupa dos filas y los dos botones comparten la segunda (`grid grid-cols-2`) junto al interruptor.
+- **Barra de estado:** bajo el lienzo, `h-8 rounded-xl border bg-neutral-50 text-xs font-semibold tabular-nums`, como la de VS Code: punto y texto "Active"/"Inactive" (verde o neutro, nunca solo color), "3 nodes", "4 connections" y "1 issue" en ámbar (desde `sm`) y, a la derecha, el guardado ("Unsaved changes", `aria-live`).
+- **Ayuda:** los consejos y atajos del editor van en el `Tooltip` de ayuda de la barra superior, no como texto fijo en la paleta. Los botones de icono del lienzo usan `Tooltip` con su atajo.
+- **Paleta de nodos:** panel `w-72` desde `lg`; por debajo, botón "Add node" sobre el lienzo que abre la misma paleta en un modal. Cada nodo es un botón `min-h-14` que se arrastra al lienzo o se añade con un clic. Con un nodo seleccionado, el nuevo se coloca a su derecha y se conecta a su salida ("True" en condiciones); así se construye el workflow en táctil sin arrastrar conexiones.
+- **Lienzo:** `rounded-xl border bg-neutral-50 dark:bg-neutral-950` con fondo de puntos. Zoom y encuadre con `IconButton` apilados abajo a la izquierda; deshacer, rehacer y "Select area" arriba a la derecha; abajo en el centro, la barra de selección múltiple y el estado o resultado de la ejecución (en teléfono, por encima de los botones de zoom).
+- **Nodo** (`RuleNode`): tarjeta `w-64` (`bg-white dark:bg-neutral-900`, borde de control) con icono en caja, categoría en eyebrow ("Trigger", "Condition", "Action") y título `text-sm font-bold`; debajo, resumen `text-xs`, chips de tag (`TagChip`, máximo 4 y "+N") y, si falta configuración, aviso `text-amber-600 dark:text-amber-400` con `faTriangleExclamation`. Seleccionado: anillo `ring-2` como `MediaCard`, con una barra flotante de `IconButton` (editar, duplicar y borrar) que sustituye al hover. Puntos de conexión `h-3.5 w-3.5 rounded-full` con zona táctil ampliada; las condiciones tienen dos salidas etiquetadas, "True" (`faCheck`) y "False" (`faXmark`). La categoría y las salidas se indican con texto, nunca solo con color.
+- **Conexión:** curva neutra con flecha. Si es lo único seleccionado aparece un `IconButton` `faTrash` en su centro (tamaño fijo aunque cambie el zoom).
+- **Selección y configuración de un nodo:** el primer clic lo selecciona; un clic sobre un nodo ya seleccionado, un doble clic, Enter o el botón editar abren su configuración en un `MediaFormModal` compacto (arrastrarlo no la abre). El modal muestra la descripción del nodo, sus campos y el pie "Delete node" (`dangerGhost`, a la izquierda), "Cancel" y "Apply"; los cambios se guardan en la regla con "Save". Añadir un nodo no la abre: el nodo aparece seleccionado en el lienzo. La barra flotante del nodo solo aparece con un único nodo seleccionado.
+- **Selección múltiple:** Ctrl/⌘ (o Shift) + arrastrar sobre el lienzo selecciona los nodos que toca el área, como la selección de medias en la galería; Ctrl/⌘ + clic suma o quita un nodo. En táctil, el `IconButton` "Select area" (`faObjectGroup`, `aria-pressed`) hace que arrastrar seleccione en lugar de mover el lienzo. Con varios nodos, una barra abajo ("2 nodes selected") permite duplicarlos (`faCopy`) o borrarlos (`faTrash`). Escape deselecciona.
+- **Copiar y pegar:** Ctrl/⌘ + C copia los nodos seleccionados y las conexiones entre ellos; Ctrl/⌘ + V los pega con su configuración y Ctrl/⌘ + Shift + V los pega sin configurar, desplazados y seleccionados. No actúan mientras se escribe o hay un modal abierto, y el portapapeles se conserva al cambiar de regla. En táctil, el botón "Duplicate" (`faCopy`) de la barra del nodo.
+- **Deshacer y rehacer:** Ctrl/⌘ + Z y Ctrl/⌘ + Shift + Z (o Ctrl + Y), también con sus `IconButton`. Cubren añadir, pegar, duplicar, mover y borrar nodos, conectar y cambiar la configuración de un nodo (no el nombre ni "Active"). Dentro de un campo de texto son los del propio campo.
+- **Ejecución:** la confirmación se cierra al momento y el lienzo muestra el progreso: conexiones animadas (quietas con movimiento reducido), un `faSpinner` en cada nodo conectado, `ResultsLoadingIndicator` en línea y "Running..." en el botón; el lienzo se bloquea mientras tanto (se puede mover y ampliar) y el estado se ve al menos 800 ms. Al terminar, cada conexión muestra en un badge cuántas medias pasaron, las salidas "True"/"False" su recuento, los disparadores "Checked N media" y las acciones "Changed X of Y media"; abajo, el resumen con "Clear results". El resultado se oculta si cambia el workflow y vuelve si se deshace el cambio.
+- **Pendientes:** aviso en línea ámbar sobre el lienzo con lo que falta para activar o ejecutar la regla; cada problema de un nodo es un enlace de texto que lo centra y selecciona.
 
 ---
 
@@ -475,6 +509,15 @@ Los botones sobre una imagen o vídeo (favorito, reproducir, cerrar en el visor)
 | Desconectar una integración | `faLinkSlash` |
 | Elemento gestionado por la app (no editable) | `faLock` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
+| Reglas / ejecutar una regla | `faDiagramProject` / `faPlay` |
+| Deshacer / rehacer | `faArrowRotateLeft` / `faArrowRotateRight` |
+| Seleccionar un área (modo selección del lienzo) | `faObjectGroup` |
+| Acercar / alejar / encajar la vista del lienzo | `faMagnifyingGlassPlus` / `faMagnifyingGlassMinus` / `faExpand` |
+| Falta configuración (aviso) | `faTriangleExclamation` |
+| Ayuda (abre un `Tooltip` con `openOn="click"`) | `faCircleQuestion` |
+| Nodos disparadores: media añadida / editada / restaurada / ejecución manual | `faPlus` / `faPen` / `faRotateLeft` / `faHandPointer` |
+| Nodos de condición: nombre de media / autor / tamaño / resolución / orientación / tipo de media / historial de papelera | `faFont` / `faUserPen` / `faWeightHanging` / `faRulerCombined` / `faCropSimple` / `faPhotoFilm` / `faTrashCan` |
+| Nodos de acción: añadir tags / quitar tags / favorito / añadir a álbum | `faTag` / `faEraser` / `faHeart` / `faFolderPlus` |
 
 Para una acción que no esté en la tabla, se elige el icono, se usa en todos los sitios de esa acción y se añade aquí.
 
@@ -484,7 +527,7 @@ Para una acción que no esté en la tabla, se elige el icono, se usa en todos lo
 
 - La interfaz está en **inglés**. La documentación y los comentarios están en español.
 - Mayúscula solo al inicio (sentence case) en títulos, botones y etiquetas: "Add to album", no "Add To Album".
-- Los nombres de entidad son siempre los mismos: *media* (singular y plural), *tag*, *album*, *template*, *favourites* (ortografía británica, como en las rutas), *author*, *media name*.
+- Los nombres de entidad son siempre los mismos: *media* (singular y plural), *tag*, *album*, *template*, *rule* (y *node* para sus piezas: *trigger*, *condition*, *action*), *favourites* (ortografía británica, como en las rutas), *author*, *media name*.
 - Pluralización explícita: `1 template` / `3 templates`.
 - Los placeholders dan un ejemplo o la acción ("For example: Travel photos", "Type a tag and press Enter"); no repiten la etiqueta.
 - El texto del botón de confirmación nombra la acción ("Delete album"), no "OK" ni "Yes".

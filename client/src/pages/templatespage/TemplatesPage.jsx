@@ -10,16 +10,18 @@ import { EmptyState } from "../../components/empty-state/EmptyState";
 import { IconButton } from "../../components/icon-button/IconButton";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
+import { Pagination } from "../../components/pagination/Pagination";
 import { MediaFormModal, MediaMetadataFields } from "../../components/media-form-modal/MediaFormModal";
 import { mediaFormInputClasses } from "../../components/media-form-modal/mediaFormStyles";
 import { SearchField } from "../../components/search-field/SearchField";
+import { TagChip } from "../../components/tag-chip/TagChip";
 import { ErrorToast } from "../../components/toast/ErrorToast";
 import { useAuth } from "../../hooks/useAuth";
 import { useDevTools } from "../../hooks/useDevTools";
+import { useClientPagination } from "../../hooks/useClientPagination";
 import { useTemplates } from "../../hooks/useTemplates";
 import { useMediaMetadataForm } from "../../hooks/useMediaMetadataForm";
 import { useMetadata } from "../../hooks/useMetadata";
-import { getTagIcon } from "../../utils/tagIcon";
 import { buildTagChipStyle } from "../../utils/tagStyle";
 
 const TemplateEditor = ({ template, metadata, tagNames, tagColorByName, tagTypeByName, isSaving, error, onSave, onCancel }) => {
@@ -143,9 +145,8 @@ const TemplateCard = ({ template, code, tagNameSet, tagColorByName, tagTypeByNam
                         {visibleTags.map((tag) => {
                             const key = tag.trim().toLowerCase();
                             return (
-                                <span key={tag} className="inline-flex max-w-[6.5rem] items-center gap-1.5 truncate rounded-xl border px-2 py-1 text-xs font-semibold" style={buildTagChipStyle(tagColorByName[key])} title={tag}>
-                                    <FontAwesomeIcon icon={getTagIcon(!metadataAvailable || tagNameSet.has(key), tagTypeByName[key])} aria-hidden="true" />
-                                    <span className="truncate">{tag}</span>
+                                <span key={tag} className="inline-flex min-w-0 max-w-[6.5rem]">
+                                    <TagChip tag={tag} color={tagColorByName[key]} type={tagTypeByName[key]} isExisting={!metadataAvailable || tagNameSet.has(key)} />
                                 </span>
                             );
                         })}
@@ -183,6 +184,9 @@ const TemplateCardSkeleton = () => (
         </div>
     </div>
 );
+
+// 12 llena filas completas en 2 y en 3 columnas.
+const PAGE_SIZE = 12;
 
 const SORT_OPTIONS = [
     { value: "created_asc", label: "Creation order" },
@@ -252,6 +256,9 @@ export const TemplatesPage = () => {
     const searchTerm = search.trim().toLowerCase();
     const searchedTemplates = searchTerm ? templates.filter((template) => [template.name, template.displayname, template.author, ...template.tags].some((value) => value.toLowerCase().includes(searchTerm))) : templates;
     const filteredTemplates = sortTemplates(searchedTemplates, sortOrder);
+    const pagination = useClientPagination(filteredTemplates, PAGE_SIZE);
+    // Buscar u ordenar vuelve a la primera página.
+    const updateSearch = (value) => { setSearch(value); pagination.resetPage(); };
     const openEditor = (template = null) => { saveMutation.reset(); setEditingTemplate(template); setIsEditorOpen(true); };
 
     if (forceLoading) return <section className="tagged-app-page"><TemplatesLoadingSkeleton /></section>;
@@ -278,12 +285,12 @@ export const TemplatesPage = () => {
             {!templatesQuery.isPending && !templatesQuery.isError && templates.length > 0 ? (
                 <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                        <SearchField value={search} onChange={setSearch} onClear={() => setSearch("")} label="Search templates" placeholder="Name, author or tag" className="w-full sm:max-w-sm" />
+                        <SearchField value={search} onChange={updateSearch} onClear={() => updateSearch("")} label="Search templates" placeholder="Name, author or tag" className="w-full sm:max-w-sm" />
                         <label className="block w-full shrink-0 sm:w-auto">
                             <span className="sr-only">Sort templates</span>
                             <div className="relative">
                                 <FontAwesomeIcon icon={faArrowUpWideShort} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 dark:text-neutral-600" aria-hidden="true" />
-                                <select className={`${mediaFormInputClasses} appearance-none pl-9 pr-10`} value={sortOrder} onChange={(event) => setSortOrder(event.target.value)}>
+                                <select className={`${mediaFormInputClasses} appearance-none pl-9 pr-10`} value={sortOrder} onChange={(event) => { setSortOrder(event.target.value); pagination.resetPage(); }}>
                                     {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                                 </select>
                                 <FontAwesomeIcon icon={faChevronDown} className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-neutral-500 dark:text-neutral-400" aria-hidden="true" />
@@ -294,11 +301,14 @@ export const TemplatesPage = () => {
                 </div>
             ) : null}
 
-            {!templatesQuery.isPending && !templatesQuery.isError && filteredTemplates.length === 0 ? <EmptyState title={search ? "No matching templates" : "No templates yet"} icon={faCopy} placement="section" actionLabel={search ? "Clear search" : "Create template"} onAction={() => search ? setSearch("") : openEditor()} /> : null}
+            {!templatesQuery.isPending && !templatesQuery.isError && filteredTemplates.length === 0 ? <EmptyState title={search ? "No matching templates" : "No templates yet"} icon={faCopy} placement="section" actionLabel={search ? "Clear search" : "Create template"} onAction={() => search ? updateSearch("") : openEditor()} /> : null}
             {filteredTemplates.length > 0 ? (
-                <ul className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Saved templates">
-                    {filteredTemplates.map((template) => <TemplateCard key={template.id} template={template} code={templateCodeById.get(template.id)} tagNameSet={tagNameSet} tagColorByName={tagColorByName} tagTypeByName={tagTypeByName} metadataAvailable={Boolean(metadata)} onEdit={openEditor} onDelete={setPendingDelete} />)}
-                </ul>
+                <div className="flex flex-col gap-4">
+                    <ul className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Saved templates">
+                        {pagination.pageItems.map((template) => <TemplateCard key={template.id} template={template} code={templateCodeById.get(template.id)} tagNameSet={tagNameSet} tagColorByName={tagColorByName} tagTypeByName={tagTypeByName} metadataAvailable={Boolean(metadata)} onEdit={openEditor} onDelete={setPendingDelete} />)}
+                    </ul>
+                    <Pagination currentPage={pagination.currentPage} totalPages={pagination.totalPages} onPageChange={pagination.goToPage} label="Template pagination" />
+                </div>
             ) : null}
             <DeleteConfirmationModal isOpen={Boolean(pendingDelete)} title="Delete this template?" description="The saved template will be removed. Media that already used it will keep their metadata." confirmLabel="Delete template" isDeleting={deleteMutation.isPending} onConfirm={() => deleteMutation.mutate(pendingDelete.id)} onClose={() => !deleteMutation.isPending && setPendingDelete(null)} />
             <ErrorToast message={deleteMutation.error?.message} />

@@ -2320,7 +2320,7 @@ export const MediaDetailPage = () => {
                             <div className="tagged-media-detail-desktop-bottom">
                                 <h1 title={currentMedia.displayname}>{currentMedia.displayname || "Undefined"}</h1>
                                 <p className="tagged-media-detail-upload-date">
-                                    {formatUploadDate(currentMedia.updatedAt)}
+                                    {formatUploadDate(currentMedia.created_at)}
                                 </p>
 
                                 {desktopCopyrightTags.length > 0 ? (
@@ -2451,7 +2451,7 @@ export const MediaDetailPage = () => {
 
                         <div className="tagged-media-detail-mobile-meta-row">
                             <p className="tagged-media-detail-upload-date flex flex-wrap items-center gap-2">
-                                <span>{formatUploadDate(currentMedia.updatedAt)}</span>
+                                <span>{formatUploadDate(currentMedia.created_at)}</span>
                                 <MediaSourceBadge media={currentMedia} withLabel withSeparator />
                             </p>
                         </div>

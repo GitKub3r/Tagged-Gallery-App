@@ -20,12 +20,25 @@ class MediaModel {
             // Papelera: fecha en la que se envió a la papelera (NULL = activa). Se borra definitivamente a los 30 días.
             ["deleted_at", "DATETIME NULL DEFAULT NULL"],
             ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP AFTER deleted_at"],
+            // Resolución del original (la que se ve, ya girada). NULL si no se pudo leer: ver dimensions:backfill.
+            ["width", "INT UNSIGNED NULL AFTER size"],
+            ["height", "INT UNSIGNED NULL AFTER width"],
+            // Se marca al enviarla a la papelera y se conserva al restaurarla (regla "Was in the trash").
+            ["was_trashed", "BOOLEAN NOT NULL DEFAULT FALSE AFTER deleted_at"],
         ];
 
         for (const [name, definition] of columnDefinitions) {
             if (!existingColumns.has(name)) {
                 await pool.query(`ALTER TABLE media ADD COLUMN ${name} ${definition}`);
             }
+        }
+        // Al añadir created_at, MySQL rellena las filas existentes con la fecha actual: se recupera la real.
+        if (!existingColumns.has("created_at")) {
+            await this.backfillCreatedAtFromFilenames();
+        }
+        // Las que ya estaban en la papelera al crear la columna también cuentan.
+        if (!existingColumns.has("was_trashed")) {
+            await pool.query("UPDATE media SET was_trashed = TRUE WHERE deleted_at IS NOT NULL");
         }
 
         const [indexRows] = await pool.query("SHOW INDEX FROM media");
@@ -39,6 +52,19 @@ class MediaModel {
         if (!existingIndexes.has("idx_media_user_deleted")) {
             await pool.query("ALTER TABLE media ADD INDEX idx_media_user_deleted (user_id, deleted_at)");
         }
+    }
+
+    // created_at es la fecha de subida. El nombre físico de los archivos subidos empieza por el
+    // Date.now() de la subida ("1773508222446-413724264.jpeg"), así que se recupera de ahí.
+    // Mantiene updatedAt para no marcar las medias como editadas. Idempotente.
+    static async backfillCreatedAtFromFilenames() {
+        const [result] = await pool.query(
+            `UPDATE media
+             SET created_at = FROM_UNIXTIME(CAST(SUBSTRING(filename, 1, 13) AS UNSIGNED) / 1000), updatedAt = updatedAt
+             WHERE filename REGEXP '^[0-9]{13}-'
+               AND (created_at IS NULL OR ABS(TIMESTAMPDIFF(SECOND, created_at, FROM_UNIXTIME(CAST(SUBSTRING(filename, 1, 13) AS UNSIGNED) / 1000))) > 60)`,
+        );
+        return result.affectedRows;
     }
 
     static async ensureManagedValuesTables() {
@@ -372,6 +398,29 @@ class MediaModel {
         return result.affectedRows || 0;
     }
 
+    // Nombre de media o autor en las medias activas del usuario. field: "displayname" o "author".
+    static async countActiveByValue(userId, field, value) {
+        const column = field === "author" ? "author" : "displayname";
+        const [[row]] = await pool.query(
+            `SELECT COUNT(*) AS total FROM media WHERE user_id = ? AND deleted_at IS NULL AND TRIM(${column}) = ?`,
+            [userId, value],
+        );
+        return Number(row.total) || 0;
+    }
+
+    // Vacía el nombre o el autor en las medias activas y lo quita de los valores gestionados, así deja de
+    // aparecer en Metadata. Las medias de la papelera lo conservan y lo recuperan al restaurarse.
+    static async clearValueFromActiveMedia(userId, field, value) {
+        await this.ensureManagedValuesTables();
+        const [column, table] = field === "author" ? ["author", "media_author_values"] : ["displayname", "media_displayname_values"];
+        const [result] = await pool.query(
+            `UPDATE media SET ${column} = NULL WHERE user_id = ? AND deleted_at IS NULL AND TRIM(${column}) = ?`,
+            [userId, value],
+        );
+        await pool.query(`DELETE FROM ${table} WHERE user_id = ? AND ${column} = ?`, [userId, value]);
+        return result.affectedRows || 0;
+    }
+
     static async createManagedAuthor(userId, author) {
         await this.ensureManagedValuesTables();
         await pool.query("INSERT IGNORE INTO media_author_values (user_id, author) VALUES (?, ?)", [userId, author]);
@@ -444,6 +493,8 @@ class MediaModel {
             mediatype,
             is_favourite,
             checksum_md5 = null,
+            width = null,
+            height = null,
             storage_provider = "local",
             source_file_id = null,
             source_mime_type = null,
@@ -455,15 +506,17 @@ class MediaModel {
         const normalizedAuthor = author === undefined || author === null || author === "" ? null : author;
 
         const [result] = await pool.query(
-            `INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5,
+            `INSERT INTO media (user_id, displayname, author, filename, size, width, height, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5,
                 storage_provider, source_file_id, source_mime_type, source_modified_time, last_synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 user_id,
                 normalizedDisplayName,
                 normalizedAuthor,
                 filename,
                 size,
+                width,
+                height,
                 filepath,
                 thumbpath,
                 previewpath,
@@ -522,12 +575,13 @@ class MediaModel {
     }
 
     // Pasa una media de Drive a almacenamiento local (solo si sigue siendo de Drive).
-    static async convertDriveToLocal(mediaId, { filename, size, filepath, thumbpath, previewpath, checksum_md5 }) {
+    static async convertDriveToLocal(mediaId, { filename, size, width = null, height = null, filepath, thumbpath, previewpath, checksum_md5 }) {
         const [result] = await pool.query(
             `UPDATE media SET storage_provider = 'local', storage_status = 'available', source_file_id = NULL, source_mime_type = NULL,
-                 source_modified_time = NULL, last_synced_at = NULL, filename = ?, size = ?, filepath = ?, thumbpath = ?, previewpath = ?, checksum_md5 = ?
+                 source_modified_time = NULL, last_synced_at = NULL, filename = ?, size = ?, width = COALESCE(?, width), height = COALESCE(?, height),
+                 filepath = ?, thumbpath = ?, previewpath = ?, checksum_md5 = ?
              WHERE id = ? AND storage_provider = 'google_drive'`,
-            [filename, size, filepath, thumbpath, previewpath, checksum_md5, mediaId],
+            [filename, size, width, height, filepath, thumbpath, previewpath, checksum_md5, mediaId],
         );
         return result.affectedRows > 0;
     }
@@ -544,6 +598,35 @@ class MediaModel {
                AND source_mime_type LIKE 'image/%' AND source_mime_type <> 'image/gif'`,
         );
         return rows;
+    }
+
+    // Datos que evalúan las reglas (utils/ruleGraph.js). Solo medias activas del usuario.
+    static async findRuleSnapshots(userId, { ids = null, afterId = 0, limit = null } = {}) {
+        if (Array.isArray(ids) && ids.length === 0) return [];
+        const conditions = ["user_id = ?", "deleted_at IS NULL", "id > ?"];
+        const values = [userId, afterId];
+        if (ids) {
+            conditions.push("id IN (?)");
+            values.push(ids);
+        }
+        const [rows] = await pool.query(
+            `SELECT id, user_id, displayname, author, size, width, height, mediatype, is_favourite, was_trashed, storage_provider
+             FROM media WHERE ${conditions.join(" AND ")} ORDER BY id ASC${limit ? " LIMIT ?" : ""}`,
+            limit ? [...values, limit] : values,
+        );
+        return rows;
+    }
+
+    // Medias (también las de la papelera) sin resolución guardada.
+    static async findWithoutDimensions() {
+        const [rows] = await pool.query(
+            "SELECT id, user_id, filename, mediatype, storage_provider, source_file_id FROM media WHERE width IS NULL OR height IS NULL ORDER BY id ASC",
+        );
+        return rows;
+    }
+
+    static async updateDimensions(mediaId, { width, height }) {
+        await pool.query("UPDATE media SET width = ?, height = ? WHERE id = ?", [width, height, mediaId]);
     }
 
     static async updateStorageStatus(mediaId, status) {
@@ -675,7 +758,7 @@ class MediaModel {
     // Envía medias activas a la papelera. Sus tags y álbumes se conservan para poder restaurarlas.
     static async moveToTrash(ids) {
         if (!ids.length) return 0;
-        const [result] = await pool.query("UPDATE media SET deleted_at = NOW() WHERE id IN (?) AND deleted_at IS NULL", [ids]);
+        const [result] = await pool.query("UPDATE media SET deleted_at = NOW(), was_trashed = TRUE WHERE id IN (?) AND deleted_at IS NULL", [ids]);
         return result.affectedRows || 0;
     }
 
@@ -740,6 +823,8 @@ class MediaModel {
             item.author === undefined || item.author === null || item.author === "" ? null : item.author,
             item.filename,
             item.size,
+            item.width ?? null,
+            item.height ?? null,
             item.filepath,
             item.thumbpath,
             item.previewpath || null,
@@ -749,7 +834,7 @@ class MediaModel {
         ]);
 
         const [result] = await pool.query(
-            "INSERT INTO media (user_id, displayname, author, filename, size, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5) VALUES ?",
+            "INSERT INTO media (user_id, displayname, author, filename, size, width, height, filepath, thumbpath, previewpath, mediatype, is_favourite, checksum_md5) VALUES ?",
             [values],
         );
 

@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { execFile } = require("child_process");
 const { createReadStream } = require("fs");
 const fs = require("fs/promises");
 const path = require("path");
@@ -51,10 +52,42 @@ const decodeHeicToJpeg = async (inputFilePath) =>
 const writeJpeg = (input, outputFilePath, resizeOptions, quality) =>
     sharp(input, { failOn: "none" }).rotate().resize(resizeOptions).jpeg({ quality, mozjpeg: true }).toFile(outputFilePath);
 
+// Resolución con la que se ve una imagen: las orientaciones EXIF 5-8 la giran 90° e intercambian ancho y alto.
+const readImageDimensions = async (input) => {
+    const { width, height, orientation } = await sharp(input, { failOn: "none" }).metadata();
+    if (!width || !height) return null;
+    return orientation >= 5 ? { width: height, height: width } : { width, height };
+};
+
+// Resolución de un vídeo según ffmpeg ("ffmpeg -i" sin salida termina con error, pero describe los streams).
+// Los vídeos grabados en vertical guardan una rotación de 90° o 270°: se devuelve la resolución que se ve.
+const readVideoDimensions = (filePath) =>
+    new Promise((resolve) => {
+        execFile(ffmpegPath, ["-hide_banner", "-i", filePath], { timeout: 30 * 1000 }, (error, stdout, stderr) => {
+            const output = String(stderr || "");
+            const match = output.match(/Stream #\d+:\d+.*?Video: .*?\b(\d{2,5})x(\d{2,5})\b/);
+            if (!match) return resolve(null);
+            const rotation = Math.abs(Number(output.match(/rotation of (-?[\d.]+) degrees/)?.[1] ?? output.match(/rotate\s*:\s*(-?\d+)/)?.[1] ?? 0));
+            const [width, height] = [Number(match[1]), Number(match[2])];
+            resolve(rotation === 90 || rotation === 270 ? { width: height, height: width } : { width, height });
+        });
+    });
+
+// Nunca impide una subida: si no se puede leer, la media queda sin resolución.
+const readMediaDimensions = async (input, mediaType) => {
+    try {
+        return mediaType === "video" ? await readVideoDimensions(input) : await readImageDimensions(input);
+    } catch (error) {
+        console.warn("Could not read media dimensions:", error.message);
+        return null;
+    }
+};
+
 const createHeicDerivatives = async (inputFilePath, thumbnailFilePath, previewFilePath) => {
     const jpegBuffer = await decodeHeicToJpeg(inputFilePath);
     await writeJpeg(jpegBuffer, previewFilePath, PREVIEW_OPTIONS, 85);
     await writeJpeg(jpegBuffer, thumbnailFilePath, THUMBNAIL_OPTIONS, 72);
+    return readMediaDimensions(jpegBuffer, "image");
 };
 
 const createVideoThumbnail = async (inputFilePath, thumbnailFilePath) => {
@@ -111,24 +144,29 @@ const extractRemoteVideoFrame = async (url) => {
 const getDerivedFilename = (mediaFilename) => `${path.parse(mediaFilename).name}.jpg`;
 
 // Genera la miniatura y, para HEIC/HEIF, un preview JPEG que el navegador puede mostrar.
-// El original se conserva intacto para las descargas.
+// El original se conserva intacto para las descargas. Devuelve también la resolución del original.
 const generateMediaDerivatives = async (uploadedFile, mediaType) => {
     const derivedFilename = getDerivedFilename(uploadedFile.filename);
     const thumbnailFilePath = path.join(THUMBNAILS_UPLOAD_DIR, derivedFilename);
     let previewPath = null;
+    let dimensions = null;
 
     if (mediaType === "video") {
         await createVideoThumbnail(uploadedFile.path, thumbnailFilePath);
+        dimensions = await readMediaDimensions(uploadedFile.path, "video");
     } else if (isHeicFile(uploadedFile)) {
-        await createHeicDerivatives(uploadedFile.path, thumbnailFilePath, path.join(PREVIEWS_UPLOAD_DIR, derivedFilename));
+        dimensions = await createHeicDerivatives(uploadedFile.path, thumbnailFilePath, path.join(PREVIEWS_UPLOAD_DIR, derivedFilename));
         previewPath = `/uploads/previews/${derivedFilename}`;
     } else {
         await writeJpeg(uploadedFile.path, thumbnailFilePath, THUMBNAIL_OPTIONS, 72);
+        dimensions = await readMediaDimensions(uploadedFile.path, "image");
     }
 
     return {
         thumbnailPath: `/uploads/thumbnails/${derivedFilename}`,
         previewPath,
+        width: dimensions?.width ?? null,
+        height: dimensions?.height ?? null,
     };
 };
 
@@ -174,6 +212,8 @@ module.exports = {
     computeFileMd5,
     isHeicFile,
     createHeicDerivatives,
+    decodeHeicToJpeg,
+    readMediaDimensions,
     generateMediaDerivatives,
     removeMediaDerivatives,
     removeStoredMediaFiles,

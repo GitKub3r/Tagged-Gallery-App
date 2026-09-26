@@ -11,6 +11,7 @@ import {
     faCloudArrowUp,
     faCopy,
     faCode,
+    faDiagramProject,
     faFolderOpen,
     faHeart,
     faImages,
@@ -43,6 +44,7 @@ const navItems = [
     { label: "Albums", path: "/albums", icon: faFolderOpen },
     { label: "Metadata", path: "/metadata", icon: faTags },
     { label: "Templates", path: "/templates", icon: faCopy },
+    { label: "Rules", path: "/rules", icon: faDiagramProject },
     { label: "Google Drive", path: "/drive", icon: faGoogleDrive },
     { label: "Dashboard", path: "/dashboard", icon: faChartColumn },
     { label: "Trash", path: "/trash", icon: faTrashCan },
@@ -257,7 +259,7 @@ export const Sidebar = () => {
                                 ) : null}
                             </div>
 
-                            <SearchField className="mb-3" inputClassName="h-10!" value={tagPanelSearch} onChange={setTagPanelSearch} placeholder="Search tags" label="Search tags to filter" />
+                            <SearchField className="mb-3" size="compact" value={tagPanelSearch} onChange={setTagPanelSearch} placeholder="Search tags" label="Search tags to filter" />
 
                             <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-label="Tag filters">
                                 {filteredTagNames.map((tagName) => {

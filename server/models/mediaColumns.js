@@ -12,6 +12,7 @@ const MEDIA_FIELDS = [
     "previewpath",
     "mediatype",
     "is_favourite",
+    "created_at",
     "updatedAt",
     "storage_provider",
     "storage_status",

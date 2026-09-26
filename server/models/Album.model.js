@@ -22,6 +22,11 @@ class AlbumModel {
         const [rows] = await pool.query(`SELECT DISTINCT albumname FROM albums WHERE ${ownershipCondition}albumname IS NOT NULL AND TRIM(albumname) <> '' ORDER BY albumname ASC`, userId === null ? [] : [userId]);
         return rows.map((row) => row.albumname);
     }
+    static async findIdsByUserId(userId) {
+        const [rows] = await pool.query("SELECT id FROM albums WHERE user_id = ?", [userId]);
+        return rows.map((row) => row.id);
+    }
+
     static async findAll() {
         const [rows] = await pool.query(
             `${ALBUM_SELECT}

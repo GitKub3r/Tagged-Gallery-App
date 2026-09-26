@@ -10,6 +10,12 @@ class MediaAlbumModel {
         return result.affectedRows || 0;
     }
 
+    static async findAlbumIdsByMediaIds(mediaIds) {
+        if (!mediaIds || mediaIds.length === 0) return [];
+        const [rows] = await pool.query("SELECT mediaid, albumid FROM media_albums WHERE mediaid IN (?)", [mediaIds]);
+        return rows;
+    }
+
     static async findMediaByAlbumId(albumId) {
         const [rows] = await pool.query(
             `SELECT ${selectMediaColumns("m")}
