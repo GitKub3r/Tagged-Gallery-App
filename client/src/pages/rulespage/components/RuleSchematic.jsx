@@ -56,7 +56,7 @@ const getViewBox = (nodes) => {
 
 // Esquema del workflow en miniatura para la tarjeta de una regla: cada nodo es un chip con el icono de su tipo
 // y las conexiones son pistas. Con la regla activa, una señal recorre las pistas. Es decorativo: la tarjeta
-// da los mismos datos en texto.
+// da los mismos datos en texto, y no captura los clics para que también abra el editor como el resto de la tarjeta.
 export const RuleSchematic = ({ graph, isActive }) => {
     const nodes = graph.nodes.filter((node) => RULE_NODE_TYPES[node.type] && node.position);
     const nodesById = new Map(nodes.map((node) => [node.id, node]));
@@ -65,7 +65,7 @@ export const RuleSchematic = ({ graph, isActive }) => {
         .map((edge) => ({ id: edge.id, ...getTracePath(nodesById.get(edge.source), nodesById.get(edge.target), edge.sourceHandle) }));
 
     return (
-        <div className="relative h-32 bg-neutral-50 bg-[radial-gradient(rgba(0,0,0,0.12)_1px,transparent_1px)] bg-[size:12px_12px] dark:bg-neutral-950 dark:bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)]" aria-hidden="true">
+        <div className="pointer-events-none relative h-32 bg-neutral-50 bg-[radial-gradient(rgba(0,0,0,0.12)_1px,transparent_1px)] bg-[size:12px_12px] dark:bg-neutral-950 dark:bg-[radial-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)]" aria-hidden="true">
             {nodes.length === 0 ? (
                 <p className="flex h-full items-center justify-center gap-2 text-xs font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-600">
                     <FontAwesomeIcon icon={faDiagramProject} />

@@ -30,6 +30,7 @@ import { ResultsLoadingIndicator } from "../../../components/results-loading-ind
 import { Switch } from "../../../components/switch/Switch";
 import { Tooltip } from "../../../components/tooltip/Tooltip";
 import { useAlbums } from "../../../hooks/useAlbums";
+import { useAuth } from "../../../hooks/useAuth";
 import { useMetadata } from "../../../hooks/useMetadata";
 import { useRunRule, useUpdateRule } from "../../../hooks/useRules";
 import {
@@ -197,6 +198,7 @@ export const RuleEditor = ({ rule }) => {
 
     const updateRule = useUpdateRule();
     const runRule = useRunRule();
+    const { user } = useAuth();
     const { metadata, tagColorByName, tagTypeByName, tagNameSet } = useMetadata();
     const albumsQuery = useAlbums();
 
@@ -288,7 +290,7 @@ export const RuleEditor = ({ rule }) => {
 
     const copySelectedNodes = () => {
         if (selectedNodes.length === 0) return false;
-        copyToRuleClipboard(getSelectionContent());
+        copyToRuleClipboard(user?.id, getSelectionContent());
         toast.success(selectedNodes.length === 1 ? "Node copied" : `${selectedNodes.length} nodes copied`);
         return true;
     };
@@ -308,7 +310,7 @@ export const RuleEditor = ({ rule }) => {
     // Ctrl/Cmd + V pega los nodos copiados con su configuración; con Shift, solo el tipo de nodo (sin configurar).
     // Cada pegado se desplaza un poco más para no quedar encima del anterior.
     const pasteNodes = (fresh) => {
-        const content = takeRuleClipboard();
+        const content = takeRuleClipboard(user?.id);
         if (content) insertNodeCopies(content.nodes, content.edges, { fresh, offset: PASTE_OFFSET * content.pasteCount });
     };
 
@@ -448,7 +450,7 @@ export const RuleEditor = ({ rule }) => {
                 else undo();
             } else if (key === "c") {
                 if (copySelectedNodes()) event.preventDefault();
-            } else if (hasRuleClipboard()) {
+            } else if (hasRuleClipboard(user?.id)) {
                 event.preventDefault();
                 pasteNodes(event.shiftKey);
             }
