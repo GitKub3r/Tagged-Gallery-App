@@ -12,8 +12,9 @@ class UserModel {
     /**
      * Obtener todos los usuarios
      */
+    // Las bibliotecas demo (demo_owner_id) no son usuarios: no se listan.
     static async findAll() {
-        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, media_name_match_mode, session_version, created_at FROM users");
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, media_name_match_mode, session_version, created_at FROM users WHERE demo_owner_id IS NULL");
         return rows;
     }
 
@@ -21,7 +22,7 @@ class UserModel {
      * Buscar usuario por ID
      */
     static async findById(id) {
-        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, media_name_match_mode, session_version, created_at FROM users WHERE id = ?", [id]);
+        const [rows] = await pool.query("SELECT id, username, email, type, avatar_path, media_name_match_mode, session_version, demo_mode, created_at FROM users WHERE id = ?", [id]);
         return rows[0];
     }
 
@@ -33,8 +34,9 @@ class UserModel {
     /**
      * Buscar usuario por email
      */
+    // Lo usa el inicio de sesión: una biblioteca demo nunca puede iniciar sesión.
     static async findByEmail(email) {
-        const [rows] = await pool.query("SELECT * FROM users WHERE email = ?", [email]);
+        const [rows] = await pool.query("SELECT * FROM users WHERE email = ? AND demo_owner_id IS NULL", [email]);
         return rows[0];
     }
 
@@ -153,6 +155,24 @@ class UserModel {
         if (columns.length === 0) {
             await pool.query("ALTER TABLE users ADD COLUMN media_name_match_mode VARCHAR(10) NOT NULL DEFAULT 'normal' AFTER avatar_path");
         }
+    }
+
+    // Modo demo de los admin: demo_mode lo activa y demo_owner_id marca la biblioteca demo de cada admin (ver Demo.model).
+    static async ensureDemoColumns() {
+        const [modeColumns] = await pool.query("SHOW COLUMNS FROM users LIKE 'demo_mode'");
+        if (modeColumns.length === 0) {
+            await pool.query("ALTER TABLE users ADD COLUMN demo_mode BOOLEAN NOT NULL DEFAULT FALSE AFTER session_version");
+        }
+        const [ownerColumns] = await pool.query("SHOW COLUMNS FROM users LIKE 'demo_owner_id'");
+        if (ownerColumns.length === 0) {
+            await pool.query(`ALTER TABLE users ADD COLUMN demo_owner_id INT UNSIGNED NULL AFTER demo_mode,
+                ADD UNIQUE KEY unique_users_demo_owner (demo_owner_id),
+                ADD CONSTRAINT fk_users_demo_owner FOREIGN KEY (demo_owner_id) REFERENCES users(id) ON DELETE CASCADE`);
+        }
+    }
+
+    static async setDemoMode(id, enabled) {
+        await pool.query("UPDATE users SET demo_mode = ? WHERE id = ? AND type = 'admin'", [Boolean(enabled), id]);
     }
 
     static async incrementSessionVersion(id) {

@@ -1,14 +1,14 @@
 const express = require("express");
 const GoogleDriveController = require("../../../controllers/GoogleDrive.controller");
-const { authenticate } = require("../../../middlewares/auth.middleware");
+const { authenticateLibrary } = require("../../../middlewares/auth.middleware");
 
 const router = express.Router();
 
 // GET /api/v1/google-drive/thumbnails/:userId/:fileId?v=&exp=&sig= - Miniatura del explorador mediante URL firmada.
-// Va antes de authenticate: <img> no puede enviar la cabecera Authorization.
+// Va antes de authenticateLibrary: <img> no puede enviar la cabecera Authorization.
 router.get("/thumbnails/:userId/:fileId", GoogleDriveController.getBrowseThumbnail);
 
-router.use(authenticate);
+router.use(authenticateLibrary);
 
 // GET /api/v1/google-drive/status - Estado de la conexión y configuración pública para el cliente
 router.get("/status", GoogleDriveController.getStatus);

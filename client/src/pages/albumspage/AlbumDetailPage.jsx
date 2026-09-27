@@ -50,6 +50,7 @@ import "./AlbumPage.css";
 import "./AlbumDetailPage.css";
 import "../gallerypage/GalleryPage.css";
 import { lockPageScroll } from "../../utils/scrollLock";
+import { hasLibraryAccess } from "../../utils/libraryAccess";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -934,7 +935,7 @@ export const AlbumDetailPage = () => {
         let cancelled = false;
 
         const load = async () => {
-            if (!user || user.type === "admin") {
+            if (!hasLibraryAccess(user)) {
                 setLoading(false);
                 return;
             }
@@ -3130,7 +3131,7 @@ export const AlbumDetailPage = () => {
         }
     };
 
-    if (user?.type === "admin") {
+    if (!hasLibraryAccess(user)) {
         return (
             <section className="tagged-app-page tagged-album-page tagged-album-page--centered">
                 <article className="tagged-app-page-card tagged-album-status-card" aria-live="polite">

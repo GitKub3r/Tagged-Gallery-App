@@ -4,6 +4,7 @@ const { generateToken, generateRefreshToken, getRefreshTokenExpiration } = requi
 const RefreshTokenModel = require("../models/RefreshToken.model");
 const fs = require("fs/promises");
 const path = require("path");
+const DemoService = require("./Demo.service");
 
 class UserService {
     static validateProfile({ username, email }) {
@@ -288,6 +289,8 @@ class UserService {
                 };
             }
 
+            // La biblioteca demo de un admin se borra en cascada con él; antes hay que borrar sus archivos.
+            await DemoService.removeLibrary(id);
             const deleted = await UserModel.delete(id);
 
             if (!deleted) {

@@ -5,6 +5,7 @@ import { googleDriveQueryKeys } from "../api/googleDriveApi";
 import { metadataQueryKeys } from "../api/metadataApi";
 import { trashApi, trashQueryKeys } from "../api/trashApi";
 import { useAuth } from "./useAuth";
+import { hasLibraryAccess } from "../utils/libraryAccess";
 
 // "media" es igual en singular y plural (DESIGN.md §9).
 const pluralMedia = (count) => `${count} media`;
@@ -14,7 +15,7 @@ export const useTrash = () => {
     return useQuery({
         queryKey: trashQueryKeys.forUser(user?.id),
         queryFn: trashApi.getAll,
-        enabled: Boolean(user?.id && accessToken && user.type !== "admin"),
+        enabled: Boolean(user?.id && accessToken && hasLibraryAccess(user)),
     });
 };
 

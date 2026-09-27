@@ -10,7 +10,8 @@
         "previews:drive": "node scripts/generateDrivePreviews.js",
         "checksums:backfill": "node scripts/backfillMediaChecksums.js",
         "dimensions:backfill": "node scripts/backfillMediaDimensions.js",
-        "dates:backfill": "node scripts/backfillMediaUploadDates.js"
+        "dates:backfill": "node scripts/backfillMediaUploadDates.js",
+        "demo:assets": "node scripts/generateDemoAssets.js"
     },
     "dependencies": {
         "@googleapis/drive": "^26.0.0",

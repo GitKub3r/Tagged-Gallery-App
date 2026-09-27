@@ -102,6 +102,7 @@ const startServer = async () => {
         await UserModel.ensureMediaNameMatchModeColumn();
         await UserModel.ensureSessionVersionColumn();
         await UserModel.ensureDevRole();
+        await UserModel.ensureDemoColumns();
         await AlbumModel.ensureCoverAdjustmentColumns();
         await TemplateModel.ensureTable();
         await RuleModel.ensureTable();

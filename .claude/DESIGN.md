@@ -138,6 +138,7 @@ En táctil, ningún objetivo interactivo baja de 40 px salvo los mini-botones qu
 ```
 
 - **Página de perfil o integración** (Account, Google Drive): sin tarjeta envolvente. Cabecera grande con icono o avatar (`h-24 w-24`) y punto de estado, eyebrow, `h1` y, debajo, una línea `text-sm text-neutral-500` que integra el estado con su icono semántico y el dato principal ("✓ Connected as email"); sin píldoras de estado. Acción principal a la derecha; `border-b pb-8`. Debajo, `max-w-5xl` con secciones `py-8` separadas por `divide-y` (título `text-xl font-bold` y descripción), indicadores en rejilla `grid-cols-2 lg:grid-cols-4` y datos en filas `divide-y` con etiqueta en mayúsculas e icono (`w-44`) a la izquierda.
+  - En Account, los admin tienen la sección **Demo mode** (`DemoModeSection`) con las mismas filas: "Demo library" con `Switch`, punto de estado y resumen del contenido; mientras se prepara, un `faSpinner` con "Preparing the demo library…"; "Reset demo data" con botón secundario y confirmación (`DeleteConfirmationModal` con `faRotateLeft`); y, con la demo activa, enlaces secundarios a Dashboard y Gallery.
 - **Barra de herramientas de colección:** `LibraryToolbar` (búsqueda a la izquierda, controles a la derecha, `max-w-[92rem]` centrado).
 - **Fila buscador + contador:** `flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between`, con búsqueda `max-w-sm` y contador `text-sm text-neutral-500` con `aria-live="polite"`.
 - **Layout con navegación lateral secundaria** (patrón de Metadata): `grid gap-6 xl:grid-cols-[18rem_minmax(0,1fr)]`, con la navegación `sticky` desde `xl`.
@@ -418,6 +419,7 @@ Todos los modales:
   - Inactivo: `border-transparent text-neutral-600 hover:border-neutral-200 hover:bg-neutral-100 hover:text-neutral-950`, con sus pares oscuros.
   - Cuando la sidebar está plegada, el ítem es un cuadrado `w-11` centrado con `title`.
 - Una página nueva se añade a `navItems`/`adminNavItems` con su icono y a la lista de rutas de `useAccessControl`.
+- **Modo demo:** un admin con el modo demo activo ve la barra de una biblioteca (subir, navegación y filtro de tags) y, debajo, sus páginas en un grupo con la micro-etiqueta "Admin"; el subtítulo de la marca pasa a "Demo library".
 - **Paginación:** `Pagination` (botones de 40 px, página actual invertida con `aria-current="page"`).
 - **Volver:** `IconButton` con `faArrowLeft` y `aria-label="Back to …"`.
 
@@ -530,6 +532,7 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 | Desconectar una integración | `faLinkSlash` |
 | Elemento gestionado por la app (no editable) | `faLock` |
 | Mostrar / ocultar contraseña | `faEye` / `faEyeSlash` |
+| Modo demo / resetear la demo | `faFlask` / `faRotateLeft` |
 | Reglas / ejecutar una regla | `faDiagramProject` / `faPlay` |
 | Deshacer / rehacer | `faArrowRotateLeft` / `faArrowRotateRight` |
 | Seleccionar un área (modo selección del lienzo) | `faObjectGroup` |

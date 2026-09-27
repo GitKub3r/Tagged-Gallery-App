@@ -55,6 +55,7 @@ import { rankSuggestions } from "../../utils/suggestionRanking";
 import { DRIVE_IMPORT_DESCRIPTION, describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
 import { useImportDriveMedia } from "../../hooks/useGoogleDrive";
 import "./GalleryPage.css";
+import { hasLibraryAccess } from "../../utils/libraryAccess";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -2143,7 +2144,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     };
 
     const fetchMediaList = async () => {
-        if (!user || user.type === "admin") {
+        if (!hasLibraryAccess(user)) {
             return { data: [], total: 0 };
         }
         return galleryApi.getMedia(
@@ -2210,8 +2211,9 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
         openUploadWithFiles(Array.from(event.target.files || []));
     };
 
+    const canUploadFromClipboard = basePath === "/gallery" && hasLibraryAccess(user);
     useEffect(() => {
-        if (basePath !== "/gallery" || user?.type === "admin") return undefined;
+        if (!canUploadFromClipboard) return undefined;
 
         const handleClipboardPaste = (event) => {
             if (document.querySelector("[role='dialog'][aria-modal='true']")) return;
@@ -2236,7 +2238,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
 
         window.addEventListener("paste", handleClipboardPaste);
         return () => window.removeEventListener("paste", handleClipboardPaste);
-    }, [basePath, openUploadWithFiles, user?.type]);
+    }, [canUploadFromClipboard, openUploadWithFiles]);
 
     const hasDraggedFiles = (event) => Array.from(event.dataTransfer?.types || []).includes("Files");
 
@@ -2272,7 +2274,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     };
 
     const handleOpenUpload = () => {
-        if (user?.type === "admin") {
+        if (!hasLibraryAccess(user)) {
             return;
 
         }
@@ -2586,12 +2588,12 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
             randomOrderSeed,
         ],
         queryFn: fetchMediaList,
-        enabled: Boolean(user && user.type !== "admin" && accessToken),
+        enabled: Boolean(hasLibraryAccess(user) && accessToken),
         placeholderData: (previousData) => previousData,
     });
 
     useEffect(() => {
-        if (!user || user.type === "admin") {
+        if (!hasLibraryAccess(user)) {
             setMediaItems([]);
             setMediaTotal(0);
             setLoading(false);
@@ -2653,7 +2655,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     }, [isDeleteConfirmOpen, isDeletingSelected, isAddToAlbumModalOpen, isAddingSelectedToAlbums]);
 
     useEffect(() => {
-        if (user?.type === "admin") {
+        if (!hasLibraryAccess(user)) {
             return;
 
         }
@@ -2830,7 +2832,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     };
 
     }
-    if (user?.type === "admin") {
+    if (!hasLibraryAccess(user)) {
         return (
             <section className="tagged-app-page tagged-gallery-page tagged-gallery-page--centered">
                 <article

@@ -34,6 +34,7 @@ import { useTagFilter } from "../../context/TagFilterContext";
 import { useDevTools } from "../../hooks/useDevTools";
 import { SearchField } from "../search-field/SearchField";
 import { lockPageScroll } from "../../utils/scrollLock";
+import { hasLibraryAccess, isDemoMode } from "../../utils/libraryAccess";
 
 const OPEN_UPLOAD_EVENT = "tagged:open-upload";
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "tagged:sidebar-collapsed";
@@ -97,12 +98,15 @@ export const Sidebar = () => {
         clearFilterTags,
     } = useTagFilter();
     const activeTagFiltersCount = selectedIncludeFilterTags.length + selectedExcludeFilterTags.length;
-    const sectionOneNavItems = user?.type === "admin" ? adminNavItems : navItems;
+    // Un admin con el modo demo activo navega por su biblioteca demo y conserva sus páginas en el grupo "Admin".
+    const libraryAccess = hasLibraryAccess(user);
+    const demoMode = isDemoMode(user);
+    const sectionOneNavItems = libraryAccess ? navItems : adminNavItems;
 
     const { data: allTagNames = [] } = useQuery({
         queryKey: tagNameQueryKeys.all,
         queryFn: () => sidebarApi.getTagNames(accessToken),
-        enabled: Boolean(user && user.type !== "admin" && shouldShowTagPanel && accessToken),
+        enabled: Boolean(libraryAccess && shouldShowTagPanel && accessToken),
         staleTime: 5 * 60 * 1000,
     });
 
@@ -190,7 +194,7 @@ export const Sidebar = () => {
                         </span>
                         <div className={`min-w-0 ${isCollapsed ? "xl:hidden" : ""}`}>
                             <p className="truncate text-base font-black tracking-tight text-neutral-950 dark:text-neutral-100">Tagged</p>
-                            <p className="truncate text-xs text-neutral-500">{user?.type === "admin" ? "Admin workspace" : user?.type === "dev" ? "Developer library" : "Media library"}</p>
+                            <p className="truncate text-xs text-neutral-500">{demoMode ? "Demo library" : user?.type === "admin" ? "Admin workspace" : user?.type === "dev" ? "Developer library" : "Media library"}</p>
                         </div>
                     </div>
                     <button
@@ -206,7 +210,7 @@ export const Sidebar = () => {
 
                 <nav className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3" aria-label="Main navigation">
                     <ul className={isCollapsed ? "space-y-1 xl:space-y-2" : "space-y-1"}>
-                        {user?.type !== "admin" ? (
+                        {libraryAccess ? (
                             <li className="pb-2">
                                 <button
                                     type="button"
@@ -237,6 +241,27 @@ export const Sidebar = () => {
                         ))}
                     </ul>
 
+                    {demoMode ? (
+                        <section className="border-t border-neutral-200 pt-3 dark:border-neutral-800" aria-label="Admin navigation">
+                            <p className={`mb-2 px-3 text-xs font-black uppercase tracking-widest text-neutral-500 ${isCollapsed ? "xl:hidden" : ""}`}>Admin</p>
+                            <ul className={isCollapsed ? "space-y-1 xl:space-y-2" : "space-y-1"}>
+                                {adminNavItems.map((item) => (
+                                    <li key={item.path}>
+                                        <NavLink
+                                            to={item.path}
+                                            className={({ isActive }) => navItemClassName(isActive, isCollapsed)}
+                                            onClick={closeMobileSidebar}
+                                            title={isCollapsed ? item.label : undefined}
+                                        >
+                                            <FontAwesomeIcon icon={item.icon} className="w-5 shrink-0" aria-hidden="true" />
+                                            <SidebarLabel isCollapsed={isCollapsed}>{item.label}</SidebarLabel>
+                                        </NavLink>
+                                    </li>
+                                ))}
+                            </ul>
+                        </section>
+                    ) : null}
+
                     {user?.type === "dev" ? (
                         <section className="border-t border-neutral-200 pt-3 dark:border-neutral-800" aria-label="Developer navigation">
                             <p className={`mb-2 px-3 text-[0.68rem] font-black uppercase tracking-widest text-neutral-500 ${isCollapsed ? "xl:hidden" : ""}`}>Developer</p>
@@ -248,7 +273,7 @@ export const Sidebar = () => {
                         </section>
                     ) : null}
 
-                    {user?.type !== "admin" && shouldShowTagPanel && allTagNames.length > 0 ? (
+                    {libraryAccess && shouldShowTagPanel && allTagNames.length > 0 ? (
                         <section className={`flex min-h-52 flex-1 flex-col border-t border-neutral-200 pt-4 dark:border-neutral-800 ${compactOnlyClass}`} aria-label="Tag filters">
                             <div className="mb-3 flex items-center justify-between gap-3">
                                 <span className="text-xs font-black uppercase tracking-widest text-neutral-500">Filter by tags</span>

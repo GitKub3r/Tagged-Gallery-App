@@ -5,10 +5,11 @@ import { galleryQueryKeys } from "../api/galleryApi";
 import { metadataQueryKeys } from "../api/metadataApi";
 import { ruleApi, ruleQueryKeys } from "../api/ruleApi";
 import { useAuth } from "./useAuth";
+import { hasLibraryAccess } from "../utils/libraryAccess";
 
 const useRuleQueryEnabled = () => {
     const { user, accessToken } = useAuth();
-    return { user, enabled: Boolean(user?.id && accessToken && user.type !== "admin") };
+    return { user, enabled: Boolean(user?.id && accessToken && hasLibraryAccess(user)) };
 };
 
 export const useRules = () => {

@@ -7,6 +7,7 @@ import { metadataQueryKeys } from "../api/metadataApi";
 import { tagNameQueryKeys } from "../api/sidebarApi";
 import { loadScript } from "../utils/loadScript";
 import { useAuth } from "./useAuth";
+import { hasLibraryAccess } from "../utils/libraryAccess";
 
 const GOOGLE_IDENTITY_SCRIPT = "https://accounts.google.com/gsi/client";
 
@@ -15,7 +16,7 @@ export const useGoogleDriveStatus = () => {
     return useQuery({
         queryKey: googleDriveQueryKeys.status(user?.id),
         queryFn: googleDriveApi.getStatus,
-        enabled: Boolean(user?.id && accessToken && user.type !== "admin"),
+        enabled: Boolean(user?.id && accessToken && hasLibraryAccess(user)),
     });
 };
 
@@ -24,7 +25,7 @@ export const useGoogleDriveSummary = (enabled = true) => {
     return useQuery({
         queryKey: googleDriveQueryKeys.summary(user?.id),
         queryFn: googleDriveApi.getSummary,
-        enabled: enabled && Boolean(user?.id && accessToken && user.type !== "admin"),
+        enabled: enabled && Boolean(user?.id && accessToken && hasLibraryAccess(user)),
     });
 };
 
