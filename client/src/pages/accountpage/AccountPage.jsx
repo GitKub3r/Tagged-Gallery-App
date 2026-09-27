@@ -34,6 +34,8 @@ import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoad
 import { UserAvatar } from "../../components/user-avatar/UserAvatar";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { toast } from "sonner";
+import { isDemoMode } from "../../utils/libraryAccess";
+import { DemoModeSection } from "./components/DemoModeSection";
 
 const createCroppedAvatar = (source, zoom, positionX, positionY) =>
   new Promise((resolve, reject) => {
@@ -158,7 +160,8 @@ export const AccountPage = () => {
       email,
       roleKey,
       role: toTitle(roleKey),
-      access: ACCESS_BY_ROLE[roleKey],
+      // Con el modo demo, un admin también entra en las páginas de biblioteca.
+      access: isDemoMode(user) ? [...ACCESS_BY_ROLE.admin, ...ACCESS_BY_ROLE.basic] : ACCESS_BY_ROLE[roleKey],
     };
   }, [user]);
   const profileHasChanges =
@@ -524,6 +527,8 @@ export const AccountPage = () => {
             ))}
           </nav>
         </section>
+
+        {account.roleKey === "admin" ? <DemoModeSection /> : null}
 
         <section
           className="border-t border-neutral-200 py-8 dark:border-neutral-800"

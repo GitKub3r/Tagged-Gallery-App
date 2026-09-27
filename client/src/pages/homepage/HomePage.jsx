@@ -16,6 +16,7 @@ import { Footer } from "../../components/footer/Footer";
 import { LoginShowcase } from "../../components/login-showcase/LoginShowcase";
 import { useAuth } from "../../hooks/useAuth";
 import { useForm } from "../../hooks/useForm";
+import { getHomePath } from "../../utils/libraryAccess";
 
 const REMEMBERED_LOGIN_EMAIL_STORAGE_KEY = "tagged:remembered-login-email";
 
@@ -68,7 +69,7 @@ export const HomePage = () => {
             localStorage.removeItem(REMEMBERED_LOGIN_EMAIL_STORAGE_KEY);
         }
 
-        navigate(result.user?.type === "admin" ? "/logs" : "/gallery");
+        navigate(getHomePath(result.user));
     };
 
     const handleThemeToggle = () => {
@@ -80,7 +81,7 @@ export const HomePage = () => {
 
     useEffect(() => {
         if (isAuthenticated) {
-            navigate(user?.type === "admin" ? "/logs" : "/gallery", { replace: true });
+            navigate(getHomePath(user), { replace: true });
         }
     }, [isAuthenticated, navigate, user]);
 

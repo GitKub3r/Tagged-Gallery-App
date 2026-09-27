@@ -21,6 +21,7 @@ import { ConvergingShuffleOverlay } from "../../components/converging-shuffle-ov
 import { matchesMediaFacetFilters } from "../../utils/mediaFacetFilters";
 import { useMarqueeSelection } from "../../hooks/useMarqueeSelection";
 import "./AlbumPage.css";
+import { hasLibraryAccess } from "../../utils/libraryAccess";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -481,7 +482,7 @@ export const AlbumPage = () => {
                 return;
             }
 
-            if (user.type === "admin") {
+            if (!hasLibraryAccess(user)) {
                 setAlbums([]);
                 setMediaItems([]);
                 setLoading(false);
@@ -1148,7 +1149,7 @@ export const AlbumPage = () => {
         };
     }, [isDeleteConfirmOpen, isDeletingSelected]);
 
-    if (user?.type === "admin") {
+    if (!hasLibraryAccess(user)) {
         return (
             <section className="tagged-app-page tagged-album-page tagged-album-page--centered">
                 <article

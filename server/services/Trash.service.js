@@ -29,6 +29,8 @@ const withExpiry = (media) => {
 };
 
 class TrashService {
+    static RETENTION_DAYS = TRASH_RETENTION_DAYS;
+
     static async getAll(user) {
         const forbidden = forbidAdmin(user);
         if (forbidden) return forbidden;

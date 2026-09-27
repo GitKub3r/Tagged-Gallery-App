@@ -1,10 +1,10 @@
 const express = require("express");
 const TrashController = require("../../../controllers/Trash.controller");
-const { authenticate } = require("../../../middlewares/auth.middleware");
+const { authenticateLibrary } = require("../../../middlewares/auth.middleware");
 
 const router = express.Router();
 
-router.use(authenticate);
+router.use(authenticateLibrary);
 
 // GET /api/v1/trash - Medias en la papelera, con los días que les quedan
 router.get("/", TrashController.getAll);

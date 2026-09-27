@@ -1,5 +1,6 @@
 const { verifyToken } = require("../utils/jwt");
 const UserModel = require("../models/User.model");
+const DemoModel = require("../models/Demo.model");
 const AuditService = require("../services/Audit.service");
 
 const shouldAuditUnauthorized = (message) => {
@@ -105,6 +106,7 @@ const authenticate = async (req, res, next) => {
             username: user.username,
             email: user.email,
             type: user.type,
+            demoMode: user.type === "admin" && Boolean(user.demo_mode),
         };
 
         next();
@@ -116,6 +118,27 @@ const authenticate = async (req, res, next) => {
         });
     }
 };
+
+/**
+ * Autenticación de las rutas de la biblioteca (medias, tags, álbumes, plantillas, reglas, papelera...).
+ * Un admin con el modo demo activo usa su biblioteca demo: la petición se atiende como esa cuenta, que es de tipo
+ * basic, así que ve y cambia solo sus datos de ejemplo y nunca los de otros usuarios. demoOwnerId guarda el admin.
+ */
+const authenticateLibrary = (req, res, next) =>
+    authenticate(req, res, async () => {
+        if (!req.user.demoMode) return next();
+        try {
+            const library = await DemoModel.findLibraryUser(req.user.id);
+            if (!library) {
+                return res.status(409).json({ success: false, message: "The demo library isn't ready yet" });
+            }
+            req.user = { id: library.id, username: library.username, email: library.email, type: library.type, demoOwnerId: req.user.id };
+            return next();
+        } catch (error) {
+            console.error("Error in authenticateLibrary middleware:", error);
+            return res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    });
 
 /**
  * Middleware para verificar que el usuario es admin
@@ -153,5 +176,6 @@ const isAdmin = (req, res, next) => {
 
 module.exports = {
     authenticate,
+    authenticateLibrary,
     isAdmin,
 };

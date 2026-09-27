@@ -18,7 +18,13 @@ CREATE TABLE users (
     type ENUM('admin', 'basic', 'dev') NOT NULL DEFAULT 'basic',
     avatar_path VARCHAR(500) NULL,
     session_version INT UNSIGNED NOT NULL DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    demo_mode BOOLEAN NOT NULL DEFAULT FALSE, -- solo admin: usa su biblioteca demo en las páginas de biblioteca
+    demo_owner_id INT UNSIGNED NULL, -- biblioteca demo oculta de ese admin (no se lista ni inicia sesión)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_users_demo_owner (demo_owner_id),
+    CONSTRAINT fk_users_demo_owner
+        FOREIGN KEY (demo_owner_id) REFERENCES users(id)
+        ON DELETE CASCADE
 );
 
 -- =========================

@@ -22,6 +22,7 @@ import { DRIVE_IMPORT_DESCRIPTION, describeMediaDeletion, isDriveMedia } from ".
 import { mediaApi } from "../../api/mediaApi";
 import { useImportDriveMedia } from "../../hooks/useGoogleDrive";
 import { lockPageScroll } from "../../utils/scrollLock";
+import { hasLibraryAccess } from "../../utils/libraryAccess";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api/v1";
 const UPLOADS_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
@@ -595,7 +596,7 @@ export const MediaDetailPage = () => {
     }, [location.search]);
 
     useEffect(() => {
-        if (!user || user.type === "admin") {
+        if (!hasLibraryAccess(user)) {
             return;
         }
 
@@ -1809,7 +1810,7 @@ export const MediaDetailPage = () => {
     };
 
     useEffect(() => {
-        if (!isEditModalOpen || !user || user.type === "admin") {
+        if (!isEditModalOpen || !hasLibraryAccess(user)) {
             return;
         }
 
@@ -1935,7 +1936,7 @@ export const MediaDetailPage = () => {
         }
     }, [closeEditModalOnSave]);
 
-    if (user?.type === "admin") {
+    if (!hasLibraryAccess(user)) {
         return (
             <section className="tagged-app-page tagged-media-detail-page">
                 <article className="tagged-app-page-card tagged-media-detail-message-card">

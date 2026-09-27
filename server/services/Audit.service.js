@@ -33,6 +33,9 @@ const DEFAULT_ACTION_NAMES = {
     MEDIA_PURGE: "Delete media forever",
     RULE_RUN: "Run rule on library",
     METADATA_REMOVE_FROM_MEDIA: "Remove metadata from all media",
+    DEMO_MODE_ENABLE: "Turn on demo mode",
+    DEMO_MODE_DISABLE: "Turn off demo mode",
+    DEMO_MODE_RESET: "Reset demo library",
 };
 
 class AuditService {
@@ -93,6 +96,8 @@ class AuditService {
         message = null,
         metadata = null,
     }) {
+        // Lo que un admin hace dentro de su biblioteca demo no es actividad real: no se registra.
+        if (req?.user?.demoOwnerId) return;
         try {
             const action = await this.ensureAction(actionCode);
 

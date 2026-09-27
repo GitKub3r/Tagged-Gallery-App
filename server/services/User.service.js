@@ -4,6 +4,7 @@ const { generateToken, generateRefreshToken, getRefreshTokenExpiration } = requi
 const RefreshTokenModel = require("../models/RefreshToken.model");
 const fs = require("fs/promises");
 const path = require("path");
+const DemoService = require("./Demo.service");
 
 class UserService {
     static validateProfile({ username, email }) {
@@ -288,6 +289,8 @@ class UserService {
                 };
             }
 
+            // La biblioteca demo de un admin se borra en cascada con él; antes hay que borrar sus archivos.
+            await DemoService.removeLibrary(id);
             const deleted = await UserModel.delete(id);
 
             if (!deleted) {
@@ -340,6 +343,13 @@ class UserService {
                     success: false,
                     message: "Invalid credentials",
                 };
+            }
+
+            // El modo demo se activa a mano en cada sesión: un admin siempre entra en su espacio de administración.
+            // La biblioteca demo se conserva, así que volver a activarlo es inmediato.
+            if (user.type === "admin" && user.demo_mode) {
+                await UserModel.setDemoMode(user.id, false);
+                user.demo_mode = 0;
             }
 
             // Eliminar la contraseña del objeto de respuesta

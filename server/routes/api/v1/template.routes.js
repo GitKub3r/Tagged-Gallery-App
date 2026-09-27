@@ -1,10 +1,10 @@
 const express = require("express");
 const TemplateController = require("../../../controllers/Template.controller");
-const { authenticate } = require("../../../middlewares/auth.middleware");
+const { authenticateLibrary } = require("../../../middlewares/auth.middleware");
 
 const router = express.Router();
 
-router.use(authenticate);
+router.use(authenticateLibrary);
 router.get("/", TemplateController.getAll);
 router.post("/", TemplateController.create);
 router.put("/:id", TemplateController.update);

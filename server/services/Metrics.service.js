@@ -1,18 +1,12 @@
 const MediaService = require("./Media.service");
 const AlbumModel = require("../models/Album.model");
 const MetricsModel = require("../models/Metrics.model");
+const { parseUtcOffset } = require("../utils/utcOffset");
 
 const toNumber = (value) => Number(value || 0);
 // Días que una media pasa en la papelera antes de borrarse (ver Trash.service).
 const TRASH_RETENTION_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
-// Desfase máximo de una zona horaria respecto a UTC (UTC-12 a UTC+14).
-const MAX_UTC_OFFSET_MINUTES = 14 * 60;
-
-const parseUtcOffset = (value) => {
-    const offset = Math.round(Number(value));
-    return Number.isFinite(offset) ? Math.max(-MAX_UTC_OFFSET_MINUTES, Math.min(MAX_UTC_OFFSET_MINUTES, offset)) : 0;
-};
 
 const buildMonthSeries = (dailyUploads, year) => {
     const countsByMonth = new Map();

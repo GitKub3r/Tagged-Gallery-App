@@ -2,58 +2,58 @@ const express = require("express");
 const multer = require("multer");
 const MediaController = require("../../../controllers/Media.controller");
 const { upload, trackUploadCancellation } = require("../../../middlewares/upload.middleware");
-const { authenticate } = require("../../../middlewares/auth.middleware");
+const { authenticateLibrary } = require("../../../middlewares/auth.middleware");
 const AuditService = require("../../../services/Audit.service");
 
 const router = express.Router();
 
 // GET /api/v1/media - Listar media
-router.get("/", authenticate, MediaController.getAll);
+router.get("/", authenticateLibrary, MediaController.getAll);
 
 // GET /api/v1/media/displaynames - Listar displaynames únicos (A-Z)
-router.get("/displaynames", authenticate, MediaController.getDistinctDisplayNames);
+router.get("/displaynames", authenticateLibrary, MediaController.getDistinctDisplayNames);
 
 // POST /api/v1/media/displaynames - Crear displayname gestionable
-router.post("/displaynames", authenticate, MediaController.createDisplayName);
+router.post("/displaynames", authenticateLibrary, MediaController.createDisplayName);
 
 // PUT /api/v1/media/displaynames - Renombrar displayname en medias del usuario
-router.put("/displaynames", authenticate, MediaController.updateDisplayName);
+router.put("/displaynames", authenticateLibrary, MediaController.updateDisplayName);
 
 // DELETE /api/v1/media/displaynames - Eliminar displayname (reemplaza en medias)
-router.delete("/displaynames", authenticate, MediaController.deleteDisplayName);
+router.delete("/displaynames", authenticateLibrary, MediaController.deleteDisplayName);
 
 // GET /api/v1/media/authors - Listar autores únicos (A-Z)
-router.get("/authors", authenticate, MediaController.getDistinctAuthors);
+router.get("/authors", authenticateLibrary, MediaController.getDistinctAuthors);
 
 // POST /api/v1/media/authors - Crear autor gestionable
-router.post("/authors", authenticate, MediaController.createAuthor);
+router.post("/authors", authenticateLibrary, MediaController.createAuthor);
 
 // PUT /api/v1/media/authors - Renombrar autor en medias del usuario
-router.put("/authors", authenticate, MediaController.updateAuthor);
+router.put("/authors", authenticateLibrary, MediaController.updateAuthor);
 
 // DELETE /api/v1/media/authors - Eliminar autor (limpia medias)
-router.delete("/authors", authenticate, MediaController.deleteAuthor);
+router.delete("/authors", authenticateLibrary, MediaController.deleteAuthor);
 
 // GET /api/v1/media/:id - Obtener media por ID
-router.get("/:id", authenticate, MediaController.getById);
+router.get("/:id", authenticateLibrary, MediaController.getById);
 
 // POST /api/v1/media/upload - Subir un archivo con sus metadatos
-router.post("/upload", authenticate, trackUploadCancellation, upload.single("file"), MediaController.uploadSingle);
+router.post("/upload", authenticateLibrary, trackUploadCancellation, upload.single("file"), MediaController.uploadSingle);
 
 // POST /api/v1/media/upload/multiple - Subir varios archivos con los mismos metadatos
-router.post("/upload/multiple", authenticate, trackUploadCancellation, upload.array("files", 50), MediaController.uploadMany);
+router.post("/upload/multiple", authenticateLibrary, trackUploadCancellation, upload.array("files", 50), MediaController.uploadMany);
 
 // PUT /api/v1/media/:id - Actualizar metadatos de un archivo
-router.put("/:id", authenticate, MediaController.update);
+router.put("/:id", authenticateLibrary, MediaController.update);
 
 // PATCH /api/v1/media/:id/toggle-favourite - Alternar favorito
-router.patch("/:id/toggle-favourite", authenticate, MediaController.toggleFavourite);
+router.patch("/:id/toggle-favourite", authenticateLibrary, MediaController.toggleFavourite);
 
 // DELETE /api/v1/media - Eliminar varias medias en una sola petición
-router.delete("/", authenticate, MediaController.deleteMany);
+router.delete("/", authenticateLibrary, MediaController.deleteMany);
 
 // DELETE /api/v1/media/:id - Eliminar archivo, thumbnail y registro en BD
-router.delete("/:id", authenticate, MediaController.delete);
+router.delete("/:id", authenticateLibrary, MediaController.delete);
 
 router.use(async (error, req, res, next) => {
     if (error instanceof multer.MulterError) {
