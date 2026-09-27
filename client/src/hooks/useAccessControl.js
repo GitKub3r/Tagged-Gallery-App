@@ -7,15 +7,18 @@ const ADMIN_ROUTES = ["/logs", "/actions", "/users", "/account"];
 const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/templates", "/rules", "/drive", "/dashboard", "/trash", "/account"];
 const DEV_ROUTES = BASIC_ROUTES;
 
-// Rutas permitidas por rol. Un admin con el modo demo activo usa además las de biblioteca (su biblioteca demo).
+// Rutas permitidas por rol. Un admin con el modo demo activo solo usa las de biblioteca (su biblioteca demo):
+// las de administración quedan ocultas hasta que lo desactiva.
 const getAllowedRoutes = (user) => {
-    if (user.type === "admin") return isDemoMode(user) ? [...ADMIN_ROUTES, ...BASIC_ROUTES] : ADMIN_ROUTES;
+    if (user.type === "admin") return isDemoMode(user) ? BASIC_ROUTES : ADMIN_ROUTES;
     return user.type === "dev" ? DEV_ROUTES : BASIC_ROUTES;
 };
 
+const matchesRoute = (routes, path) => routes.some((route) => path === route || path.startsWith(route + "/"));
+
 /**
  * Hook to enforce role-based access control
- * - Admin users: can access /logs, /actions, /users, /account (and the library pages with demo mode on)
+ * - Admin users: can access /logs, /actions, /users, /account (with demo mode on, only the library pages and /account)
  * - Basic and dev users: can access the library pages and /account
  *
  * If user tries to access a page they don't have permission for,
@@ -53,11 +56,9 @@ export const useAccessControl = () => {
         const currentPath = location.pathname;
         const allowedRoutes = getAllowedRoutes(user);
 
-        // Check if current path starts with any allowed route
-        const hasAccess = allowedRoutes.some((route) => currentPath === route || currentPath.startsWith(route + "/"));
-
-        if (!hasAccess) {
-            recordUnauthorizedAccess(currentPath);
+        if (!matchesRoute(allowedRoutes, currentPath)) {
+            // Una página de administración con el modo demo activo no es un acceso indebido: solo está oculta.
+            if (!(isDemoMode(user) && matchesRoute(ADMIN_ROUTES, currentPath))) recordUnauthorizedAccess(currentPath);
             navigate(getHomePath(user), { replace: true });
         }
     }, [user, location.pathname, navigate, recordUnauthorizedAccess]);

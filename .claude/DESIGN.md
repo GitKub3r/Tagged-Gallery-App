@@ -419,7 +419,7 @@ Todos los modales:
   - Inactivo: `border-transparent text-neutral-600 hover:border-neutral-200 hover:bg-neutral-100 hover:text-neutral-950`, con sus pares oscuros.
   - Cuando la sidebar está plegada, el ítem es un cuadrado `w-11` centrado con `title`.
 - Una página nueva se añade a `navItems`/`adminNavItems` con su icono y a la lista de rutas de `useAccessControl`.
-- **Modo demo:** un admin con el modo demo activo ve la barra de una biblioteca (subir, navegación y filtro de tags) y, debajo, sus páginas en un grupo con la micro-etiqueta "Admin"; el subtítulo de la marca pasa a "Demo library".
+- **Modo demo:** un admin con el modo demo activo ve la barra de una biblioteca (subir, navegación y filtro de tags) y el subtítulo de la marca pasa a "Demo library". Sus páginas de administración (Logs, Actions, Users) se ocultan hasta que lo desactiva desde Account.
 - **Paginación:** `Pagination` (botones de 40 px, página actual invertida con `aria-current="page"`).
 - **Volver:** `IconButton` con `faArrowLeft` y `aria-label="Back to …"`.
 
