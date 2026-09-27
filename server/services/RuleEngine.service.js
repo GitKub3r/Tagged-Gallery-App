@@ -64,11 +64,12 @@ const applyRules = async (rules, event, rows, context, trace = null) => {
         }
     }
 
-    await RuleModel.recordApplications(countsByRuleId);
+    await RuleModel.recordApplications(context.userId, countsByRuleId);
     return changedCount;
 };
 
-const loadContext = async (userId) => ({ albumIds: new Set(await AlbumModel.findIdsByUserId(userId)) });
+// Datos del usuario que necesitan las reglas: sus álbumes (acción "añadir a álbum") y su id.
+const loadContext = async (userId) => ({ userId, albumIds: new Set(await AlbumModel.findIdsByUserId(userId)) });
 
 class RuleEngineService {
     // Ejecuta las reglas activas del usuario que empiezan por el disparador del evento ("added", "edited",
