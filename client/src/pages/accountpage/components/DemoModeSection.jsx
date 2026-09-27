@@ -35,7 +35,7 @@ export const DemoModeSection = () => {
             <div className="mb-4">
                 <h2 id="demo-title" className="text-xl font-bold">Demo mode</h2>
                 <p className="mt-1 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">
-                    Explore Tagged with a complete sample library: media, tags, albums, templates, rules and trash. Only your admin account sees it, and it never touches real libraries.
+                    Explore Tagged with a complete sample library: media, tags, albums, templates, rules and trash. Only your admin account sees it, it never touches real libraries and it turns off each time you sign in.
                 </p>
             </div>
 
