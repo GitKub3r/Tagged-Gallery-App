@@ -9,8 +9,9 @@ const ffmpegPath = require("ffmpeg-static");
 const { MEDIA } = require("./demoContent");
 const { renderScene } = require("./demoScenes");
 
-const DEMO_ASSETS_VERSION = 1;
-const DEMO_ASSETS_DIR = path.join(__dirname, "..", "uploads", "demo-assets", `v${DEMO_ASSETS_VERSION}`);
+const DEMO_ASSETS_VERSION = 2;
+const DEMO_ASSETS_ROOT = path.join(__dirname, "..", "uploads", "demo-assets");
+const DEMO_ASSETS_DIR = path.join(DEMO_ASSETS_ROOT, `v${DEMO_ASSETS_VERSION}`);
 const GIF_FRAMES = 20;
 const GIF_FRAME_DELAY_MS = 90;
 const VIDEO_FPS = 25;
@@ -23,6 +24,16 @@ const MIME_TYPES = { image: "image/jpeg", gif: "image/gif", video: "video/mp4" }
 const hashKey = (key) => [...key].reduce((hash, char) => (Math.imul(hash, 31) + char.charCodeAt(0)) >>> 0, 7);
 
 const DEMO_ASSETS = MEDIA.map((item) => ({ ...item.asset, id: item.key, seed: hashKey(item.key) }));
+
+// Ninguna imagen de la demo se repite: cada media usa su propia combinación de escena, composición y paleta.
+const assertUniqueAssets = (assets) => {
+    const used = new Map();
+    for (const asset of assets.filter((item) => item.scene)) {
+        const combination = `${asset.scene}/${asset.variant}/${asset.palette}`;
+        if (used.has(combination)) throw new Error(`Demo media "${asset.id}" repeats ${combination} (already used by "${used.get(combination)}")`);
+        used.set(combination, asset.id);
+    }
+};
 
 const getAssetPath = (asset) => path.join(DEMO_ASSETS_DIR, `${asset.id}${EXTENSIONS[asset.kind]}`);
 
@@ -80,9 +91,13 @@ const fileExists = (filePath) => fs.access(filePath).then(() => true, () => fals
 let pendingGeneration = null;
 
 const ensureDemoAssets = async (assets = DEMO_ASSETS) => {
+    assertUniqueAssets(assets);
     while (pendingGeneration) await pendingGeneration.catch(() => null);
     pendingGeneration = (async () => {
         await fs.mkdir(DEMO_ASSETS_DIR, { recursive: true });
+        // Las cachés de versiones anteriores ya no sirven: las medias demo copian sus archivos al crearse.
+        const versions = await fs.readdir(DEMO_ASSETS_ROOT);
+        await Promise.all(versions.filter((name) => name !== path.basename(DEMO_ASSETS_DIR)).map((name) => fs.rm(path.join(DEMO_ASSETS_ROOT, name), { recursive: true, force: true })));
         const missing = [];
         for (const asset of assets) {
             if (!(await fileExists(getAssetPath(asset)))) missing.push(asset);
@@ -108,4 +123,4 @@ const ensureDemoAssets = async (assets = DEMO_ASSETS) => {
     }
 };
 
-module.exports = { DEMO_ASSETS, ensureDemoAssets, getAssetPath, hashKey, MIME_TYPES, EXTENSIONS };
+module.exports = { DEMO_ASSETS, DEMO_ASSETS_DIR, ensureDemoAssets, getAssetPath, hashKey, MIME_TYPES, EXTENSIONS };
