@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { faChevronLeft, faChevronRight, faImage, faPlay } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { SpecFigure } from "../../../components/spec-figure/SpecFigure";
 import { API_ORIGIN } from "../../../utils/assetUrl";
 import { formatBytes, formatDecimal, formatMonthYear, formatNumber, formatPercent, formatShortDate, share } from "../dashboardFormat";
 
@@ -61,15 +62,6 @@ const Frame = ({ media, index }) => {
     );
 };
 
-// Dato de la ficha técnica: sin caja, separado por una línea fina a la izquierda.
-const Spec = ({ label, value, hint }) => (
-    <div className="min-w-0 border-l border-neutral-200 pl-3 dark:border-neutral-800">
-        <dt className="truncate text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">{label}</dt>
-        <dd className="mt-0.5 truncate text-xl font-black tracking-tight">{value}</dd>
-        <dd className="truncate text-xs font-semibold text-neutral-500 dark:text-neutral-400">{hint}</dd>
-    </div>
-);
-
 // 01 · Library: la cifra de la biblioteca con su ficha técnica y la tira de película con las últimas subidas.
 export const LibraryHero = ({ dashboard }) => {
     const stripRef = useRef(null);
@@ -122,13 +114,13 @@ export const LibraryHero = ({ dashboard }) => {
                     </h2>
                 </div>
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4 2xl:grid-cols-7">
-                    <Spec label="Storage" value={formatBytes(totalBytes)} hint={heaviestType ? `${formatPercent(share(heaviestType.totalBytes, totalBytes))} in ${TYPE_LABELS[heaviestType.mediatype] || heaviestType.mediatype}` : "—"} />
-                    <Spec label="Images" value={formatNumber(images)} hint={gifs > 0 ? `and ${formatNumber(gifs)} GIFs` : formatPercent(share(images, totalMedia))} />
-                    <Spec label="Videos" value={formatNumber(videos)} hint={formatPercent(share(videos, totalMedia))} />
-                    <Spec label="Favourites" value={formatNumber(favoriteMediaCount)} hint={formatPercent(share(favoriteMediaCount, totalMedia))} />
-                    <Spec label="Tags" value={formatNumber(totalTags)} hint={`${formatDecimal(averageTagsPerMedia)} per media`} />
-                    <Spec label="Authors" value={formatNumber(vocabulary.distinctAuthors)} hint={`${formatNumber(vocabulary.distinctDisplaynames)} media names`} />
-                    <Spec label="Last upload" value={lastUploadAt ? formatShortDate(new Date(lastUploadAt)) : "—"} hint={lastUploadAt ? describeDaysAgo(lastUploadAt) : "No uploads"} />
+                    <SpecFigure label="Storage" value={formatBytes(totalBytes)} hint={heaviestType ? `${formatPercent(share(heaviestType.totalBytes, totalBytes))} in ${TYPE_LABELS[heaviestType.mediatype] || heaviestType.mediatype}` : "—"} />
+                    <SpecFigure label="Images" value={formatNumber(images)} hint={gifs > 0 ? `and ${formatNumber(gifs)} GIFs` : formatPercent(share(images, totalMedia))} />
+                    <SpecFigure label="Videos" value={formatNumber(videos)} hint={formatPercent(share(videos, totalMedia))} />
+                    <SpecFigure label="Favourites" value={formatNumber(favoriteMediaCount)} hint={formatPercent(share(favoriteMediaCount, totalMedia))} />
+                    <SpecFigure label="Tags" value={formatNumber(totalTags)} hint={`${formatDecimal(averageTagsPerMedia)} per media`} />
+                    <SpecFigure label="Authors" value={formatNumber(vocabulary.distinctAuthors)} hint={`${formatNumber(vocabulary.distinctDisplaynames)} media names`} />
+                    <SpecFigure label="Last upload" value={lastUploadAt ? formatShortDate(new Date(lastUploadAt)) : "—"} hint={lastUploadAt ? describeDaysAgo(lastUploadAt) : "No uploads"} />
                 </dl>
             </div>
 

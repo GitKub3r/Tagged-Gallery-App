@@ -12,26 +12,36 @@ import { SegmentedControl } from "../../components/segmented-control/SegmentedCo
 import { useDevTools } from "../../hooks/useDevTools";
 import { useDeleteForever, useRestoreFromTrash, useTrash } from "../../hooks/useTrash";
 import { isDriveMedia } from "../../utils/mediaSource";
-import { RetentionPanel } from "./components/RetentionPanel";
-import { TRASH_GRID_CLASSES, TrashGroup } from "./components/TrashGroup";
+import { TrashRoute } from "./components/TrashRoute";
+import { TRASH_GRID_CLASSES, TrashStop } from "./components/TrashStop";
 import { TrashSelectionBar } from "./components/TrashSelectionBar";
-import { addDays, daysUntil } from "./trashTime";
+import { addDays, daysUntil, getStopHeadingId } from "./trashTime";
 
 const SORT_OPTIONS = [
     { value: "recent", label: "Recently deleted", icon: faClock },
     { value: "expiring", label: "Expiring first", icon: faHourglassHalf },
 ];
 
+// Esqueleto con la forma de la cabecera de ruta y de la primera parada.
 const TrashSkeleton = () => (
     <div role="status" aria-label="Loading trash">
-        <Skeleton className="mb-6 h-56" />
-        <div className={TRASH_GRID_CLASSES}>{Array.from({ length: 10 }, (_, index) => <MediaCardSkeleton key={index} />)}</div>
+        <div className="mb-6 rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900 sm:p-6" aria-hidden="true">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                <div className="space-y-2"><Skeleton className="h-3 w-20" /><Skeleton className="h-9 w-40" /><Skeleton className="h-4 w-56" /></div>
+                <div className="grid grid-cols-3 gap-4 lg:w-96"><Skeleton className="h-14" /><Skeleton className="h-14" /><Skeleton className="h-14" /></div>
+            </div>
+            <div className="mt-6 border-t border-neutral-200 pt-4 dark:border-neutral-800 sm:pt-6"><Skeleton className="h-64 sm:h-40" /></div>
+        </div>
+        <div className="pl-8 sm:pl-10">
+            <div className="mb-4 space-y-2"><Skeleton className="h-3 w-32" /><Skeleton className="h-6 w-56" /></div>
+            <div className={TRASH_GRID_CLASSES}>{Array.from({ length: 10 }, (_, index) => <MediaCardSkeleton key={index} />)}</div>
+        </div>
         <span className="sr-only">Loading trash</span>
     </div>
 );
 
-// Papelera como copias que se desvanecen: cada media pierde color a medida que se acerca el día en que se
-// borra para siempre, agrupada por ese día. Restaurarla la devuelve a la galería y a sus álbumes.
+// Papelera como una línea de ruta: las medias viajan hacia el día en que se borran para siempre. Cada día con
+// medias es una parada; restaurarlas antes las devuelve a la galería y a sus álbumes.
 export const TrashPage = () => {
     const navigate = useNavigate();
     const { forceLoading } = useDevTools();
@@ -45,14 +55,16 @@ export const TrashPage = () => {
 
     const retentionDays = trashQuery.data?.retentionDays ?? 30;
     const media = useMemo(() => (trashQuery.data?.media ?? []).map((item) => ({ ...item, daysLeft: daysUntil(item.expires_at) })), [trashQuery.data]);
-    // Grupos por el día en que se borran: los recién borrados (más días por delante) o los que caducan antes, primero.
-    const groups = useMemo(() => {
+    // Paradas por el día en que se borran, en orden de llegada: la 01 es la más cercana.
+    const stops = useMemo(() => {
         const byDay = new Map();
         media.forEach((item) => byDay.set(item.daysLeft, [...(byDay.get(item.daysLeft) || []), item]));
         return [...byDay]
-            .map(([daysLeft, items]) => ({ daysLeft, date: addDays(new Date(), daysLeft), media: items }))
-            .sort((a, b) => (sortOrder === "recent" ? b.daysLeft - a.daysLeft : a.daysLeft - b.daysLeft));
-    }, [media, sortOrder]);
+            .sort(([a], [b]) => a - b)
+            .map(([daysLeft, items], index) => ({ daysLeft, number: index + 1, date: addDays(new Date(), daysLeft), media: items }));
+    }, [media]);
+    // Los recién borrados (más días por delante) o los que se borran antes, primero.
+    const orderedStops = sortOrder === "recent" ? [...stops].reverse() : stops;
 
     // La selección solo cuenta medias que siguen en la papelera (tras restaurar o borrar desaparecen).
     const selectedMedia = media.filter((item) => selectedIds.has(item.id));
@@ -69,13 +81,26 @@ export const TrashPage = () => {
         });
     };
 
-    const toggleGroup = (group) => {
-        const isGroupSelected = group.media.every((item) => selectedIds.has(item.id));
+    const toggleStop = (stop) => {
+        const isStopSelected = stop.media.every((item) => selectedIds.has(item.id));
         setSelectedIds((current) => {
             const next = new Set(current);
-            group.media.forEach((item) => (isGroupSelected ? next.delete(item.id) : next.add(item.id)));
+            stop.media.forEach((item) => (isStopSelected ? next.delete(item.id) : next.add(item.id)));
             return next;
         });
+    };
+
+    const selectStop = (stop) => setSelectedIds((current) => new Set([...current, ...stop.media.map((item) => item.id)]));
+
+    // Salta a una parada desde la línea y le pasa el foco (su título), para que el teclado siga desde ahí.
+    // Se desplaza la ventana y no se usa scrollIntoView: también movería <main>, que oculta su desbordamiento.
+    const goToStop = (daysLeft) => {
+        const heading = document.getElementById(getStopHeadingId(daysLeft));
+        if (!heading) return;
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const top = heading.getBoundingClientRect().top + window.scrollY - parseFloat(getComputedStyle(heading).scrollMarginTop || 0);
+        window.scrollTo({ top, behavior: reduceMotion ? "auto" : "smooth" });
+        heading.focus({ preventScroll: true });
     };
 
     const clearSelection = () => setSelectedIds(new Set());
@@ -99,7 +124,7 @@ export const TrashPage = () => {
 
         return (
             <>
-                <RetentionPanel media={media} retentionDays={retentionDays} />
+                <TrashRoute stops={stops} retentionDays={retentionDays} onGoToStop={goToStop} onSelectStop={selectStop} />
 
                 <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-4">
@@ -114,16 +139,16 @@ export const TrashPage = () => {
                     <SegmentedControl options={SORT_OPTIONS} value={sortOrder} onChange={setSortOrder} ariaLabel="Order" className="sm:w-96" />
                 </div>
 
-                <div className="grid gap-10">
-                    {groups.map((group) => (
-                        <TrashGroup
-                            key={group.daysLeft}
-                            group={group}
-                            retentionDays={retentionDays}
+                <div>
+                    {orderedStops.map((stop, index) => (
+                        <TrashStop
+                            key={stop.daysLeft}
+                            stop={stop}
+                            isLast={index === orderedStops.length - 1}
                             selectedIds={selectedIds}
                             isBusy={isBusy}
                             onToggleSelect={toggleSelection}
-                            onToggleGroup={toggleGroup}
+                            onToggleStop={toggleStop}
                             onRestore={(mediaId) => restore([mediaId])}
                         />
                     ))}
@@ -150,7 +175,7 @@ export const TrashPage = () => {
                     <p className="mb-1 text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400">Media library</p>
                     <h1 className="text-3xl font-black tracking-tight sm:text-4xl">Trash</h1>
                     <p className="mt-2 max-w-2xl text-sm text-neutral-500 dark:text-neutral-400">
-                        Deleted media stay here for {retentionDays} days with their tags and albums, slowly fading. Restore them to bring them back, or they are deleted forever.
+                        Deleted media keep their tags and albums here for {retentionDays} days, then are deleted forever at their stop. Restore them before then to bring them back.
                     </p>
                 </div>
                 <button type="button" className={buttonClasses.dangerOutline} onClick={() => setPendingDelete("all")} disabled={media.length === 0 || isBusy}>
