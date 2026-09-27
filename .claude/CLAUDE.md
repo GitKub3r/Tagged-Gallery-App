@@ -48,6 +48,7 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 - **Reglas:** listado en `/rules` (activar, desactivar, borrar) y editor de workflows en `/rules/:id` con paleta de nodos, arrastrar y soltar, conexiones, configuración de cada nodo y ejecución sobre toda la biblioteca.
 - **Panel de datos:** `/dashboard` resume la biblioteca: últimas subidas, álbumes, favoritos, plantillas, reglas, Google Drive y papelera, actividad diaria por año (en la zona horaria del usuario), formatos y espacio, orientación, cobertura de tags, nombre y autor, y las tags, autores y nombres más usados.
 - **Cuenta y administración:** sesión y ajustes de cuenta. Según el rol, hay pantallas de usuarios, registros y acciones administrativas. Los permisos reales deben comprobarse en el backend.
+- **Modo demo (solo admin):** desde Account, un admin activa una biblioteca de ejemplo completa (medias, GIF y vídeos, tags de colores y de copyright, nombres, autores, favoritos, álbumes con portada, plantillas, reglas en todos sus estados, papelera con paradas de hoy a 30 días y un año de actividad) y recorre con ella todas las páginas de biblioteca, que normalmente no puede abrir. Solo la ve ese admin, nunca toca bibliotecas reales y "Reset demo" la devuelve a su estado inicial.
 
 ### Esencia y decisiones de producto
 
@@ -64,7 +65,7 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 - **Backend (`server/`):** Node 22, Express 4 en CommonJS (`require`), MySQL con `mysql2`, JWT (acceso + refresh) con `bcrypt`, `multer` para subidas, `sharp`, `heic-convert` y `ffmpeg-static`/`fluent-ffmpeg` para miniaturas.
 - **Infraestructura:** Docker Compose (app + MySQL + phpMyAdmin). Vite hace proxy de `/api` y `/uploads` al backend (puerto 3000); el frontend usa `VITE_API_URL=/api/v1`.
 - **Calidad:** ESLint 9 en el cliente (`npm run lint --prefix client`) y `npm run build --prefix client`. No hay suite de pruebas automatizadas; verificar a mano y con lint/build.
-- **Comandos útiles:** `npm run dev` (cliente y servidor), `npm run dev:client`, `npm run dev:server`, `docker compose up -d`.
+- **Comandos útiles:** `npm run dev` (cliente y servidor), `npm run dev:client`, `npm run dev:server`, `docker compose up -d`, `npm run demo:assets --prefix server` (pregenera los archivos de la demo).
 
 ## Mapa técnico del repositorio
 
@@ -72,7 +73,8 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 - `client/src/api/` y `client/src/hooks/`: operaciones de API, configuración compartida, query keys y acceso a datos del frontend. Parte del código antiguo aún está en migración hacia Axios y TanStack React Query; seguir las reglas de migración de este documento.
 - `server/`: API Express. Las rutas delegan en controladores, servicios y modelos. Los servicios validan y aplican reglas de negocio; los modelos ejecutan consultas SQL.
 - `database.sql`: esquema inicial MySQL. Comprobar también cómo llegan los cambios de esquema a bases de datos ya creadas: el script inicial de Docker no se vuelve a ejecutar sobre un volumen existente.
-- `server/uploads/`: archivos originales y miniaturas persistentes. La base de datos conserva sus rutas y relaciones.
+- `server/uploads/`: archivos originales y miniaturas persistentes. La base de datos conserva sus rutas y relaciones. `uploads/demo-assets/` es la caché de archivos de la demo (nunca se sirve).
+- `server/demo/`: contenido de la biblioteca demo (`demoContent.js`), escenas SVG deterministas (`demoScenes.js`) y generación de sus imágenes, GIF y vídeos (`demoAssets.js`).
 - `docker-compose.yml`, `Dockerfile` y `scripts/`: entorno local con aplicación, MySQL y phpMyAdmin. El contenedor de la app ejecuta frontend y backend con recarga durante el desarrollo. `README.md` contiene los pasos de arranque y los puertos.
 
 ## Patrones de desarrollo
@@ -126,6 +128,7 @@ Estas reglas se aplican a todo el repositorio. Son obligatorias para cualquier c
 
 - Páginas en `client/src/pages/<nombre>page/<Nombre>Page.jsx`; componentes específicos de una página en `pages/<nombre>page/components/`. Componentes compartidos en `client/src/components/<kebab-case>/<PascalCase>.jsx`.
 - Rutas declaradas en `App.jsx`; las protegidas cuelgan de `ProtectedLayout`. El control de acceso por rol está en `hooks/useAccessControl.js` (roles `admin`, `basic`, `dev`); el backend sigue siendo la autoridad real.
+- Para saber si el usuario tiene biblioteca se usa `hasLibraryAccess(user)` (`utils/libraryAccess.js`), nunca `user.type !== "admin"`: un admin con el modo demo activo (`user.demo_mode`) también la tiene. Lo mismo en los `enabled` de los hooks de datos de biblioteca.
 - Cliente HTTP único: `api/apiClient.js` (instancia Axios con token, refresh automático en 401 y toast de error; se desactiva por petición con `_skipErrorToast` / `_skipAuth`).
 - Un archivo por dominio en `api/` (`galleryApi.js`, `templateApi.js`, `metadataApi.js`...) con el patrón `xxxApi = { async getAll() {...} }`, un helper `unwrap(response)` que valida `{ success, data, message }` y un objeto `xxxQueryKeys` exportado (`all`, `forUser(userId)`). Es el modelo a copiar (ver `templateApi.js` y `hooks/useTemplates.js`).
 - Hooks de datos en `hooks/` envuelven `useQuery`/`useMutation`, con `enabled` según usuario y token. Contextos en `context/` (auth, filtro de tags, vista de rejilla, herramientas dev).
@@ -137,10 +140,11 @@ Estas reglas se aplican a todo el repositorio. Son obligatorias para cualquier c
 
 - Capas: `routes/api/v1/*.routes.js` → `controllers/*.controller.js` → `services/*.service.js` → `models/*.model.js`. Nombres en PascalCase con sufijo de capa. Clases con métodos estáticos.
 - Respuesta uniforme: `{ success: true, data }` o `{ success: false, message }`. Los servicios devuelven `{ data }` o `{ error, status }` y el controlador lo traduce (`sendResult`). Un `handleError` por controlador para errores inesperados (`ER_DUP_ENTRY` → 409).
-- Las rutas se protegen con `authenticate` (`middlewares/auth.middleware.js`); cada consulta se filtra por `req.user.id`, salvo lo permitido a `admin`. Los eventos relevantes se registran con `AuditService`.
+- Las rutas se protegen con `authenticate` (`middlewares/auth.middleware.js`); cada consulta se filtra por `req.user.id`, salvo lo permitido a `admin`. Los eventos relevantes se registran con `AuditService`. **Las rutas de biblioteca** (medias, tags, álbumes, plantillas, reglas, metadatos, papelera, métricas, Google Drive) usan `authenticateLibrary`: con el modo demo activo, atiende al admin como su biblioteca demo.
 - Cambios de esquema: además de `database.sql`, los modelos nuevos exponen `ensureTable()` (creación y `ALTER TABLE` idempotentes) que `server/index.js` ejecuta al arrancar, para que las bases ya creadas se actualicen.
 - **Archivos privados:** `server/uploads` no es público. La base de datos guarda rutas internas `/uploads/...`, y el middleware `signUploadUrlsInResponses` (`server/utils/uploadUrls.js`) las sustituye en cada respuesta JSON por URLs firmadas y con caducidad de `/api/v1/files/...`. Solo se firman las claves `filepath`, `thumbpath`, `previewpath`, `albumcoverpath`, `albumthumbpath` y `avatar_path`. Un campo nuevo con ruta de archivo se añade a esa lista; nunca se vuelve a exponer `/uploads` con `express.static`. Una respuesta solo debe incluir rutas de archivos a los que el usuario tiene acceso.
 - **Papelera:** borrar una media la envía a la papelera (`media.deleted_at`); sus archivos, tags y álbumes se conservan 30 días y después `TrashService` la borra definitivamente (al arrancar y cada hora). **Toda consulta nueva sobre `media` debe filtrar `deleted_at IS NULL`** salvo las de la propia papelera; en álbumes, las medias de la papelera se ocultan (también como portada) y conservan su posición. El borrado definitivo pasa siempre por `TrashService.purgeMedia`. Al enviarla a la papelera se marca `media.was_trashed`, que se conserva al restaurarla.
+- **Modo demo:** cada admin puede tener una biblioteca demo: una cuenta `basic` oculta con `users.demo_owner_id` = id del admin (no se lista, no inicia sesión y se borra en cascada con él). `users.demo_mode` la activa y `authenticateLibrary` sustituye `req.user` por esa cuenta (con `demoOwnerId`), así que la demo usa los mismos servicios que cualquier usuario y nunca ve datos reales; lo que se hace dentro no se audita. `DemoService` (`/api/v1/demo`: estado, activar y `reset`) la crea copiando los archivos de la caché, con miniaturas del proceso real de subida, e inserta el contenido de `server/demo/demoContent.js` con fechas relativas al día del admin (`utcOffset`). Resetear o borrar el admin pasa por `DemoService.removeLibrary` (archivos con `TrashService.purgeMedia` y después la cuenta).
 - **Tag de sistema "Google Drive":** toda media de Drive la lleva (`server/utils/driveTag.js`, `DRIVE_TAG_NAME`). El backend la añade al vincular, la conserva en cada edición, la quita si se intenta poner a una media local e impide renombrarla o borrarla. En el cliente se muestra bloqueada (`lockedTags`).
 - **HEIC/HEIF:** se conserva el original (`filepath`, solo para descargar) y en la subida se genera un JPEG de visualización (`previewpath`, lado largo de 2560 px) en `uploads/previews/`. Para mostrar una media se usa siempre `previewpath || filepath`; no añadir comprobaciones de extensión HEIC en el frontend. Para generar los que falten: `npm run previews:heic --prefix server`. Las imágenes de Google Drive (salvo GIF y las que tienen transparencia) también guardan al vincularse un preview local sacado de la miniatura grande de Drive, para no pedir el original a Google al verlas; las vinculadas antes se completan con `npm run previews:drive --prefix server`.
 - **Reglas:** el workflow se guarda como JSON (`media_rules.graph`: `{ nodes, edges }`). `server/utils/ruleGraph.js` define los tipos de nodo, sanea el grafo (tipos conocidos, conexiones válidas, sin bucles), detecta lo que falta por configurar y lo ejecuta sobre una copia en memoria de la media; `RuleEngine.service.js` carga las medias, aplica las reglas activas en orden de creación y guarda solo la diferencia. `client/src/utils/ruleGraph.js` replica textos, iconos y comprobaciones para el editor: un tipo de nodo nuevo se añade en los dos. Todo flujo nuevo que añada, edite o restaure medias llama a `RuleEngineService.runForEvent(userId, "added" | "edited" | "restored", mediaIds)`; los cambios que hacen las reglas no vuelven a dispararlas.
@@ -242,9 +246,10 @@ Estos puntos incumplen las normas y deben corregirse al tocar la zona afectada; 
 6. Comprobar con una búsqueda global que el flujo migrado no conserve usos de `fetch` ni solicitudes desde `useEffect`.
 7. Ejecutar lint, pruebas y build disponibles antes de dar el trabajo por terminado.
 8. Revisar visualmente la pantalla en modo oscuro en PC, laptop, iPad/tablet y smartphone.
-9. Cerrar cada cambio lógico terminado con un commit propio antes de comenzar el siguiente cambio solicitado.
-10. Usar mensajes de commit breves y descriptivos que permitan identificar, revertir o recuperar el cambio de forma aislada.
-11. No agrupar cambios independientes en un mismo commit ni reescribir commits ya publicados salvo petición expresa.
+9. **Tener en cuenta la demo en cada implementación nueva.** Si el cambio añade una entidad, un campo, un estado visible o una pantalla, ampliar `server/demo/demoContent.js` (y `demoScenes.js` si hace falta otro tipo de imagen) para que la demo lo muestre con datos realistas; si cambia un asset o una escena, subir `DEMO_ASSETS_VERSION` en `demoAssets.js`. Una tabla nueva ligada a un usuario lleva `FOREIGN KEY ... ON DELETE CASCADE` para que el reset de la demo la limpie, y una ruta nueva de biblioteca usa `authenticateLibrary`. Comprobar la pantalla con el modo demo activo (admin del seed) y después de "Reset demo".
+10. Cerrar cada cambio lógico terminado con un commit propio antes de comenzar el siguiente cambio solicitado.
+11. Usar mensajes de commit breves y descriptivos que permitan identificar, revertir o recuperar el cambio de forma aislada.
+12. No agrupar cambios independientes en un mismo commit ni reescribir commits ya publicados salvo petición expresa.
 
 ### Criterio ante dudas
 
