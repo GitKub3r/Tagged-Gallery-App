@@ -65,7 +65,7 @@ Estas piezas se complementan. Una media puede tener varias tags, aparecer en var
 - **Backend (`server/`):** Node 22, Express 4 en CommonJS (`require`), MySQL con `mysql2`, JWT (acceso + refresh) con `bcrypt`, `multer` para subidas, `sharp`, `heic-convert` y `ffmpeg-static`/`fluent-ffmpeg` para miniaturas.
 - **Infraestructura:** Docker Compose (app + MySQL + phpMyAdmin). Vite hace proxy de `/api` y `/uploads` al backend (puerto 3000); el frontend usa `VITE_API_URL=/api/v1`.
 - **Calidad:** ESLint 9 en el cliente (`npm run lint --prefix client`) y `npm run build --prefix client`. No hay suite de pruebas automatizadas; verificar a mano y con lint/build.
-- **Comandos útiles:** `npm run dev` (cliente y servidor), `npm run dev:client`, `npm run dev:server`, `docker compose up -d`, `npm run demo:assets --prefix server` (pregenera los archivos de la demo).
+- **Comandos útiles:** `npm run dev` (cliente y servidor), `npm run dev:client`, `npm run dev:server`, `docker compose up -d`, `npm run demo:assets --prefix server` (pregenera los archivos de la demo) y `npm run demo:check --prefix server` (lista las imágenes de la demo más parecidas entre sí).
 
 ## Mapa técnico del repositorio
 
@@ -246,7 +246,7 @@ Estos puntos incumplen las normas y deben corregirse al tocar la zona afectada; 
 6. Comprobar con una búsqueda global que el flujo migrado no conserve usos de `fetch` ni solicitudes desde `useEffect`.
 7. Ejecutar lint, pruebas y build disponibles antes de dar el trabajo por terminado.
 8. Revisar visualmente la pantalla en modo oscuro en PC, laptop, iPad/tablet y smartphone.
-9. **Tener en cuenta la demo en cada implementación nueva.** Si el cambio añade una entidad, un campo, un estado visible o una pantalla, ampliar `server/demo/demoContent.js` (y `demoScenes.js` si hace falta otro tipo de imagen) para que la demo lo muestre con datos realistas; si cambia un asset o una escena, subir `DEMO_ASSETS_VERSION` en `demoAssets.js`. Una tabla nueva ligada a un usuario lleva `FOREIGN KEY ... ON DELETE CASCADE` para que el reset de la demo la limpie, y una ruta nueva de biblioteca usa `authenticateLibrary`. Comprobar la pantalla con el modo demo activo (admin del seed) y después de "Reset demo".
+9. **Tener en cuenta la demo en cada implementación nueva.** Si el cambio añade una entidad, un campo, un estado visible o una pantalla, ampliar `server/demo/demoContent.js` (y `demoScenes.js` si hace falta otro tipo de imagen) para que la demo lo muestre con datos realistas; si cambia un asset o una escena, subir `DEMO_ASSETS_VERSION` en `demoAssets.js`. Ninguna imagen de la demo se repite: cada media nueva usa una combinación de escena, composición (`variant`) y paleta sin usar (la generación falla si se repite) y después se revisa con `npm run demo:check --prefix server`, que lista los pares más parecidos. Una tabla nueva ligada a un usuario lleva `FOREIGN KEY ... ON DELETE CASCADE` para que el reset de la demo la limpie, y una ruta nueva de biblioteca usa `authenticateLibrary`. Comprobar la pantalla con el modo demo activo (admin del seed) y después de "Reset demo".
 10. Cerrar cada cambio lógico terminado con un commit propio antes de comenzar el siguiente cambio solicitado.
 11. Usar mensajes de commit breves y descriptivos que permitan identificar, revertir o recuperar el cambio de forma aislada.
 12. No agrupar cambios independientes en un mismo commit ni reescribir commits ya publicados salvo petición expresa.
