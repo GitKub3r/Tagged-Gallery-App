@@ -160,8 +160,8 @@ export const AccountPage = () => {
       email,
       roleKey,
       role: toTitle(roleKey),
-      // Con el modo demo, un admin también entra en las páginas de biblioteca.
-      access: isDemoMode(user) ? [...ACCESS_BY_ROLE.admin, ...ACCESS_BY_ROLE.basic] : ACCESS_BY_ROLE[roleKey],
+      // Con el modo demo, un admin solo entra en las páginas de biblioteca (las de administración se ocultan).
+      access: isDemoMode(user) ? ACCESS_BY_ROLE.basic : ACCESS_BY_ROLE[roleKey],
     };
   }, [user]);
   const profileHasChanges =

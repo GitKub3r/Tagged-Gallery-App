@@ -98,7 +98,7 @@ export const Sidebar = () => {
         clearFilterTags,
     } = useTagFilter();
     const activeTagFiltersCount = selectedIncludeFilterTags.length + selectedExcludeFilterTags.length;
-    // Un admin con el modo demo activo navega por su biblioteca demo y conserva sus páginas en el grupo "Admin".
+    // Un admin con el modo demo activo navega por su biblioteca demo: sus páginas de administración se ocultan.
     const libraryAccess = hasLibraryAccess(user);
     const demoMode = isDemoMode(user);
     const sectionOneNavItems = libraryAccess ? navItems : adminNavItems;
@@ -240,27 +240,6 @@ export const Sidebar = () => {
                             </li>
                         ))}
                     </ul>
-
-                    {demoMode ? (
-                        <section className="border-t border-neutral-200 pt-3 dark:border-neutral-800" aria-label="Admin navigation">
-                            <p className={`mb-2 px-3 text-xs font-black uppercase tracking-widest text-neutral-500 ${isCollapsed ? "xl:hidden" : ""}`}>Admin</p>
-                            <ul className={isCollapsed ? "space-y-1 xl:space-y-2" : "space-y-1"}>
-                                {adminNavItems.map((item) => (
-                                    <li key={item.path}>
-                                        <NavLink
-                                            to={item.path}
-                                            className={({ isActive }) => navItemClassName(isActive, isCollapsed)}
-                                            onClick={closeMobileSidebar}
-                                            title={isCollapsed ? item.label : undefined}
-                                        >
-                                            <FontAwesomeIcon icon={item.icon} className="w-5 shrink-0" aria-hidden="true" />
-                                            <SidebarLabel isCollapsed={isCollapsed}>{item.label}</SidebarLabel>
-                                        </NavLink>
-                                    </li>
-                                ))}
-                            </ul>
-                        </section>
-                    ) : null}
 
                     {user?.type === "dev" ? (
                         <section className="border-t border-neutral-200 pt-3 dark:border-neutral-800" aria-label="Developer navigation">
