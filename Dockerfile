@@ -14,4 +14,4 @@ COPY . .
 
 EXPOSE 5173 3000
 
-CMD ["sh", "scripts/sync-docker-deps.sh"]
+CMD ["sh", "-c", "node scripts/sync-docker-deps.js && exec npm run docker:dev"]
