@@ -21,6 +21,7 @@ services:
             CORS_ORIGIN: http://localhost:5173,http://127.0.0.1:5173
             VITE_API_URL: /api/v1
             VITE_PROXY_TARGET: http://localhost:3000
+            TAGGED_HOST_IP: ${TAGGED_HOST_IP:-}
             CHOKIDAR_USEPOLLING: "true"
         volumes:
             - ./client:/app/client

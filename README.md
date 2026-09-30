@@ -14,8 +14,10 @@ El backend incluye `ffmpeg-static`, por lo que no es necesario instalar FFmpeg p
 Con Docker Desktop abierto, ejecuta una vez desde la raíz:
 
 ```bash
-docker compose up -d --build
+npm run docker:up
 ```
+
+El script (`scripts/start-docker.js`, funciona en Windows, macOS y Linux) detecta la IP del PC en la red local, ejecuta `docker compose up -d --build` y muestra las direcciones de acceso. Equivale a `docker compose up -d --build`, pero además guarda esa IP en el contenedor para que aparezca en sus logs.
 
 Después, abre [http://localhost:5173](http://localhost:5173). Docker Desktop mostrará el grupo `tagged-gallery-app` con la aplicación, MySQL y phpMyAdmin. Para los siguientes usos, inicia el grupo desde Docker Desktop. Los servicios tienen reinicio automático al arrancar Docker Desktop, salvo si los detuviste manualmente; en ese caso, pulsa **Start** en el grupo.
 
@@ -38,11 +40,14 @@ Los cambios en el código se reflejan automáticamente: Vite actualiza el fronte
 
 Los archivos subidos se conservan en `server/uploads`, de modo que Docker usa las mismas imágenes, vídeos, miniaturas y avatares que el entorno manual. La base de datos se conserva en el volumen `mysql_data` existente.
 
-Para entrar desde un móvil en la misma Wi-Fi, abre:
+Para entrar desde otro PC o un móvil en la misma red, usa la dirección `Network` que muestra `npm run docker:up`. También aparece en los logs del contenedor `tagged_app` (en Docker Desktop, pestaña **Logs**, o con `docker compose logs app`) cada vez que arranca:
 
 ```text
-Mobile: http://IP_DETECTADA:5173
+➜  Local:   http://localhost:5173/
+➜  Network: http://192.168.1.50:5173/
 ```
+
+Si en su lugar aparece `Network: unknown`, el contenedor se creó sin pasar por `npm run docker:up`. La IP se guarda al crear el contenedor, así que si el PC cambia de red o de IP hay que volver a ejecutar `npm run docker:up`.
 
 No hay que cambiar `VITE_API_URL` ni `CORS_ORIGIN`; las llamadas usan rutas relativas como `/api/v1`.
 
@@ -137,3 +142,4 @@ Limitación: Google solo acepta como orígenes `localhost` o dominios `https`, a
 - **Fotos HEIC antiguas sin vista previa**: las fotos HEIC subidas antes de existir `previewpath` se ven en baja resolución. Genera sus vistas previas JPEG con `docker compose exec app npm run previews:heic --prefix server` (o `npm run previews:heic --prefix server` fuera de Docker). Se puede repetir sin riesgo.
 - **Medias antiguas sin checksum**: para detectar duplicados con Google Drive, las medias subidas antes de existir `checksum_md5` necesitan su MD5. Calcúlalo con `docker compose exec app npm run checksums:backfill --prefix server`. Se puede repetir sin riesgo.
 - **El móvil muestra `Load failed`**: si usas Docker, entra siempre por `http://IP_DEL_PC:5173` y evita abrir la URL `localhost` desde el móvil. Si ejecutas fuera de Docker, asegúrate de iniciar Vite con `host: 0.0.0.0`.
+- **Otro dispositivo no carga la dirección `Network`**: comprueba que están en la misma red y que el cortafuegos del PC permite conexiones entrantes al puerto 5173 (en Windows, la red debe estar marcada como **privada**). Si la IP no coincide con la del PC (`ipconfig` en Windows, `ipconfig getifaddr en0` en macOS), vuelve a ejecutar `npm run docker:up`.
