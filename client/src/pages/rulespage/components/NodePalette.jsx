@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { SearchField } from "../../../components/search-field/SearchField";
 import { RULE_CATEGORIES, RULE_NODE_TYPES } from "../../../utils/ruleGraph";
-import { MODIFIER_KEY } from "./keyboardShortcuts";
 import { RuleNodeIcon } from "./RuleNodeIcon";
 
 // Tipo MIME del arrastre desde la paleta al lienzo.
@@ -19,11 +18,6 @@ export const NodePalette = ({ onAdd, autoFocusSearch = false, disabled = false }
     return (
         <div className="flex min-h-0 flex-1 flex-col gap-3">
             <SearchField label="Search nodes" value={search} onChange={setSearch} onClear={() => setSearch("")} placeholder="Search nodes" size="compact" autoFocus={autoFocusSearch} />
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">Drag a node onto the canvas or select it to add it. With a node selected, the new one is connected after it.</p>
-            {/* Los atajos solo sirven con teclado: en móvil se usa el botón "Duplicate" del nodo. */}
-            <p className="hidden text-xs text-neutral-500 dark:text-neutral-400 sm:block">
-                Hold {MODIFIER_KEY} and drag on the canvas to select several nodes. Copy them with {MODIFIER_KEY} + C and paste them with {MODIFIER_KEY} + V, or with {MODIFIER_KEY} + Shift + V to paste them without settings. Undo with {MODIFIER_KEY} + Z.
-            </p>
             <div className="-mr-2 min-h-0 flex-1 space-y-4 overflow-y-auto pr-2">
                 {RULE_CATEGORIES.map((category) => {
                     const entries = matches.filter(([, definition]) => definition.category === category.key);

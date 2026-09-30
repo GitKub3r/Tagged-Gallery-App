@@ -6,14 +6,25 @@ import { buttonClasses } from "../../components/button/buttonClasses";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { EmptyState } from "../../components/empty-state/EmptyState";
 import { LoadErrorState } from "../../components/load-error-state/LoadErrorState";
-import { PageLoadingSkeleton } from "../../components/loading-skeletons/PageLoadingSkeleton";
+import { Pagination } from "../../components/pagination/Pagination";
 import { SearchField } from "../../components/search-field/SearchField";
 import { useAlbums } from "../../hooks/useAlbums";
 import { useDevTools } from "../../hooks/useDevTools";
+import { useClientPagination } from "../../hooks/useClientPagination";
 import { useCreateRule, useDeleteRule, useRules, useUpdateRule } from "../../hooks/useRules";
 import { getRuleIssues, toFlowEdges, toFlowNodes } from "../../utils/ruleGraph";
-import { RuleCard } from "./components/RuleCard";
+import { RuleCard, RuleCardSkeleton } from "./components/RuleCard";
 import { RuleNameModal } from "./components/RuleNameModal";
+
+// 12 llena filas completas en 2 y en 3 columnas.
+const PAGE_SIZE = 12;
+const RULES_GRID_CLASSES = "grid gap-4 sm:grid-cols-2 xl:grid-cols-3";
+
+const RulesLoadingSkeleton = ({ label }) => (
+    <div className={RULES_GRID_CLASSES} role="status" aria-label={label}>
+        {Array.from({ length: 3 }, (_, index) => <RuleCardSkeleton key={index} />)}
+    </div>
+);
 
 export const RulesPage = () => {
     const navigate = useNavigate();
@@ -30,6 +41,9 @@ export const RulesPage = () => {
     const rules = useMemo(() => rulesQuery.data ?? [], [rulesQuery.data]);
     const searchTerm = search.trim().toLowerCase();
     const filteredRules = searchTerm ? rules.filter((rule) => rule.name.toLowerCase().includes(searchTerm)) : rules;
+    const pagination = useClientPagination(filteredRules, PAGE_SIZE);
+    // Buscar vuelve a la primera página.
+    const updateSearch = (value) => { setSearch(value); pagination.resetPage(); };
     // Primer problema de cada regla (el mismo cálculo que en el editor).
     const issueByRuleId = useMemo(() => {
         const context = { albumsById: albumsQuery.data ? new Map(albumsQuery.data.map((album) => [album.id, album])) : null };
@@ -39,7 +53,7 @@ export const RulesPage = () => {
     const toggleActive = (rule, isActive) =>
         updateRule.mutate({ changes: { id: rule.id, is_active: isActive }, successMessage: isActive ? "Rule turned on" : "Rule turned off" });
 
-    if (forceLoading) return <section className="tagged-app-page"><PageLoadingSkeleton variant="list" ariaLabel="Forced rules loading preview" /></section>;
+    if (forceLoading) return <section className="tagged-app-page"><RulesLoadingSkeleton label="Forced rules loading preview" /></section>;
 
     return (
         <section className="tagged-app-page min-h-[calc(100dvh-5.2rem)] text-neutral-950 dark:text-neutral-100">
@@ -59,14 +73,14 @@ export const RulesPage = () => {
 
             {!rulesQuery.isPending && !rulesQuery.isError && rules.length > 0 ? (
                 <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <SearchField className="w-full max-w-sm" label="Search rules" value={search} onChange={setSearch} onClear={() => setSearch("")} placeholder="Search rules by name" />
+                    <SearchField className="w-full max-w-sm" label="Search rules" value={search} onChange={updateSearch} onClear={() => updateSearch("")} placeholder="Search rules by name" />
                     <p className="text-sm text-neutral-500 tabular-nums dark:text-neutral-400" aria-live="polite">
                         {filteredRules.length} {filteredRules.length === 1 ? "rule" : "rules"}
                     </p>
                 </div>
             ) : null}
 
-            {rulesQuery.isPending ? <PageLoadingSkeleton variant="list" ariaLabel="Loading rules" /> : null}
+            {rulesQuery.isPending ? <RulesLoadingSkeleton label="Loading rules" /> : null}
             {rulesQuery.isError ? <LoadErrorState title="Could not load rules" onRetry={() => rulesQuery.refetch()} placement="section" /> : null}
             {!rulesQuery.isPending && !rulesQuery.isError && filteredRules.length === 0 ? (
                 <EmptyState
@@ -74,22 +88,25 @@ export const RulesPage = () => {
                     icon={faDiagramProject}
                     placement="section"
                     actionLabel={search ? "Clear search" : "Create rule"}
-                    onAction={() => (search ? setSearch("") : setIsCreating(true))}
+                    onAction={() => (search ? updateSearch("") : setIsCreating(true))}
                 />
             ) : null}
             {filteredRules.length > 0 ? (
-                <ul className="grid items-start gap-3 lg:grid-cols-2" aria-label="Rules">
-                    {filteredRules.map((rule) => (
-                        <RuleCard
-                            key={rule.id}
-                            rule={rule}
-                            issue={issueByRuleId.get(rule.id)}
-                            isToggling={updateRule.isPending && updateRule.variables?.changes.id === rule.id}
-                            onToggleActive={toggleActive}
-                            onDelete={setPendingDelete}
-                        />
-                    ))}
-                </ul>
+                <div className="flex flex-col gap-4">
+                    <ul className={RULES_GRID_CLASSES} aria-label="Rules">
+                        {pagination.pageItems.map((rule) => (
+                            <RuleCard
+                                key={rule.id}
+                                rule={rule}
+                                issue={issueByRuleId.get(rule.id)}
+                                isToggling={updateRule.isPending && updateRule.variables?.changes.id === rule.id}
+                                onToggleActive={toggleActive}
+                                onDelete={setPendingDelete}
+                            />
+                        ))}
+                    </ul>
+                    <Pagination currentPage={pagination.currentPage} totalPages={pagination.totalPages} onPageChange={pagination.goToPage} label="Rule pagination" />
+                </div>
             ) : null}
 
             {isCreating ? (

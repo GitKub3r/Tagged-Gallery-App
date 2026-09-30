@@ -89,12 +89,12 @@ class RuleModel {
         return result.affectedRows > 0;
     }
 
-    // Cuenta las medias que cambió cada regla. updated_at = updated_at: aplicar una regla no la "edita".
-    static async recordApplications(countsByRuleId) {
+    // Cuenta las medias que cambió cada regla del usuario. updated_at = updated_at: aplicar una regla no la "edita".
+    static async recordApplications(userId, countsByRuleId) {
         for (const [ruleId, count] of countsByRuleId) {
             await pool.query(
-                "UPDATE media_rules SET applied_count = applied_count + ?, last_applied_at = NOW(), updated_at = updated_at WHERE id = ?",
-                [count, ruleId],
+                "UPDATE media_rules SET applied_count = applied_count + ?, last_applied_at = NOW(), updated_at = updated_at WHERE id = ? AND user_id = ?",
+                [count, ruleId, userId],
             );
         }
     }
