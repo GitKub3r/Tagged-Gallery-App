@@ -1,24 +1,12 @@
 import { faCalendarDays, faEnvelope, faHardDrive, faKey, faLinkSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { buttonClasses } from "../../../components/button/buttonClasses";
+import { DetailRow } from "../../../components/detail-row/DetailRow";
 
 const formatDate = (value) => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "Unknown" : new Intl.DateTimeFormat("en-US", { dateStyle: "long" }).format(date);
 };
-
-const DetailRow = ({ icon, label, value, detail }) => (
-    <div className="flex flex-col gap-1 py-4 sm:flex-row sm:items-center sm:gap-3">
-        <dt className="flex w-44 shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
-            <FontAwesomeIcon icon={icon} className="w-4" aria-hidden="true" />
-            {label}
-        </dt>
-        <dd className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold" title={typeof value === "string" ? value : undefined}>{value}</span>
-            {detail ? <span className="block text-xs text-neutral-500 dark:text-neutral-400">{detail}</span> : null}
-        </dd>
-    </div>
-);
 
 export const DriveConnectionDetails = ({ email, connectedAt, isDisconnecting, onDisconnect }) => {
     return (

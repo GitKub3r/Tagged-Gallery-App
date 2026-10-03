@@ -1,5 +1,6 @@
-// Sección de la página de Drive con título, descripción y una acción opcional a la derecha.
-export const DriveSection = ({ id, title, description, aside, children }) => (
+// Sección de una página de integración o herramienta (DESIGN.md §4.3): título, descripción y una acción opcional
+// a la derecha. Las secciones se separan con divide-y en el contenedor.
+export const PageSection = ({ id, title, description, aside, children }) => (
     <section className="py-8" aria-labelledby={id}>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">

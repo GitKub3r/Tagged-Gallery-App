@@ -15,6 +15,7 @@ import { IconButton } from "../icon-button/IconButton";
 import { DRIVE_TAG_NAME } from "../../utils/mediaSource";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
+import { ProgressBar } from "../progress-bar/ProgressBar";
 
 const getFileLabel = (file, fallbackIndex) => String(file?.name || `Media ${fallbackIndex + 1}`);
 const isHeicFile = (file) => {
@@ -270,9 +271,7 @@ export const UploadMediaModal = ({
                             </p>
                         </div>
                         <div className="w-full max-w-md">
-                            <div className="h-2 overflow-hidden rounded-full bg-neutral-200 dark:bg-neutral-800" aria-hidden="true">
-                                <span className="block h-full rounded-full bg-neutral-950 transition-[width] duration-150 dark:bg-neutral-100" style={{ width: `${uploadProgress}%` }} />
-                            </div>
+                            <ProgressBar value={uploadProgress} />
                             <div className="mt-2 flex justify-between text-xs font-semibold text-neutral-500 dark:text-neutral-400">
                                 <span>{Math.round(uploadProgress)}%</span>
                                 <span>{uploadSpeedLabel || ""}</span>

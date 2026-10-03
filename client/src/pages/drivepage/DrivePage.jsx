@@ -23,8 +23,8 @@ import { DriveHero } from "./components/DriveHero";
 import { DriveHowItWorks } from "./components/DriveHowItWorks";
 import { DriveLinkAll } from "./components/DriveLinkAll";
 import { InlineNotice } from "../../components/inline-notice/InlineNotice";
+import { PageSection } from "../../components/page-section/PageSection";
 import { DriveRecentMedia } from "./components/DriveRecentMedia";
-import { DriveSection } from "./components/DriveSection";
 import { DriveStats } from "./components/DriveStats";
 import { DriveUploadModal } from "./components/DriveUploadModal";
 
@@ -133,11 +133,11 @@ export const DrivePage = () => {
 
                 {status.connected ? (
                     <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                        <DriveSection id="drive-overview-title" title="Overview" description="Media in your library whose originals live in Google Drive.">
+                        <PageSection id="drive-overview-title" title="Overview" description="Media in your library whose originals live in Google Drive.">
                             {summary ? <DriveStats summary={summary} /> : summaryQuery.isError ? <LoadErrorState title="Could not load the overview" onRetry={() => summaryQuery.refetch()} placement="section" /> : <StatsSkeleton />}
-                        </DriveSection>
+                        </PageSection>
 
-                        <DriveSection
+                        <PageSection
                             id="drive-recent-title"
                             title="Recently added"
                             description="The latest photos and videos you added from Drive."
@@ -155,9 +155,9 @@ export const DrivePage = () => {
                             ) : (
                                 <StatsSkeleton />
                             )}
-                        </DriveSection>
+                        </PageSection>
 
-                        <DriveSection id="drive-connection-title" title="Connection" description="The Google account linked to your library.">
+                        <PageSection id="drive-connection-title" title="Connection" description="The Google account linked to your library.">
                             <DriveConnectionDetails
                                 email={status.email}
                                 connectedAt={status.connectedAt}
@@ -165,12 +165,12 @@ export const DrivePage = () => {
                                 onDisconnect={() => setIsDisconnectOpen(true)}
                             />
                             <DriveLinkAll />
-                        </DriveSection>
+                        </PageSection>
                     </div>
                 ) : (
-                    <DriveSection id="drive-how-title" title="How it works" description="Bring your Drive photos and videos into Tagged without duplicating them.">
+                    <PageSection id="drive-how-title" title="How it works" description="Bring your Drive photos and videos into Tagged without duplicating them.">
                         <DriveHowItWorks />
-                    </DriveSection>
+                    </PageSection>
                 )}
             </div>
 
