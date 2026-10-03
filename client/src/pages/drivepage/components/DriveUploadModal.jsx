@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { UploadMediaModal } from "../../../components/upload-media-modal/UploadMediaModal";
+import { useAiTaggingPreference } from "../../../hooks/useAiAssistant";
 import { useDrivePreviews, useLinkDriveFiles } from "../../../hooks/useGoogleDrive";
 import { useMediaMetadataForm } from "../../../hooks/useMediaMetadataForm";
 import { useMetadata } from "../../../hooks/useMetadata";
@@ -15,6 +16,7 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
     const [activeIndex, setActiveIndex] = useState(0);
     const previewQueries = useDrivePreviews(files.map((file) => file.id), activeIndex);
     const linkMutation = useLinkDriveFiles();
+    const aiTagging = useAiTaggingPreference();
     useScrollLock();
     const { processed, total } = linkMutation.progress;
 
@@ -40,6 +42,7 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
                     author: form.author.trim(),
                     tag_names: form.getTagsWithPending(),
                     is_favourite: markFavourite,
+                    ai_tag: aiTagging.tagWithAi,
                 },
             },
             { onSuccess: onClose },
@@ -64,6 +67,7 @@ export const DriveUploadModal = ({ files, onChangeFiles, onClose }) => {
             onChangeFiles={onChangeFiles}
             onActiveIndexChange={setActiveIndex}
             onSubmit={handleSubmit}
+            aiTagging={aiTagging.isAvailable ? { checked: aiTagging.isEnabled, onChange: aiTagging.setEnabled } : null}
             onApplyTemplate={(template) => {
                 const applied = applyTemplate(template, { displayname: form.displayName, author: form.author, tags: form.tags });
                 form.setValues(applied);

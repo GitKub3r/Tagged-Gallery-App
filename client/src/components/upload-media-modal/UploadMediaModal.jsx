@@ -8,10 +8,13 @@ import {
     faPlay,
     faRotate,
     faSpinner,
+    faWandMagicSparkles,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { CheckboxControl } from "../checkbox-control/CheckboxControl";
 import { IconButton } from "../icon-button/IconButton";
+import { Tooltip } from "../tooltip/Tooltip";
 import { DRIVE_TAG_NAME } from "../../utils/mediaSource";
 import { MediaFormModal, MediaMetadataFields } from "../media-form-modal/MediaFormModal";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
@@ -90,6 +93,8 @@ export const UploadMediaModal = ({
     getTagStyle,
     onApplyTemplate,
     onActiveIndexChange,
+    // { checked, onChange } con el asistente de IA instalado: "Tag with AI" añade tags al subir. null lo oculta.
+    aiTagging = null,
 }) => {
     const [previewIndex, setPreviewIndex] = useState(0);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -373,8 +378,17 @@ export const UploadMediaModal = ({
                         </div>
 
                         <footer className="flex min-h-16 shrink-0 flex-col items-stretch justify-between gap-2 border-t border-neutral-200 px-4 py-2 dark:border-neutral-800 sm:h-16 sm:flex-row sm:items-center sm:gap-3 sm:px-6 sm:py-0">
-                            <div className="flex min-w-0 items-center gap-2 overflow-hidden text-xs text-neutral-500 dark:text-neutral-400">
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 overflow-hidden text-xs text-neutral-500 dark:text-neutral-400">
                                 <MediaFileMeta size={activeFile?.size} mediaUrl={activePreviewUrl} isVideo={isVideo && !config.staticPreviews} knownDimensions={activeFile?.dimensions} />
+                                {aiTagging ? (
+                                    <Tooltip content="Adds the tags you already use on similar media. It never removes tags.">
+                                        <label className="inline-flex min-h-10 shrink-0 cursor-pointer items-center gap-2 whitespace-nowrap font-semibold text-neutral-600 dark:text-neutral-300 sm:min-h-0">
+                                            <CheckboxControl checked={aiTagging.checked} onChange={aiTagging.onChange} />
+                                            <FontAwesomeIcon icon={faWandMagicSparkles} aria-hidden="true" />
+                                            <span>Tag with AI</span>
+                                        </label>
+                                    </Tooltip>
+                                ) : null}
                             </div>
                             <div className="ml-auto flex items-center gap-2">
                                 <button

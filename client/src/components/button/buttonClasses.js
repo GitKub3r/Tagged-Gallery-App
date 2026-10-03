@@ -8,5 +8,7 @@ export const buttonClasses = {
     // Acción de gran alcance que conviene no pulsar por error (p. ej. "Add all" en Drive): rojo desde el principio.
     dangerOutline: `${BASE} border border-red-500/40 bg-transparent font-semibold text-red-600 hover:bg-red-500/10 dark:text-red-400`,
     dangerGhost: `${BASE} border border-neutral-300 bg-transparent font-semibold text-neutral-700 hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-600 dark:border-neutral-700 dark:text-neutral-200 dark:hover:text-red-400`,
-    text: "inline-flex w-auto items-center gap-2 border-0 bg-transparent p-0 text-sm font-semibold text-neutral-600 shadow-none transition-colors hover:text-neutral-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 dark:text-neutral-300 dark:hover:text-white",
+    text: "inline-flex w-auto items-center gap-2 border-0 bg-transparent p-0 text-sm font-semibold text-neutral-600 shadow-none transition-colors hover:text-neutral-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:text-white",
+    // Acción de texto junto a una etiqueta de campo (text-xs), p. ej. "Suggest" en el campo de tags.
+    textCompact: "inline-flex w-auto items-center gap-1.5 border-0 bg-transparent p-0 text-xs font-semibold text-neutral-600 shadow-none transition-colors hover:text-neutral-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-500 disabled:cursor-not-allowed disabled:opacity-50 dark:text-neutral-300 dark:hover:text-white",
 };

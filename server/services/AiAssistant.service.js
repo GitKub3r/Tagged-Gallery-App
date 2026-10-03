@@ -187,8 +187,16 @@ const summarizeResults = (results, { changedIds, addedCount }) => ({
 // Viven en memoria: si el servidor se reinicia, se pierde el progreso (lo ya analizado o etiquetado se conserva).
 const jobs = new Map();
 
+// Estimación a partir del ritmo de la fase actual (análisis ~0,5 s por media; etiquetar es mucho más rápido).
+const estimateRemainingSeconds = (job) => {
+    if (job.status !== "running" || job.processed === 0 || job.total <= job.processed) return null;
+    const secondsPerMedia = (Date.now() - job.phaseStartedAt.getTime()) / 1000 / job.processed;
+    return Math.ceil(secondsPerMedia * (job.total - job.processed));
+};
+
 const serializeJob = (job) =>
     job && {
+        remainingSeconds: estimateRemainingSeconds(job),
         type: job.type,
         status: job.status,
         phase: job.phase,

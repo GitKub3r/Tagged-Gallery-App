@@ -25,6 +25,7 @@ import {
     faTags,
     faUser,
     faUsers,
+    faWandMagicSparkles,
     faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { NavLink, useMatch, useNavigate } from "react-router-dom";
@@ -45,6 +46,7 @@ const navItems = [
     { label: "Metadata", path: "/metadata", icon: faTags },
     { label: "Templates", path: "/templates", icon: faCopy },
     { label: "Rules", path: "/rules", icon: faDiagramProject },
+    { label: "AI assistant", path: "/assistant", icon: faWandMagicSparkles },
     { label: "Google Drive", path: "/drive", icon: faGoogleDrive },
     { label: "Dashboard", path: "/dashboard", icon: faChartColumn },
     { label: "Trash", path: "/trash", icon: faTrashCan },

@@ -30,6 +30,7 @@ import { LoadErrorState } from "../../components/load-error-state/LoadErrorState
 import { CollectionLoadingSkeleton } from "../../components/loading-skeletons/CollectionLoadingSkeleton";
 import { Skeleton } from "../../components/loading-skeletons/Skeleton";
 import { MediaEditModal } from "../../components/media-edit-modal/MediaEditModal";
+import { AiTagSelectionButton } from "../../components/ai-tag-selection-button/AiTagSelectionButton";
 import { DeleteConfirmationModal } from "../../components/delete-confirmation-modal/DeleteConfirmationModal";
 import { MediaFacetSearch } from "../../components/media-facet-search/MediaFacetSearch";
 import { ResultsLoadingIndicator } from "../../components/results-loading-indicator/ResultsLoadingIndicator";
@@ -3395,6 +3396,9 @@ export const AlbumDetailPage = () => {
                     >
                         <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                     </button>
+
+                    {/* La página aún carga sus datos a mano: tras etiquetar se recargan para ver las tags nuevas. */}
+                    <AiTagSelectionButton mediaIds={[...selectedAlbumMediaIds].map(Number)} onTagged={() => loadPageData().catch(() => {})} />
 
                     <button
                         type="button"

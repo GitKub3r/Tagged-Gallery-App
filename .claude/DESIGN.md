@@ -236,7 +236,7 @@ Antes de maquetar, se busca el componente en esta lista. Si existe, se usa; si n
 
 ### 7.1 Botones
 
-**En código nuevo, usar `buttonClasses` (`components/button/buttonClasses.js`: `primary`, `secondary`, `dangerGhost`, `dangerOutline`, `text`) en lugar de copiar las recetas.** No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
+**En código nuevo, usar `buttonClasses` (`components/button/buttonClasses.js`: `primary`, `secondary`, `dangerGhost`, `dangerOutline`, `text`, y `textCompact` para una acción de texto junto a la etiqueta de un campo) en lugar de copiar las recetas.** No hace falta `!`: el estilo global de `button` está en `@layer base` y las utilidades de Tailwind lo sobrescriben. Ese estilo global sí fija `width: 100%`, borde de 2 px y fondo oscuro, así que **todo botón declara siempre su ancho, borde, fondo y padding**. En código nuevo no se añaden `!` (el código existente los usa por inercia; son **legado**).
 
 **Primario:** una sola acción principal por vista o modal.
 
@@ -312,7 +312,7 @@ El foco de un campo se muestra cambiando el borde a `neutral-500`, porque el CSS
 
 **Nombre, autor y tags con sugerencias:** `MetadataSuggestionField` y `MediaTagsField` (exportados desde `MediaFormModal.jsx`) con el estado de `useMediaMetadataForm`. `MediaMetadataFields` los compone; se usan sueltos cuando solo hace falta uno.
 
-**Lista de valores:** `ChipListField` (en `MediaFormModal.jsx`): input con sugerencias que añade con Enter y chips que se quitan con un clic, con contador "N selected". `MediaTagsField` es un `ChipListField` con chips de tag; para otras listas (varios autores o nombres de media en una regla) los chips son neutros y llevan el icono de la entidad.
+**Lista de valores:** `ChipListField` (en `MediaFormModal.jsx`): input con sugerencias que añade con Enter y chips que se quitan con un clic, con contador "N selected". `MediaTagsField` es un `ChipListField` con chips de tag; para otras listas (varios autores o nombres de media en una regla) los chips son neutros y llevan el icono de la entidad. `headerAction` añade una acción breve (`buttonClasses.textCompact`) junto al contador, fuera del `<label>` para no formar parte del nombre del input: p. ej. "Suggest" de la IA.
 
 **Checkbox:** `CheckboxControl` (4×4, relleno invertido al marcar, icono `faCheck`). Para una opción con explicación se usa `CheckboxOption` (`title`, `description`), que la envuelve en una tarjeta clicable:
 
@@ -379,7 +379,7 @@ Todos los modales:
 - Pie: `flex shrink-0 flex-col-reverse gap-2 border-t p-4 sm:flex-row sm:justify-end sm:px-6`.
 - El `<form>` envuelve cuerpo y pie (`flex min-h-0 flex-col`) para que Enter envíe.
 
-**Añadir medias:** todo flujo que añade medias a la biblioteca (subida desde el equipo, archivos de Google Drive) usa `UploadMediaModal` con su `variant` (`upload` o `drive`). Cambian el título, el icono y los textos; la estructura, el formulario, la vista previa y el progreso son los mismos. Un origen nuevo se añade como otra variante, no como otro modal.
+**Añadir medias:** todo flujo que añade medias a la biblioteca (subida desde el equipo, archivos de Google Drive) usa `UploadMediaModal` con su `variant` (`upload` o `drive`). Cambian el título, el icono y los textos; la estructura, el formulario, la vista previa y el progreso son los mismos. Un origen nuevo se añade como otra variante, no como otro modal. Con el asistente de IA instalado, el pie muestra la casilla "Tag with AI" (prop `aiTagging`, preferencia recordada en el navegador con `useAiTaggingPreference`).
 
 **Confirmación:** `DeleteConfirmationModal` (`z-[1400]`, `max-w-md`, título como pregunta "Delete this template?", descripción de la consecuencia y botón de peligro; se cierra con Escape antes que cualquier modal de debajo). Para acciones destructivas que no son un borrado (p. ej. desconectar) se pasan `confirmLabel`, `pendingLabel` y `confirmIcon`. Con `tone="neutral"` el botón es primario, para acciones que no borran nada (p. ej. importar a Tagged). `children` añade un resumen entre la descripción y el pie, y `requireText` obliga a escribir una frase antes de confirmar: se usa en acciones de gran alcance que no deben lanzarse con un clic accidental. Toda acción destructiva o irreversible pasa por él; no usar `window.confirm`.
 
@@ -458,6 +458,17 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 - **Ejecución:** la confirmación se cierra al momento y el lienzo muestra el progreso: conexiones animadas (quietas con movimiento reducido), un `faSpinner` en cada nodo conectado, `ResultsLoadingIndicator` en línea y "Running..." en el botón; el lienzo se bloquea mientras tanto (se puede mover y ampliar) y el estado se ve al menos 800 ms. Al terminar, cada conexión muestra en un badge cuántas medias pasaron, las salidas "True"/"False" su recuento, los disparadores "Checked N media" y las acciones "Changed X of Y media"; abajo, el resumen con "Clear results". El resultado se oculta si cambia el workflow y vuelve si se deshace el cambio.
 - **Pendientes:** aviso en línea ámbar sobre el lienzo con lo que falta para activar o ejecutar la regla; cada problema de un nodo es un enlace de texto que lo centra y selecciona.
 
+### 7.11 Asistente de IA
+
+El asistente etiqueta medias en el servidor con las tags que el usuario ya usa en medias parecidas (`hooks/useAiAssistant.js`). Solo añade tags; nunca quita ninguna.
+
+- **Página `/assistant`:** página de herramienta con `IntegrationHero` (icono `faWandMagicSparkles`, eyebrow "Library tools", punto verde con los modelos instalados y la línea de estado "Ready · N of M media analyzed" o el progreso de la descarga). Acción principal: "Set up assistant" (`faDownload`) sin modelos y "Tag library" con ellos, que pasa por `DeleteConfirmationModal` con `tone="neutral"`. Secciones: "Overview" (`StatTile`), "Activity" (progreso con `ProgressBar`, tiempo restante y "Stop", o el resultado en `InlineNotice`), "Settings" (filas `DetailRow` y "Edit settings", que abre un `MediaFormModal` compacto con `SegmentedControl` de confianza y `MediaTagsField` de tags excluidas), "Safeguards" y "Models" (borrar los modelos con `dangerGhost` y confirmación).
+- **Acciones en el resto de la app:** solo aparecen con los modelos instalados (`useIsAiReady`), siempre con `faWandMagicSparkles` y el texto "Tag with AI":
+  - Barra de selección de la galería y de los álbumes: `AiTagSelectionButton`. Muestra un toast de carga y después el resultado ("Added 3 tags to 2 media").
+  - Subida y alta desde Drive: casilla "Tag with AI" en el pie de `UploadMediaModal`.
+  - Edición de una sola media: "Suggest" en el campo de tags. Añade las sugerencias al formulario sin guardar, para que el usuario las revise.
+- **Feedback:** los toasts dicen cuántas tags añadió y a cuántas medias, y avisan si las salvaguardas descartaron alguna. Sin coincidencias: "No new tags to add" / "No tags to suggest" con la explicación.
+
 ---
 
 ## 8. Iconografía
@@ -515,6 +526,10 @@ Las reglas se editan como un workflow de nodos sobre un lienzo de **React Flow**
 | Acercar / alejar / encajar la vista del lienzo | `faMagnifyingGlassPlus` / `faMagnifyingGlassMinus` / `faExpand` |
 | Falta configuración (aviso) | `faTriangleExclamation` |
 | Ayuda (abre un `Tooltip` con `openOn="click"`) | `faCircleQuestion` |
+| Asistente de IA / etiquetar con IA / sugerir tags | `faWandMagicSparkles` |
+| Confianza de la IA: estricta / equilibrada / relajada | `faBullseye` / `faScaleBalanced` / `faFeather` |
+| Salvaguardas / contenido excluido / ajuste | `faShieldHalved` / `faBan` / `faSliders` |
+| Se ejecuta en (procesador del servidor) | `faMicrochip` |
 | Nodos disparadores: media añadida / editada / restaurada / ejecución manual | `faPlus` / `faPen` / `faRotateLeft` / `faHandPointer` |
 | Nodos de condición: nombre de media / autor / tamaño / resolución / orientación / tipo de media / historial de papelera | `faFont` / `faUserPen` / `faWeightHanging` / `faRulerCombined` / `faCropSimple` / `faPhotoFilm` / `faTrashCan` |
 | Nodos de acción: añadir tags / quitar tags / favorito / añadir a álbum | `faTag` / `faEraser` / `faHeart` / `faFolderPlus` |
