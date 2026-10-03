@@ -14,6 +14,7 @@ const TemplateModel = require("./models/Template.model");
 const RuleModel = require("./models/Rule.model");
 const MediaModel = require("./models/Media.model");
 const GoogleDriveConnectionModel = require("./models/GoogleDriveConnection.model");
+const AiAssistantModel = require("./models/AiAssistant.model");
 const GoogleDriveService = require("./services/GoogleDrive.service");
 const TrashService = require("./services/Trash.service");
 
@@ -107,6 +108,7 @@ const startServer = async () => {
         await RuleModel.ensureTable();
         await MediaModel.ensureColumns();
         await GoogleDriveConnectionModel.ensureTable();
+        await AiAssistantModel.ensureTables();
         await GoogleDriveService.ensureDriveTags();
         GoogleDriveService.pruneBrowseThumbnails();
         TrashService.startPurgeSchedule();

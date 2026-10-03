@@ -223,6 +223,42 @@ CREATE TABLE media_albums (
 );
 
 -- =========================
+-- AI ASSISTANT (etiquetado local con IA: ver server/services/AiAssistant.service.js)
+-- =========================
+-- Análisis de cada media: huella de CLIP, tags de WD Tagger y resultado del filtro de seguridad.
+CREATE TABLE media_ai_index (
+    media_id INT UNSIGNED PRIMARY KEY,
+    user_id INT UNSIGNED NOT NULL,
+    version SMALLINT UNSIGNED NOT NULL, -- ANALYSIS_VERSION de server/utils/aiModels.js
+    status ENUM('ready', 'blocked', 'failed') NOT NULL, -- blocked: descartada por las salvaguardas
+    reason VARCHAR(32) NULL,
+    embedding BLOB NULL, -- Float32Array de 512 valores
+    tagger_tags JSON NULL, -- { general: { tag: probabilidad }, character: { ... } }
+    analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_media_ai_index_user_status (user_id, status),
+    CONSTRAINT fk_media_ai_index_media FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
+    CONSTRAINT fk_media_ai_index_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Tags que añadió la IA: no se vuelven a añadir si el usuario las quita y no cuentan como ejemplo.
+CREATE TABLE media_ai_tags (
+    media_id INT UNSIGNED NOT NULL,
+    tag_id INT UNSIGNED NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (media_id, tag_id),
+    CONSTRAINT fk_media_ai_tags_media FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE,
+    CONSTRAINT fk_media_ai_tags_tag FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE TABLE ai_settings (
+    user_id INT UNSIGNED PRIMARY KEY,
+    strictness ENUM('strict', 'balanced', 'relaxed') NOT NULL DEFAULT 'balanced',
+    excluded_tag_ids JSON NULL, -- tags que la IA nunca añade
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ai_settings_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =========================
 -- ACTIONS
 -- =========================
 CREATE TABLE actions (
@@ -299,7 +335,11 @@ VALUES
     ('Link Google Drive files', 'GOOGLE_DRIVE_LINK', 'Add Google Drive files to the library without copying them', TRUE),
     ('Import Google Drive media', 'GOOGLE_DRIVE_IMPORT', 'Copy Google Drive media into Tagged storage and remove the Drive link', TRUE),
     ('Restore media from trash', 'MEDIA_RESTORE', 'Restore media from the trash', TRUE),
-    ('Delete media forever', 'MEDIA_PURGE', 'Permanently delete media from the trash', TRUE)
+    ('Delete media forever', 'MEDIA_PURGE', 'Permanently delete media from the trash', TRUE),
+    ('Set up the AI assistant', 'AI_SETUP', 'Download the local AI models', TRUE),
+    ('Remove the AI assistant models', 'AI_MODELS_REMOVE', 'Delete the downloaded AI models from the server', TRUE),
+    ('Tag media with AI', 'AI_TAG_MEDIA', 'Add AI-suggested tags to selected media', TRUE),
+    ('Tag library with AI', 'AI_LIBRARY_RUN', 'Add AI-suggested tags to the whole library', TRUE)
 ON DUPLICATE KEY UPDATE
     actionname = VALUES(actionname),
     description = VALUES(description),

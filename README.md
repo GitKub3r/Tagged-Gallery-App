@@ -134,6 +134,15 @@ La pestaña **Google Drive** permite añadir fotos y vídeos de Drive sin copiar
 
 Limitación: Google solo acepta como orígenes `localhost` o dominios `https`, así que la cuenta se conecta desde `http://localhost:5173` y no desde la IP de la red local. Una vez conectada, se usa desde cualquier dispositivo.
 
+## 6. Asistente de IA (opcional)
+
+La pestaña **AI assistant** etiqueta tus medias con las tags que ya usas en medias parecidas. Funciona sin suscripciones ni claves: los modelos se ejecutan en el propio servidor (CPU) y las imágenes nunca salen de él.
+
+- **Activarlo.** En `/assistant`, pulsa **Set up assistant**. El servidor descarga una vez unos 790 MB de modelos de Hugging Face (CLIP ViT-B/16, licencia MIT, y WD Tagger v3, Apache 2.0) en `server/.ai-models` (no se versiona; se cambia con `AI_MODELS_DIR` en `server/.env`). Después analiza la biblioteca en segundo plano, a unos 0,5 s por media.
+- **Recursos.** Con los modelos cargados usa alrededor de 1,5 GB de RAM; se liberan tras 15 minutos sin uso. Docker Desktop necesita al menos 4 GB asignados.
+- **Cómo aprende.** Busca tus medias más parecidas y propone las tags que les pusiste, y reconoce por su nombre tags del vocabulario de Danbooru (personajes, pelo, ropa...). Solo añade tags que ya existen en tu biblioteca y nunca quita ninguna. Si quitas una tag que puso la IA, no la vuelve a poner.
+- **Contenido NSFW.** Etiqueta contenido adulto con normalidad. Un filtro local descarta, sin analizarlas, las medias que parecen contenido sexual con menores o gore. Es una barrera razonable, no una garantía.
+
 ## Solución rápida de problemas
 
 - **`failed to connect to the docker API`**: abre Docker Desktop y espera a que indique que el motor está en ejecución; luego repite `docker compose up -d`.

@@ -33,6 +33,10 @@ const DEFAULT_ACTION_NAMES = {
     MEDIA_PURGE: "Delete media forever",
     RULE_RUN: "Run rule on library",
     METADATA_REMOVE_FROM_MEDIA: "Remove metadata from all media",
+    AI_SETUP: "Set up the AI assistant",
+    AI_MODELS_REMOVE: "Remove the AI assistant models",
+    AI_TAG_MEDIA: "Tag media with AI",
+    AI_LIBRARY_RUN: "Tag library with AI",
 };
 
 class AuditService {

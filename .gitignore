@@ -13,3 +13,6 @@ dist/
 build/
 .vscode/
 .idea/
+
+# Modelos de IA descargados por el asistente (se pueden volver a descargar)
+server/.ai-models/
