@@ -36,6 +36,10 @@ const DEFAULT_ACTION_NAMES = {
     DEMO_MODE_ENABLE: "Turn on demo mode",
     DEMO_MODE_DISABLE: "Turn off demo mode",
     DEMO_MODE_RESET: "Reset demo library",
+    AI_SETUP: "Set up the AI assistant",
+    AI_MODELS_REMOVE: "Remove the AI assistant models",
+    AI_TAG_MEDIA: "Tag media with AI",
+    AI_LIBRARY_RUN: "Tag library with AI",
 };
 
 class AuditService {

@@ -8,6 +8,7 @@ import { MetadataPage } from "./pages/tagspage/TagsPage";
 import { TemplatesPage } from "./pages/templatespage/TemplatesPage";
 import { RulesPage } from "./pages/rulespage/RulesPage";
 import { RuleEditorPage } from "./pages/rulespage/RuleEditorPage";
+import { AssistantPage } from "./pages/assistantpage/AssistantPage";
 import { DrivePage } from "./pages/drivepage/DrivePage";
 import { TrashPage } from "./pages/trashpage/TrashPage";
 import { DashboardPage } from "./pages/dashboardpage/DashboardPage";
@@ -55,6 +56,7 @@ function App() {
                         <Route path="/templates" element={<TemplatesPage />} />
                         <Route path="/rules" element={<RulesPage />} />
                         <Route path="/rules/:ruleId" element={<RuleEditorPage />} />
+                        <Route path="/assistant" element={<AssistantPage />} />
                         <Route path="/drive" element={<DrivePage />} />
                         <Route path="/trash" element={<TrashPage />} />
                         <Route path="/tags" element={<Navigate to="/metadata" replace />} />

@@ -16,6 +16,7 @@ const trashRoutes = require("./trash.routes");
 const ruleRoutes = require("./rule.routes");
 const metadataRoutes = require("./metadata.routes");
 const demoRoutes = require("./demo.routes");
+const aiRoutes = require("./ai.routes");
 
 // Endpoint de bienvenida de la API v1
 router.get("/", (req, res) => {
@@ -42,6 +43,8 @@ router.get("/", (req, res) => {
             templates: "/api/v1/templates",
             rules: "/api/v1/rules",
             runRule: "/api/v1/rules/:id/run",
+            aiStatus: "/api/v1/ai/status",
+            aiTagMedia: "/api/v1/ai/tag",
             metadataMediaCount: "/api/v1/metadata/:kind/media-count",
             removeMetadataFromMedia: "/api/v1/metadata/:kind/media",
             demo: "/api/v1/demo",
@@ -81,5 +84,6 @@ router.use("/trash", trashRoutes);
 router.use("/rules", ruleRoutes);
 router.use("/metadata", metadataRoutes);
 router.use("/demo", demoRoutes);
+router.use("/ai", aiRoutes);
 
 module.exports = router;

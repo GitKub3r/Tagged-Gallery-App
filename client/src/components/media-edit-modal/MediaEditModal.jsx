@@ -1,6 +1,6 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildTagChipStyle } from "../../utils/tagStyle";
-import { faArrowLeft, faArrowRight, faFile, faFloppyDisk, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faArrowRight, faFile, faFloppyDisk, faSpinner, faWandMagicSparkles, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { CheckboxControl } from "../checkbox-control/CheckboxControl";
 import { IconButton } from "../icon-button/IconButton";
@@ -9,6 +9,9 @@ import { rankSuggestions } from "../../utils/suggestionRanking";
 import { MediaFileMeta } from "../media-file-meta/MediaFileMeta";
 import { DRIVE_TAG_NAME, isDriveMedia, isDriveTagName } from "../../utils/mediaSource";
 import { applyTemplate } from "../../utils/applyTemplate";
+import { toast } from "sonner";
+import { buttonClasses } from "../button/buttonClasses";
+import { useAiSuggestions, useIsAiReady } from "../../hooks/useAiAssistant";
 
 const MAX_SUGGESTIONS = 8;
 const isVideoLike = (media) => {
@@ -79,6 +82,10 @@ export const MediaEditModal = ({
     }, [isOpen, initialDisplayName, initialAuthor, initialTagsKey]);
 
     const isMultiMode = mode === "multi";
+    const isAiReady = useIsAiReady();
+    const aiSuggestionsMutation = useAiSuggestions();
+    // Media que se está editando cuando llegan las sugerencias: si el usuario pasa a otra, se descartan.
+    const suggestedMediaIdRef = useRef(null);
     const normalizeTag = (value) =>
         String(value || "")
             .trim()
@@ -387,6 +394,44 @@ export const MediaEditModal = ({
         }
     };
 
+    // "Suggest" (solo al editar una media): añade al formulario las tags que propone la IA. No se guardan hasta
+    // que el usuario guarda, así que puede quitar las que no quiera.
+    const aiMediaId = isMultiMode ? null : Number(activePreviewItem?.id);
+    useEffect(() => {
+        suggestedMediaIdRef.current = aiMediaId;
+    }, [aiMediaId]);
+    const handleSuggestTags = () => {
+        if (!Number.isInteger(aiMediaId)) return;
+        aiSuggestionsMutation.mutate([aiMediaId], {
+            onSuccess: ([result] = []) => {
+                if (!result || result.id !== suggestedMediaIdRef.current) return;
+                if (result.status === "blocked") {
+                    toast("The AI assistant skips this media", { description: "It looks like content its safeguards don't allow." });
+                    return;
+                }
+                if (result.status !== "ready") {
+                    toast.error("Could not analyze this media");
+                    return;
+                }
+                const currentKeys = new Set(selectedTags.map(normalizeTag));
+                const newTags = result.tags.map(({ tagname }) => tagname).filter((tagname) => !currentKeys.has(normalizeTag(tagname)));
+                if (newTags.length === 0) {
+                    toast("No tags to suggest", { description: "The assistant found no confident matches among your tags." });
+                    return;
+                }
+                setSelectedTags((current) => [...current, ...newTags]);
+                toast.success(`Added ${newTags.length} suggested ${newTags.length === 1 ? "tag" : "tags"}`, { description: newTags.length === 1 ? "Review it and save to keep it." : "Review them and save to keep them." });
+            },
+        });
+    };
+    const suggestTagsAction =
+        isAiReady && Number.isInteger(aiMediaId) ? (
+            <button type="button" className={buttonClasses.textCompact} onClick={handleSuggestTags} disabled={aiSuggestionsMutation.isPending || isSaving}>
+                <FontAwesomeIcon icon={aiSuggestionsMutation.isPending ? faSpinner : faWandMagicSparkles} spin={aiSuggestionsMutation.isPending} className="motion-reduce:animate-none" aria-hidden="true" />
+                {aiSuggestionsMutation.isPending ? "Suggesting..." : "Suggest"}
+            </button>
+        ) : null;
+
     const handleSubmit = async (event) => {
         event.preventDefault();
 
@@ -597,6 +642,7 @@ export const MediaEditModal = ({
                             onAddTag={addTag}
                             onRemoveTag={removeTag}
                             getTagStyle={buildTagChipStyle}
+                            headerAction={suggestTagsAction}
                             templateResetKey={hasExternalNavigation ? activePreviewItem?.id : undefined}
                             onApplyTemplate={(template) => {
                                 const applied = applyTemplate(template, { displayname: displayNameInput, author: authorInput, tags: selectedTags });

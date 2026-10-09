@@ -4,6 +4,7 @@ const MediaModel = require("../models/Media.model");
 const TagModel = require("../models/Tag.model");
 const MediaTagModel = require("../models/MediaTag.model");
 const RuleEngineService = require("./RuleEngine.service");
+const AiAssistantService = require("./AiAssistant.service");
 const { detectMediaType, generateMediaDerivatives, removeMediaDerivatives, removeStoredMediaFiles, computeFileMd5 } = require("../utils/media");
 const { MEDIA_UPLOAD_DIR } = require("../middlewares/upload.middleware");
 const { enforceDriveTag, isDriveTagName, withoutDriveTag } = require("../utils/driveTag");
@@ -20,11 +21,16 @@ const removeFileIfExists = async (filePath) => {
 };
 
 class MediaService {
-    static parseFavouriteFlag(value) {
+    // Los formularios multipart envían los booleanos como texto.
+    static parseBooleanFlag(value, field) {
         if (value === undefined) return { success: true, data: undefined };
         if (value === true || value === "true") return { success: true, data: true };
         if (value === false || value === "false") return { success: true, data: false };
-        return { success: false, message: "is_favourite must be a boolean" };
+        return { success: false, message: `${field} must be a boolean` };
+    }
+
+    static parseFavouriteFlag(value) {
+        return this.parseBooleanFlag(value, "is_favourite");
     }
 
     static normalizeOptionalText(value) {
@@ -66,8 +72,11 @@ class MediaService {
 
         const favourite = this.parseFavouriteFlag(payload?.is_favourite);
         if (!favourite.success) return favourite;
+        // "Tag with AI": el asistente añade tags a las medias nuevas antes de las reglas.
+        const aiTag = this.parseBooleanFlag(payload?.ai_tag, "ai_tag");
+        if (!aiTag.success) return aiTag;
 
-        return { success: true, isFavourite: favourite.data === true };
+        return { success: true, isFavourite: favourite.data === true, tagWithAi: aiTag.data === true };
     }
 
     static parseTagNames(rawTagNames) {
@@ -542,6 +551,7 @@ class MediaService {
             createdMedia = await MediaModel.create(mediaData);
             if (shouldCancel()) throw new Error("Upload cancelled");
             await this.attachTagsToMedia(createdMedia.id, parsedTagNames.data, userId);
+            await AiAssistantService.prepareAddedMedia(userId, [createdMedia.id], { tagWithAi: validation.tagWithAi });
             await RuleEngineService.runForEvent(userId, "added", [createdMedia.id]);
 
             const created = await MediaModel.findById(createdMedia.id);
@@ -629,6 +639,7 @@ class MediaService {
             }
 
             const createdIds = createdItems.map((item) => item.id);
+            await AiAssistantService.prepareAddedMedia(userId, createdIds, { tagWithAi: validation.tagWithAi });
             await RuleEngineService.runForEvent(userId, "added", createdIds);
             const refreshedItems = [];
 

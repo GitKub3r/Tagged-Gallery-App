@@ -2,7 +2,7 @@ import { faGoogleDrive } from "@fortawesome/free-brands-svg-icons";
 import { faLock, faXmark } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { getTagIcon } from "../../utils/tagIcon";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { IconButton } from "../icon-button/IconButton";
 import { ErrorToast } from "../toast/ErrorToast";
@@ -106,7 +106,8 @@ const NEUTRAL_CHIP_CLASSES = "border-neutral-300 bg-white text-neutral-700 dark:
 
 // Lista de valores con sugerencias: el input añade un valor con Enter (o eligiendo una sugerencia) y los valores
 // elegidos se muestran como chips que se quitan con un clic. getChipIcon y getChipStyle personalizan cada chip
-// (sin getChipStyle es neutro); leadingChips se pintan antes, sin botón de quitar.
+// (sin getChipStyle es neutro); leadingChips se pintan antes, sin botón de quitar. headerAction: acción breve junto
+// al contador (p. ej. "Suggest" con IA); va fuera del <label> para no formar parte del nombre del input.
 export const ChipListField = ({
     label,
     inputValue,
@@ -129,10 +130,12 @@ export const ChipListField = ({
     onSuggestionKeyDown,
     onAdd,
     onRemove,
+    headerAction = null,
     compact = false,
 }) => {
     const selectedCount = leadingChips.length + values.length;
     const chipsContainerRef = useRef(null);
+    const inputId = useId();
 
     useEffect(() => {
         const container = chipsContainerRef.current;
@@ -141,18 +144,21 @@ export const ChipListField = ({
 
     return (
         <>
-            <label className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
-                <span className="mb-1.5 flex items-center justify-between gap-3">
-                    <span>{label}</span>
-                    <span className="font-medium tabular-nums text-neutral-400 dark:text-neutral-500">
-                        {selectedCount} selected
+            <div className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+                <div className="mb-1.5 flex min-h-5 items-center justify-between gap-3">
+                    <label htmlFor={inputId}>{label}</label>
+                    <span className="flex items-center gap-3">
+                        {headerAction}
+                        <span className="font-medium tabular-nums text-neutral-400 dark:text-neutral-500">
+                            {selectedCount} selected
+                        </span>
                     </span>
-                </span>
+                </div>
                 <div className="relative">
-                    <input className={mediaFormInputClasses} type="text" maxLength={maxLength} value={inputValue} onChange={onInputChange} onFocus={() => onOpenSuggestions(field)} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, field)} placeholder={placeholder} autoFocus={autoFocus} />
+                    <input id={inputId} className={mediaFormInputClasses} type="text" maxLength={maxLength} value={inputValue} onChange={onInputChange} onFocus={() => onOpenSuggestions(field)} onBlur={onCloseSuggestions} onKeyDown={(event) => onSuggestionKeyDown(event, field)} placeholder={placeholder} autoFocus={autoFocus} />
                     {activeSuggestionField === field ? <MediaSuggestionList items={suggestions} activeIndex={activeSuggestionIndex} onSelect={onAdd} /> : null}
                 </div>
-            </label>
+            </div>
 
             <div
                 ref={chipsContainerRef}
@@ -202,6 +208,7 @@ export const MediaTagsField = ({
     getTagStyle,
     // Tags que no se pueden quitar (p. ej. "Google Drive" en medias de Drive). Se muestran primero, con candado.
     lockedTags = [],
+    headerAction = null,
     compact = false,
 }) => {
     const toKey = (tag) => String(tag).trim().toLowerCase();
@@ -236,6 +243,7 @@ export const MediaTagsField = ({
             onSuggestionKeyDown={onSuggestionKeyDown}
             onAdd={onAddTag}
             onRemove={onRemoveTag}
+            headerAction={headerAction}
             compact={compact}
         />
     );

@@ -54,6 +54,8 @@ import { formatDownloadSpeed } from "../../utils/downloadUtils";
 import { rankSuggestions } from "../../utils/suggestionRanking";
 import { DRIVE_IMPORT_DESCRIPTION, describeMediaDeletion, isDriveMedia } from "../../utils/mediaSource";
 import { useImportDriveMedia } from "../../hooks/useGoogleDrive";
+import { useAiTaggingPreference } from "../../hooks/useAiAssistant";
+import { AiTagSelectionButton } from "../../components/ai-tag-selection-button/AiTagSelectionButton";
 import "./GalleryPage.css";
 import { hasLibraryAccess } from "../../utils/libraryAccess";
 
@@ -547,6 +549,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
     const [uploadMarksFavourite, setUploadMarksFavourite] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const uploadMediaMutation = useMutation({ mutationFn: uploadMedia });
+    const aiTagging = useAiTaggingPreference();
     const [uploadTotal, setUploadTotal] = useState(0);
     const [uploadRemaining, setUploadRemaining] = useState(0);
     const [uploadProgressPercent, setUploadProgressPercent] = useState(0);
@@ -2380,6 +2383,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                 author: finalAuthor,
                 tags: selectedTags,
                 markFavourite: uploadMarksFavourite,
+                tagWithAi: aiTagging.tagWithAi,
                 signal: uploadAbortController.signal,
                 onUploadProgress: (progressEvent) => {
                     const totalBytes = progressEvent.total || null;
@@ -3172,6 +3176,8 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                         <FontAwesomeIcon icon={faPen} aria-hidden="true" />
                     </button>
 
+                    <AiTagSelectionButton mediaIds={[...selectedMediaIds].map(Number)} />
+
                     <button
                         type="button"
                         className="tagged-gallery-selection-icon-button tagged-gallery-selection-icon-button--delete"
@@ -3311,6 +3317,7 @@ export const GalleryPage = ({ onlyFavourites = false, basePath = "/gallery" }) =
                     onCancelUpload={cancelUpload}
                     onChangeFiles={openSystemFilePicker}
                     onSubmit={handleUploadSubmit}
+                    aiTagging={aiTagging.isAvailable ? { checked: aiTagging.isEnabled, onChange: aiTagging.setEnabled } : null}
                     onDisplayNameChange={(event) => {
                         setDisplayNameInput(event.target.value);
                         openSuggestions("displayname");

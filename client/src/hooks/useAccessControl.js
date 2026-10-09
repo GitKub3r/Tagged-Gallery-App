@@ -4,7 +4,7 @@ import { useAuth } from "./useAuth";
 import { getHomePath, isDemoMode } from "../utils/libraryAccess";
 
 const ADMIN_ROUTES = ["/logs", "/actions", "/users", "/account"];
-const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/templates", "/rules", "/drive", "/dashboard", "/trash", "/account"];
+const BASIC_ROUTES = ["/gallery", "/albums", "/favourites", "/metadata", "/templates", "/rules", "/assistant", "/drive", "/dashboard", "/trash", "/account"];
 const DEV_ROUTES = BASIC_ROUTES;
 
 // Rutas permitidas por rol. Un admin con el modo demo activo solo usa las de biblioteca (su biblioteca demo):

@@ -1,6 +1,6 @@
 import { apiClient } from "./apiClient";
 
-export const createMediaUploadRequest = ({ files, displayName = "", author = "", tags = [], markFavourite = false }) => {
+export const createMediaUploadRequest = ({ files, displayName = "", author = "", tags = [], markFavourite = false, tagWithAi = false }) => {
     if (!Array.isArray(files) || files.length === 0) {
         throw new Error("At least one file is required");
     }
@@ -12,6 +12,7 @@ export const createMediaUploadRequest = ({ files, displayName = "", author = "",
     formData.append("author", String(author).trim());
     formData.append("tag_names", JSON.stringify(tags));
     formData.append("is_favourite", String(markFavourite));
+    formData.append("ai_tag", String(tagWithAi));
 
     if (isMultiple) {
         files.forEach((file) => formData.append("files", file));
@@ -26,8 +27,8 @@ export const createMediaUploadRequest = ({ files, displayName = "", author = "",
     };
 };
 
-export const uploadMedia = async ({ files, displayName, author, tags, markFavourite, onUploadProgress, signal }) => {
-    const { endpoint, formData } = createMediaUploadRequest({ files, displayName, author, tags, markFavourite });
+export const uploadMedia = async ({ files, displayName, author, tags, markFavourite, tagWithAi, onUploadProgress, signal }) => {
+    const { endpoint, formData } = createMediaUploadRequest({ files, displayName, author, tags, markFavourite, tagWithAi });
     const accessToken = typeof window !== "undefined" ? window.localStorage.getItem("accessToken") : null;
 
     const response = await apiClient.post(endpoint, formData, {

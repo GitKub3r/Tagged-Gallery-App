@@ -13,6 +13,7 @@ const MediaTagModel = require("../models/MediaTag.model");
 const AuditService = require("./Audit.service");
 const MediaService = require("./Media.service");
 const RuleEngineService = require("./RuleEngine.service");
+const AiAssistantService = require("./AiAssistant.service");
 const { encrypt, decrypt, hasEncryptionKey } = require("../utils/crypto");
 const {
     computeFileMd5,
@@ -928,6 +929,7 @@ class GoogleDriveService {
         }
 
         if (result.linked.length > 0) {
+            await AiAssistantService.prepareAddedMedia(user.id, result.linked.map((item) => item.id), { tagWithAi: validation.tagWithAi });
             await RuleEngineService.runForEvent(user.id, "added", result.linked.map((item) => item.id));
             await AuditService.logEvent({
                 actionCode: "GOOGLE_DRIVE_LINK",
